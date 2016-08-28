@@ -2,19 +2,9 @@ from __future__ import print_function
 from re_scan import Scanner
 import collections
 import re
-import sys
-import argparse
 import json
 
 Report = collections.namedtuple('Report', ['header', 'items'])
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                        default=sys.stdin)
-    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'),
-                        default=sys.stdout)
-    return parser.parse_args()
 
 def parse_votes(text):
     votes = [' '.join(v.split()) for v in text.strip().split(',') if len(v.strip()) > 0]
@@ -28,8 +18,8 @@ class Parser(object):
     AGAINST_LOOKUP = 5
     ABSTAINING_LOOKUP = 6
 
-    SESSION_NAME_LINE = 5
-    MEETING_DATE_LINE = 8
+    SESSION_NAME_LINE = 4
+    MEETING_DATE_LINE = 7
 
     def __init__(self):
         self.line_rules = [
@@ -72,21 +62,28 @@ class Parser(object):
         self.string_patterns = list(map(lambda x: (re.compile(x[0], flags=re.UNICODE), x[1]), self.string_rules))
         self.scanner = Scanner([
             ('vote_open', r'(<i>)? ?A record(ed| of) vote was taken\.? ?(<\/i>)?\.?'),
+            ('secret_vote_open', r'(<i>)? ?A vote was taken by secret ballot\.? ?(<\/i>)?\.?'),
             ('in_favour_open', r'<i>In favour:?<\/i>:?'),
             ('against_open', r'<i>Against:?<\/i>:?'),
             ('abstaining_open', r'<i>Abstaining:?<\/i>:?'),
             ('programme_of_work', r'<b>Programme of work<\/b>'),
             ('president', r'<i>President:?<\/i>:?\n(?P<name>\w+\. [\w ]+)( \.)+( |\n)\((?P<state>[\w ]+)\)'),
-            ('agenda_item', r'<b>(Agenda items? \d+|Items? \d+ of the provisional agenda).*<\/b>(\(<i>continued<\/i>\))?'),
+            ('agenda_item', r'<b>Agenda items? \d+.*<\/b> ?(\(?<i>\(?continued\)?<\/i>\)?)?'),
+            #('agenda_item', r'<b>(Agenda items? \d+|Items? \d+ of the provisional agenda).*<\/b>(\(<i>continued<\/i>\))?'),
             ('president_statement', r'<b>Statement by the President<\/b>?'),
-            ('president_speaker', r'<b>(?P<name>The (Acting )?President) ?:?<\/b>( ?\(<i>spoke(<\/i>\n<i>)? ?(in ?)?(<\/i>\n<i>)?(?P<language>.*?)<\/i>\))??:?'),
+            ('president_speaker', r'<b>(?P<name>The (Acting )?President) ?:?<\/b>( ?\(<i>[i|I]nterpretation|[s|S]poke(<\/i>\n<i>)? ?(from|in ?)?(<\/i>\n<i>)?(?P<language>.*?)<\/i>\))??:?'),
             ('speaker', r'<b>(?P<name>.*?) ?<\/b>( ?\((?P<state>.*?([\r\n].*?)??.*?)\))??( ?\(<i>spoke ?(in ?)?(<\/i>\n<i>(in )?)?(?P<language>.*?)<\/i>\))??:'),
-            ('draft_resolution_adopted', r'<i>Draft resolution (?P<draft_resolution_name>[A-Z]\/\d+\/.*?) was adopted.*<\/i>'),
-            ('draft_resolution_rejected', r'<i>Draft resolution (?P<draft_resolution_name>[A-Z]\/\d+\/.*?) was rejected.*<\/i>'),
-            ('draft_decision_adopted', r'<i>Draft decision (?P<draft_decision_name>[A-Z]\/\d+\/.*?) was adopted.*<\/i>'),
-            ('draft_decision_rejected', r'<i>Draft resolution (?P<draft_decision_name>[A-Z]\/\d+\/.*?) was rejected.*<\/i>'),
+            ('draft_resolution_adopted', r'<i>Draft resolution (?P<draft_resolution_name>[A-Z]+(\/\d+\/)?.*?) was adopted.*<\/i>'),
+            ('draft_resolution_rejected', r'<i>Draft resolution (?P<draft_resolution_name>[A-Z]+(\/\d+\/)?.*?) was rejected.*<\/i>'),
+            ('draft_decision_adopted', r'<i>Draft decision (?P<draft_decision_name>[A-Z]+(\/\d+\/)?.*?) was adopted.*<\/i>'),
+            ('draft_decision_rejected', r'<i>Draft decision (?P<draft_decision_name>[A-Z]+(\/\d+\/)?.*?) was rejected.*<\/i>'),
+            ('amendment_adopted', r'<i>The amendment was adopted.*<\/i>'),
+            ('amendment_rejected', r'<i>The (oral )?amendment was rejected.*<\/i>'),
             ('decided', r'<i>It was so decided\.? ?<\/i>\.?'),
-            ('meeting_end', r'(<i>)?(<b>)?(.*escorted.*)?(?P<decided>It was so decided. )? ?The(<\/i>)? (<i>)?meeting (was )?(rose|adjourned)( at)?((<\/i> <i>)| )(noon|\d{1,2}(<\/i>)?((\.|:) ?(<i>)?\d{2}(\.)?)? ?(noon|[a|p](<\/i>)?(\.)?(<i>)?m))(<\/i>)?\.? ?(<\/b>)?(<\/i>)?'),
+            ('meeting_begin', r'(<i>.*)?(<b>.*)??The(<\/i>)? (<i>)?meeting was called to order at?((<\/i> <i>)| )(noon|\d{1,2}(<\/i>)?((\.|:) ?(<i>)?\d{2}(\.)?)? ?(noon|[a|p](<\/i>)?(\.)?(<i>)?m)?)(<\/i>)?\.? ?(<\/b>)?(<\/i>)?'),
+            ('meeting_end', r'(<i>.*)?(<b>.*)?(.*escorted.*)?(?P<decided>It was so decided. )? ?The(<\/i>)? (<i>)?meeting (was )?(rose|adjourned|called to order)( at)?((<\/i> <i>)| )(noon|\d{1,2}(<\/i>)?((\.|:) ?(<i>)?\d{2}(\.)?)? ?(noon|[a|p](<\/i>)?(\.)?(<i>)?m)?)(<\/i>)?\.? ?(<\/b>)?(<\/i>)?'),
+            ('meeting_suspended', r'.*meeting was suspended.*'),
+            #('meeting_suspended', r'(<i>.*)?(<b>.*)?The(<\/i>)? (<i>)?meeting was suspended( at)?((<\/i> <i>)| )(noon|\d{1,2}(<\/i>)?((\.|:) ?(<i>)?\d{2}(\.)?)? ?(noon|[a|p](<\/i>)?(\.)?(<i>)?m)?)(<\/i>)?\.? ?(<\/b>)?(<\/i>)?'),
         ])
 
     def keep_line(self, line):
@@ -114,6 +111,8 @@ class Parser(object):
                 header_found = True
                 header = [self.clean_line(line)]
                 for count, line in enumerate(infile):
+                    if re.match('<text .*?>asdf<\/text>', line):
+                        continue
                     header.append(self.clean_line(line))
                     if count == 11:
                         break
@@ -153,7 +152,6 @@ class Parser(object):
                     report.header['president'] = match.groupdict()
                 elif token == 'agenda_item':
                     print('NEW AGENDA ITEM')
-                    print(match.group(0))
                     items = []
                     for m in re.finditer(r'(?P<item_nb>\d+) ?(<\/b> ?)?(?P<continued>\(<i>continued<\/i>\))?', match.group(0)):
                         items.append({'type': None, 'item_nb': m.group('item_nb'), 'continued': True if m.group('continued') is not None else False})
@@ -176,6 +174,9 @@ class Parser(object):
                     vote = {'in_favour':[], 'against':[], 'abstaining':[]}
                     item['statements'].append({'vote': vote})
                     self.state = self.ITEM_LOOKUP
+                elif token == 'secret_vote_open':
+                    print('SECRET VOTE OPEN')
+                    #TODO: implement this
                 elif token == 'in_favour_open':
                     print('IN FAVOUR OPEN')
                     self.state = self.IN_FAVOUR_LOOKUP
@@ -227,6 +228,19 @@ class Parser(object):
                         report.items.append(item)
                     item['statements'].append({'header': match.groupdict(), 'adopted': False})
                     #item = None
+                elif token == 'amendment_adopted':
+                    print('AMENDMENT ADOPTED:', match.groupdict())
+                    self.state = self.ITEM_LOOKUP
+                    item['statements'].append({'header': match.groupdict(), 'adopted': True})
+                    #item = None
+                elif token == 'amendment_rejected':
+                    print('AMENDMENT REJECTED')
+                    self.state = self.ITEM_LOOKUP
+                    if item is None:
+                        item = {'statements':[]}
+                        report.items.append(item)
+                    item['statements'].append({'header': match.groupdict(), 'adopted': False})
+                    #item = None
                 elif token == 'decided':
                     print('IT WAS SO DECIDED')
                     self.state = self.ITEM_LOOKUP
@@ -235,6 +249,10 @@ class Parser(object):
                         report.items.append(item)
                     item['statements'].append({'header': match.groupdict(), 'decided': True})
                     #item = None
+                elif token == 'meeting_begin':
+                    print('BEGIN')
+                elif token == 'meeting_suspended':
+                    print('SUSPENDED')
                 elif token == 'meeting_end':
                     print('END')
                     if match.groupdict()['decided']:
@@ -244,8 +262,3 @@ class Parser(object):
     def parse_xml(self, args):
         report = self.get_report(args.infile)
         json.dump(report._asdict(), args.outfile, indent=4)
-
-if __name__ == "__main__":
-    args = parse_args()
-    parser = Parser()
-    parser.parse_xml(args)

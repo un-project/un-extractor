@@ -1,7 +1,9 @@
+from __future__ import print_function
+
 import sys
 import argparse
 
-from un_extractor.parser import Parser
+from un_extractor.extractor import Extractor
 from un_extractor.version import __version__
 
 VERSION = __version__
@@ -23,17 +25,19 @@ def main():
     if args.version:
         usage()
 
-    print('un_extractor - an extractor for general assembly records (v. %s)' % VERSION)
+    print('un_extractor - an extractor for general assembly records (v. %s)'
+          % VERSION)
     print('-----------------------')
-    parser = Parser()
-    parser.parse_xml(args)
+    extractor = Extractor()
+    extractor.extract(args.infile, args.outfile)
     print('...done')
 
 
 def usage(error=None):
     print(
         ' -------------------------------------------------------------------')
-    print(' un_extractor - extract data from general assembly records (v. %s)' % VERSION)
+    print(' un_extractor - extract data from general assembly records (v. %s)'
+          % VERSION)
     print(' ')
     print(' un_extractor <xml> <json> [options]')
     print(' use -h to see options')

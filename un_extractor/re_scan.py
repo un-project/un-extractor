@@ -1,8 +1,12 @@
+"""This is the scanner module.
+
+This module tokenizes strings with regular expressions.
+"""
+
 from sre_parse import Pattern, SubPattern, parse
 from sre_compile import compile as sre_compile
 from sre_constants import BRANCH, SUBPATTERN
 import re
-
 
 class _ScanMatch(object):
 
@@ -28,7 +32,7 @@ class _ScanMatch(object):
     def group(self, *groups):
         if len(groups) in (0, 1):
             return self.__group_proc(self._match.group,
-                                  groups and groups[0] or 0)
+                                     groups and groups[0] or 0)
         return tuple(self.__group_proc(self._match.group, group)
                      for group in groups)
 
@@ -83,8 +87,9 @@ class Scanner(object):
             ]))
             self.rules.append((name, last_group, pattern.groups - 1))
 
-        self._scanner = sre_compile(SubPattern(
-            pattern, [(BRANCH, (None, subpatterns))]), flags=re.UNICODE).scanner
+        self._scanner = sre_compile(SubPattern(pattern,
+                                               [(BRANCH, (None, subpatterns))]),
+                                    flags=re.UNICODE|re.VERBOSE).scanner
 
     def scan(self, string, skip=False):
         sc = self._scanner(string)

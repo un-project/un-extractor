@@ -6,9 +6,10 @@ This module parses XML files to extract a report in JSON format.
 from __future__ import print_function
 
 import collections
-import re
 import json
 import logging
+import lxml.etree
+import re
 import sys
 
 from un_extractor.re_scan import Scanner
@@ -26,9 +27,108 @@ def parse_votes(text):
              if len(v.strip()) > 0]
     return votes
 
-def remove_xml_tag(string, tag):
-    return string.strip().replace('</%s>' % tag, '')\
-            .replace('<%s>' % tag, '')
+def xpath_regex(element, expression):
+    for elem in element.xpath(expression,
+                              namespaces=
+                              {"re": "http://exslt.org/regular-expressions"}):
+        yield elem
+
+def read_paragraphs(elem, paragraphs, paragraph='', quoted=False):
+    parent_elem = elem
+    if len(paragraph) == 0:
+        paragraph = elem.xpath("string()")
+        paragraph = paragraph[paragraph.find(':') + 1:-1].strip()
+    for elem in xpath_regex(parent_elem, ".//following-sibling::text"):
+        elem_top = int(elem.get("top"))
+        elem_left = int(elem.get("left"))
+        if elem_top < 135 or elem_top > 1082:
+            continue;
+        if elem.find("b") is not None:
+            if len(paragraph.strip()) > 0:
+                logger.info('\t\tnew paragraph')
+                logger.debug('\t\t%s' % paragraph.strip())
+                paragraphs.append(paragraph.strip())
+                quoted = False
+            return
+        if elem.text is None or len(elem.text.strip()) == 0:
+            continue
+        if not quoted and (elem_left == 126 or elem_left == 504 or
+                           elem.text[0] == ' '):
+            if len(paragraph.strip()) > 0:
+                logger.info('\t\tnew paragraph')
+                logger.debug('\t\t%s' % paragraph.strip())
+                paragraphs.append(paragraph.strip())
+            paragraph = elem.text.strip()
+        elif elem_left == 162:
+            quoted = True
+            if len(paragraph.strip()) > 0:
+                logger.info('\t\tnew paragraph')
+                logger.debug('\t\t%s' % paragraph.strip())
+                paragraphs.append(paragraph.strip())
+            paragraph = elem.text.strip()
+        else:
+            paragraph = ' '.join([paragraph, elem.text.strip()])
+
+    # move to next page with list of bold text
+    next_page = parent_elem.getparent().getnext()
+    if next_page is not None:
+        read_paragraphs(next_page.find("text"), paragraphs, paragraph,
+                             quoted)
+    else:
+        if len(paragraph.strip()) > 0:
+            logger.info('\t\tnew paragraph')
+            logger.debug('\t\t%s' % paragraph.strip())
+            paragraphs.append(paragraph.strip())
+
+def read_statements(elem, statements):
+    parent_text = elem.getparent()
+    elems = xpath_regex(parent_text, ".//following-sibling::text/b")
+    while elem is not None:
+        elem_left = int(elem.getparent().get("left"))
+        if elem_left != 126 and elem_left != 504:
+            elem_top = int(elem.getparent().get("top"))
+            if elem_top < 135 or elem_top > 1082:
+                # skip page header
+                try:
+                    elem = elems.next()
+                except StopIteration:
+                    elem = None
+                continue
+            # found new agenda item
+            return
+        logger.info('\tnew speaker')
+        logger.debug('\t%s' % elem.text.strip())
+        match = re.search(
+            r"""<b>(?P<name>.*?)\ ?<\/b>
+            (\ *\((?P<state>.*?([\r\n].*?)??.*?)\))??
+            (\ *\(?<i>spoke\ in\ (?P<language>.*?)<\/i>\))??:""",
+            lxml.etree.tostring(elem.getparent()),
+            flags=re.UNICODE|re.VERBOSE)
+        if match is not None:
+            statement = {'speaker': {'name': match.group('name'),
+                                     'language': match.group('language'),
+                                     'state': match.group('state')},
+                         'paragraphs':[]}
+        else:
+            statement = {'speaker': {'name': elem.text.strip(),
+                                     'language': None,
+                                     'state': None},
+                         'paragraphs':[]}
+        read_paragraphs(elem.getparent(), statement['paragraphs'])
+        statements.append(statement)
+        try:
+            elem = elems.next()
+        except StopIteration:
+            elem = None
+    # move to next page with list of bold text
+    next_page = parent_text.getparent().getnext()
+    while next_page is not None:
+        next_b = next_page.find('.//b')
+        if next_b is not None:
+            read_statements(next_b, statements)
+            break
+        else:
+            next_page = next_page.getnext()
 
 class Extractor(object):
     ITEM_LOOKUP = 1
@@ -44,162 +144,6 @@ class Extractor(object):
 
     def __init__(self):
         self.state = self.ITEM_LOOKUP
-        self.line_rules = [
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                    <b>\d+\/\d+\ ?<\/b>
-                <\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                    \d{2}-\d{5}
-                    <b>\ [\d]+\/[\d]+\ ?<\/b>
-                <\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                    \d{2}-\d{5}
-                <\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                    <b>[A-Z]\/\d{2}\/PV\.\d{1,3}\ \d{2}\/\d{2}\/\d{4}<\/b>
-                <\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                    <b>\d{2}\/\d{2}\/\d{4}\ [A-Z]\/\d{2}\/PV\.\d{1,3}<\/b>
-                <\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                <b>[A-Z]\/\d{2}\/PV\.\d{1,3}<\/b><\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>\d+-\d+
-                \ [A-Z]?<\/text>""",
-            r"""<text(\ [a-z]+?=\"\d+\")*>
-                    (<i>)*(<b>)*\ +(<\/b>)*(<\/i>)*
-                <\/text>""",
-            r"""^<image\ """,
-            r"""^<page\ number""",
-            r"""^\s*<fontspec""",
-            r"""^<\/page>""",
-            r"""^<pdf2xml""",
-            r"""^<\/pdf2xml>$""",
-            r"""^<\?xml""",
-            r"""<!DOCTYPE""",
-        ]
-        self.word_rules = [
-            (r"""<text.*font=\"\d+\">""", r''),
-            (r"""<\/text>""", r''),
-            (r"""\ +""", r' '),
-            (r"""-\n""", r'-')
-        ]
-        self.string_rules = [
-            (r"""\ +\n """, ' '),
-            (r"""(\w)\ <\/i>\n<i>""", r'\1 '),
-            (r"""(\w)\ <\/b>\n<b>(?!Agenda)""", r'\1 '),
-            (r"""<\/i><i>""", r''),
-            (r"""<\/b><b>""", r''),
-            (r"""<i>\ <\/i>""", r' '),
-            (r"""<b>\ <\/b>""", r' ')
-        ]
-
-        self.line_patterns = [re.compile(x, flags=re.UNICODE|re.VERBOSE)
-                              for x in self.line_rules]
-        self.word_patterns = [(re.compile(x[0], flags=re.UNICODE|re.VERBOSE),
-                               x[1]) for x in self.word_rules]
-        self.string_patterns = [(re.compile(x[0], flags=re.UNICODE|re.VERBOSE),
-                                 x[1]) for x in self.string_rules]
-        self.scanner = Scanner(rules=[
-            ('vote_open', r"""(<i>)?
-                \ ?A\ record(?:ed|\ of)\ vote\ was\ taken\.?\ ?(?:<\/i>)?\.?"""),
-            ('secret_vote_open', r"""(?:<i>)?
-                \ ?A\ vote\ was\ taken\ by\ secret\ ballot\.?\ ?(?:<\/i>)?\.?"""),
-            ('in_favour_open', r"""<i>In\ favour:?<\/i>:?"""),
-            ('against_open', r"""<i>Against:?<\/i>:?"""),
-            ('abstaining_open', r"""<i>Abstaining:?<\/i>:?"""),
-            ('programme_of_work', r"""<b>Programme\ of\ work<\/b>"""),
-            ('president', r"""<i>President:?<\/i>:?\n
-                (?P<name>\w+\.\ [\w\ ]+)
-                (?:\ \.)+
-                (?:\ |\n)
-                \(?:(?P<state>[\w\ ]+)\)"""),
-            ('agenda_item', r"""<b>(?:
-                Agenda\ items?\ \d+
-                |Items?\ \d+\ of\ the\ provisional\ agenda).*
-                <\/b>
-                \ ?(?:\(?<i>\(?continued\)?<\/i>\)?)?"""),
-            #('agenda_item', r"""<b>
-            #   (Agenda\ items? \d+|Items?\ \d+\ of\ the\ provisional\ agenda)
-            #   .*<\/b>(\(<i>continued<\/i>\))?"""),
-            ('president_statement', r"""<b>
-                Statement\ by\ the\ President<\/b>?"""),
-            ('president_speaker', r"""<b>
-                (?P<name>The\ (?:Acting\ )?President)\ ?:?<\/b>
-                (?:\ ?\(<i>[i|I]nterpretation|[s|S]poke(?:<\/i>\n<i>)?
-                \ ?(?:from|in\ ?)?(?:<\/i>\n<i>)?(?P<language>.*?)<\/i>\))??:?"""),
-            ('speaker', r"""<b>(?P<name>.*?)\ ?<\/b>
-                (\ ?\((?P<state>.*?([\r\n].*?)??.*?)\))??
-                (\ ?\(?:<i>spoke\ ?(?:in\ ?)?(?:<\/i>\n<i>(?:in\ )?)?
-                (?P<language>.*?)<\/i>\))??:"""),
-            ('draft_resolution_adopted', r"""<i>Draft\ resolution
-                \ (?P<draft_resolution_name>[A-Z]+(?:\/\d+\/)?.*?)
-                \ was\ adopted.*<\/i>"""),
-            ('draft_resolution_rejected', r"""<i>Draft\ resolution
-                \ (?P<draft_resolution_name>[A-Z]+(?:\/\d+\/)?.*?)
-                \ was\ rejected.*<\/i>"""),
-            ('draft_decision_adopted', r"""<i>Draft\ decision
-                \ (?P<draft_decision_name>[A-Z]+(?:\/\d+\/)?.*?)
-                \ was\ adopted.*<\/i>"""),
-            ('draft_decision_rejected', r"""<i>Draft\ decision
-                \ (?P<draft_decision_name>[A-Z]+(\/\d+\/)?.*?)
-                \ was\ rejected.*<\/i>"""),
-            ('amendment_adopted', r"""<i>The amendment\ was\ adopted.*<\/i>"""),
-            ('amendment_rejected', r"""<i>The\ (oral\ )?amendment\ was
-                \ rejected.*<\/i>"""),
-            ('decided', r"""<i>\s*It\ was\ so\ decided\.?\s*<\/i>\.?"""),
-            ('meeting_begin', r"""(<i>.*)?(<b>.*)??The(<\/i>)?
-                \ (<i>)?meeting\ was\ called\ to\ order\ at?
-                ((<\/i>\ <i>)|\ )(noon|\d{1,2}(<\/i>)?((\.|:)
-                \ ?(<i>)?\d{2}(\.)?)?\ ?(noon|[a|p](<\/i>)?(\.)?(<i>)?m)?)
-                (<\/i>)?\.?\ ?(<\/b>)?(<\/i>)?"""),
-            ('meeting_end', r"""(<i>.*)?(<b>.*)?(.*escorted.*)?
-                (?P<decided>It\ was\ so\ decided.\ )?
-                \ ?The(<\/i>)?\ (<i>)?meeting\ (was\ )?
-                (rose|adjourned|called\ to\ order)(\ at)?((<\/i>\ <i>)|\ )
-                (noon|\d{1,2}(<\/i>)?((\.|:)\ ?(<i>)?\d{2}(\.)?)?\ ?
-                (noon|[a|p](<\/i>)?(\.)?(<i>)?m)?)(<\/i>)?\.?
-                \ ?(<\/b>)?(<\/i>)?"""),
-            ('meeting_suspended', r""".*meeting\ was\ suspended.*"""),
-            #('meeting_suspended', r"""(<i>.*)?(<b>.*)?The(<\/i>)?
-            #   \ (<i>)?meeting\ was\ suspended(\ at)?((<\/i>\ <i>)|\ )
-            #   (noon|\d{1,2}(<\/i>)?((\.|:)\ ?(<i>)?\d{2}(\.)?)?
-            #   \ ?(noon|[a|p](<\/i>)?(\.)?(<i>)?m)?)(<\/i>)?\.?
-            #   \ ?(<\/b>)?(<\/i>)?"""),
-        ], flags=re.UNICODE|re.VERBOSE)
-
-    def keep_line(self, line):
-        for pattern in self.line_patterns:
-            if pattern.match(line):
-                #logger.info(line)
-                return False
-        return True
-
-    def clean_line(self, line):
-        for pattern, repl in self.word_patterns:
-            line = pattern.sub(repl, line)
-        return line
-
-    def clean_string(self, string):
-        for pattern, repl in self.string_patterns:
-            string = pattern.sub(repl, string)
-        return string
-
-    def get_lines(self, infile):
-        lines = collections.deque()
-        header_found = False
-        for line in infile:
-            if header_found is False\
-                and re.match(r'<text .*?>United Nations<\/text>', line):
-                header_found = True
-                header = [self.clean_line(line)]
-                for count, line in enumerate(infile):
-                    header.append(self.clean_line(line))
-                    if count == 11:
-                        break
-                lines.extendleft(reversed(header))
-            elif self.keep_line(line):
-                lines.append(self.clean_line(line))
-        return lines
 
     def is_report_ok(self, report):
         if not report.header:
@@ -236,165 +180,214 @@ class Extractor(object):
 
     def get_report(self, infile):
         report = Report(header={}, items=[])
-        lines = self.get_lines(infile)
-        input_text = ''.join(lines)
-        input_text = self.clean_string(input_text)
-        open('out.xml', 'w').write(input_text)
-        report.header['session_name'] = lines[self.SESSION_NAME_LINE].strip()
-        report.header['meeting_number'] =\
-            remove_xml_tag(lines[self.MEETING_NUMBER_LINE], 'b')
-        report.header['meeting_date'] = lines[self.MEETING_DATE_LINE].strip()
+        xml = lxml.etree.parse(infile)
         item = {}
         vote = {}
         statement = {}
-        for token, match in self.scanner.scan_with_holes(input_text):
-            if token is None:
-                if self.state == self.IN_FAVOUR_LOOKUP:
-                    vote['in_favour'] = parse_votes(match)
-                    self.state = self.STATEMENT_LOOKUP
-                elif self.state == self.AGAINST_LOOKUP:
-                    vote['against'] = parse_votes(match)
-                    self.state = self.STATEMENT_LOOKUP
-                elif self.state == self.ABSTAINING_LOOKUP:
-                    vote['abstaining'] = parse_votes(match)
-                    self.state = self.STATEMENT_LOOKUP
-                elif self.state == self.ITEM_TITLE_LOOKUP:
-                    item['header']['title'] += remove_xml_tag(match, 'b')
-                elif self.state == self.STATEMENT_LOOKUP:
-                    statement['paragraphs'] += match.strip().split('\n')
-            else:
-                if token == 'president':
-                    logger.info('new token: PRESIDENT')
-                    report.header['president'] = match.groupdict()
-                elif token == 'agenda_item':
-                    logger.info('new token: AGENDA ITEM')
-                    items = []
-                    logger.info(match.group(0))
-                    for iterator in re.finditer(
-                            r"""(?P<item_nb>\d+)
-                            \ ?(<\/b>\ ?)?(?P<continued>
-                            \(<i>continued<\/i>\))?""",
-                            match.group(0), flags=re.UNICODE|re.VERBOSE):
-                        items.append({
-                            'item_nb': iterator.group('item_nb'),
-                            'continued': True if iterator.group('continued')\
-                                    is not None else False})
-                    item = {'header': {'title': '', 'items': items},
-                            'statements':[]}
-                    report.items.append(item)
-                    self.state = self.ITEM_TITLE_LOOKUP
-                elif token == 'president_statement':
-                    logger.info('new token: PRESIDENT STATEMENT')
-                    item = {'header': {'title': 'Statement by the President'},
-                            'statements':[]}
-                    report.items.append(item)
-                    self.state = self.ITEM_TITLE_LOOKUP
-                elif token == 'programme_of_work':
-                    logger.info('new token: PROGRAMME OF WORK')
-                    item = {'header': {'title': 'Programme of work'},
-                            'statements':[]}
-                    report.items.append(item)
-                    self.state = self.ITEM_TITLE_LOOKUP
-                elif token == 'vote_open':
-                    logger.info('new token: VOTE OPEN')
-                    vote = {'in_favour':[], 'against':[], 'abstaining':[]}
-                    item['statements'].append({'vote': vote})
-                    self.state = self.ITEM_LOOKUP
-                elif token == 'secret_vote_open':
-                    logger.info('new token: SECRET VOTE OPEN')
-                    #TODO: implement this
-                elif token == 'in_favour_open':
-                    logger.info('new token: IN FAVOUR OPEN')
-                    self.state = self.IN_FAVOUR_LOOKUP
-                elif token == 'against_open':
-                    logger.info('new token: AGAINST OPEN')
-                    self.state = self.AGAINST_LOOKUP
-                elif token == 'abstaining_open':
-                    logger.info('new token: ABSTAINING OPEN')
-                    self.state = self.ABSTAINING_LOOKUP
-                elif token == 'speaker':
-                    logger.info('new token: SPEAKER')
-                    self.state = self.STATEMENT_LOOKUP
-                    statement = {'speaker': match.groupdict(), 'paragraphs':[]}
-                    if not item:
-                        item = {'statements':[]}
-                        report.items.append(item)
-                    item['statements'].append(statement)
-                elif token == 'president_speaker':
-                    logger.info('new token: PRESIDENT SPEAKER')
-                    self.state = self.STATEMENT_LOOKUP
-                    statement = {'speaker': match.groupdict(), 'paragraphs':[]}
-                    if not item:
-                        item = {'statements':[]}
-                        report.items.append(item)
-                    item['statements'].append(statement)
-                elif token == 'draft_resolution_adopted':
-                    logger.info('new token: DRAFT RESOLUTION ADOPTED: %s',
-                                match.groupdict())
-                    self.state = self.ITEM_LOOKUP
-                    item['statements'].append({'header': match.groupdict(),
-                                               'adopted': True})
-                    #item = None
-                elif token == 'draft_resolution_rejected':
-                    logger.info('new token: DRAFT RESOLUTION REJECTED')
-                    self.state = self.ITEM_LOOKUP
-                    if not item:
-                        item = {'statements':[]}
-                        report.items.append(item)
-                    item['statements'].append({'header': match.groupdict(),
-                                               'adopted': False})
-                    #item = None
-                elif token == 'draft_decision_adopted':
-                    logger.info('new token: DRAFT DECISION ADOPTED: %s',
-                                match.groupdict())
-                    self.state = self.ITEM_LOOKUP
-                    item['statements'].append({'header': match.groupdict(),
-                                               'adopted': True})
-                    #item = None
-                elif token == 'draft_decision_rejected':
-                    logger.info('new token: DRAFT DECISION REJECTED')
-                    self.state = self.ITEM_LOOKUP
-                    if not item:
-                        item = {'statements':[]}
-                        report.items.append(item)
-                    item['statements'].append({'header': match.groupdict(),
-                                               'adopted': False})
-                    #item = None
-                elif token == 'amendment_adopted':
-                    logger.info('new token: AMENDMENT ADOPTED: %s',
-                                match.groupdict())
-                    self.state = self.ITEM_LOOKUP
-                    item['statements'].append({'header': match.groupdict(),
-                                               'adopted': True})
-                    #item = None
-                elif token == 'amendment_rejected':
-                    logger.info('new token: AMENDMENT REJECTED')
-                    self.state = self.ITEM_LOOKUP
-                    if not item:
-                        item = {'statements':[]}
-                        report.items.append(item)
-                    item['statements'].append({'header': match.groupdict(),
-                                               'adopted': False})
-                    #item = None
-                elif token == 'decided':
-                    logger.info('new token: IT WAS SO DECIDED')
-                    self.state = self.ITEM_LOOKUP
-                    if not item:
-                        item = {'statements':[]}
-                        report.items.append(item)
-                    item['statements'].append({'header': match.groupdict(),
-                                               'decided': True})
-                    #item = None
-                elif token == 'meeting_begin':
-                    logger.info('new token: MEETING BEGIN')
-                elif token == 'meeting_suspended':
-                    logger.info('new token: MEETING SUSPENDED')
-                elif token == 'meeting_end':
-                    logger.info('new token: MEETING END')
-                    if match.groupdict()['decided']:
-                        item['statements'].append({'header': match.groupdict(),
-                                                   'decided': True})
-                    return report
+
+        # find session name
+        header = xpath_regex(xml, "(//text[re:match(text(),"
+                                  "'\s*.* session\s*')])[1]").next()
+        if header is not None:
+            logger.info('session_name: %s' % header.text.strip())
+            report.header['session_name'] = header.text.strip()
+
+            # find meeting number
+            meeting_number = xpath_regex(
+                header, "(.//following-sibling::text/b[re:match(text(),"
+                           "'\s*\d+\s*')])[1]").next()
+            if meeting_number is not None:
+                logger.info('meeting_number: %s' % meeting_number.text.strip())
+                report.header['meeting_number'] = meeting_number.text.strip()
+
+            # find meeting date
+            meeting_date = xpath_regex(
+                meeting_number.getparent(),
+                "(.//following-sibling::text)[2]").next()
+            if meeting_date is not None:
+                logger.info('meeting_date: %s' % meeting_date.text.strip())
+                report.header['meeting_date'] = meeting_date.text.strip()
+
+        # find agenda items
+        for agenda_item in xpath_regex(xml, "//text/b[re:match(text(),"
+            "'(\s*Items? \d+ of the provisional agenda.\s*|Agenda items? \d+)')]"):
+            logger.info('new agenda item')
+            items = []
+            for iterator in re.finditer(
+                    r"""(?P<item_nb>\d+)
+                    \ ?(<\/b>\ ?)?(?P<continued>
+                    \(<i>continued<\/i>\))?""",
+                    agenda_item.text, flags=re.UNICODE|re.VERBOSE):
+                items.append({
+                    'item_nb': iterator.group('item_nb'),
+                    'continued': True if iterator.group('continued')\
+                            is not None else False})
+            item = {'header': {'title': '', 'items': items},
+                    'statements':[]}
+            report.items.append(item)
+
+            # find item titles
+            parent_top = 0
+            for elem in xpath_regex(agenda_item.getparent(),
+                                    ".//following-sibling::text/b"):
+                elem_left = int(elem.getparent().get("left"))
+                elem_top = int(elem.getparent().get("top"))
+                if (elem_left == 126 or elem_left == 504) and\
+                    elem_top - parent_top > 18:
+                    # found statement
+                    logger.debug(item['header']['title'])
+                    read_statements(elem, item['statements'])
+                    break
+                item['header']['title'] += elem.text
+                parent_top = elem_top
+            item['header']['title'] = item['header']['title'].strip()
+        return report
+        #for token, match in self.scanner.scan_with_holes(input_text):
+        #    if token is None:
+        #        if self.state == self.IN_FAVOUR_LOOKUP:
+        #            vote['in_favour'] = parse_votes(match)
+        #            self.state = self.STATEMENT_LOOKUP
+        #        elif self.state == self.AGAINST_LOOKUP:
+        #            vote['against'] = parse_votes(match)
+        #            self.state = self.STATEMENT_LOOKUP
+        #        elif self.state == self.ABSTAINING_LOOKUP:
+        #            vote['abstaining'] = parse_votes(match)
+        #            self.state = self.STATEMENT_LOOKUP
+        #        elif self.state == self.STATEMENT_LOOKUP:
+        #            statement['paragraphs'] += match.strip().split('\n')
+        #    else:
+        #        if token == 'president':
+        #            logger.info('new token: PRESIDENT')
+        #            report.header['president'] = match.groupdict()
+        #        elif token == 'agenda_item':
+        #            logger.info('new token: AGENDA ITEM')
+        #            items = []
+        #            logger.info(match.group(0))
+        #            for iterator in re.finditer(
+        #                    r"""(?P<item_nb>\d+)
+        #                    \ ?(<\/b>\ ?)?(?P<continued>
+        #                    \(<i>continued<\/i>\))?""",
+        #                    match.group(0), flags=re.UNICODE|re.VERBOSE):
+        #                items.append({
+        #                    'item_nb': iterator.group('item_nb'),
+        #                    'continued': True if iterator.group('continued')\
+        #                            is not None else False})
+        #            item = {'header': {'title': '', 'items': items},
+        #                    'statements':[]}
+        #            report.items.append(item)
+        #            self.state = self.ITEM_TITLE_LOOKUP
+        #        elif token == 'president_statement':
+        #            logger.info('new token: PRESIDENT STATEMENT')
+        #            item = {'header': {'title': 'Statement by the President'},
+        #                    'statements':[]}
+        #            report.items.append(item)
+        #            self.state = self.ITEM_TITLE_LOOKUP
+        #        elif token == 'programme_of_work':
+        #            logger.info('new token: PROGRAMME OF WORK')
+        #            item = {'header': {'title': 'Programme of work'},
+        #                    'statements':[]}
+        #            report.items.append(item)
+        #            self.state = self.ITEM_TITLE_LOOKUP
+        #        elif token == 'vote_open':
+        #            logger.info('new token: VOTE OPEN')
+        #            vote = {'in_favour':[], 'against':[], 'abstaining':[]}
+        #            item['statements'].append({'vote': vote})
+        #            self.state = self.ITEM_LOOKUP
+        #        elif token == 'secret_vote_open':
+        #            logger.info('new token: SECRET VOTE OPEN')
+        #            #TODO: implement this
+        #        elif token == 'in_favour_open':
+        #            logger.info('new token: IN FAVOUR OPEN')
+        #            self.state = self.IN_FAVOUR_LOOKUP
+        #        elif token == 'against_open':
+        #            logger.info('new token: AGAINST OPEN')
+        #            self.state = self.AGAINST_LOOKUP
+        #        elif token == 'abstaining_open':
+        #            logger.info('new token: ABSTAINING OPEN')
+        #            self.state = self.ABSTAINING_LOOKUP
+        #        elif token == 'speaker':
+        #            logger.info('new token: SPEAKER')
+        #            self.state = self.STATEMENT_LOOKUP
+        #            statement = {'speaker': match.groupdict(), 'paragraphs':[]}
+        #            if not item:
+        #                item = {'statements':[]}
+        #                report.items.append(item)
+        #            item['statements'].append(statement)
+        #        elif token == 'president_speaker':
+        #            logger.info('new token: PRESIDENT SPEAKER')
+        #            self.state = self.STATEMENT_LOOKUP
+        #            statement = {'speaker': match.groupdict(), 'paragraphs':[]}
+        #            if not item:
+        #                item = {'statements':[]}
+        #                report.items.append(item)
+        #            item['statements'].append(statement)
+        #        elif token == 'draft_resolution_adopted':
+        #            logger.info('new token: DRAFT RESOLUTION ADOPTED: %s',
+        #                        match.groupdict())
+        #            self.state = self.ITEM_LOOKUP
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'adopted': True})
+        #            #item = None
+        #        elif token == 'draft_resolution_rejected':
+        #            logger.info('new token: DRAFT RESOLUTION REJECTED')
+        #            self.state = self.ITEM_LOOKUP
+        #            if not item:
+        #                item = {'statements':[]}
+        #                report.items.append(item)
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'adopted': False})
+        #            #item = None
+        #        elif token == 'draft_decision_adopted':
+        #            logger.info('new token: DRAFT DECISION ADOPTED: %s',
+        #                        match.groupdict())
+        #            self.state = self.ITEM_LOOKUP
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'adopted': True})
+        #            #item = None
+        #        elif token == 'draft_decision_rejected':
+        #            logger.info('new token: DRAFT DECISION REJECTED')
+        #            self.state = self.ITEM_LOOKUP
+        #            if not item:
+        #                item = {'statements':[]}
+        #                report.items.append(item)
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'adopted': False})
+        #            #item = None
+        #        elif token == 'amendment_adopted':
+        #            logger.info('new token: AMENDMENT ADOPTED: %s',
+        #                        match.groupdict())
+        #            self.state = self.ITEM_LOOKUP
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'adopted': True})
+        #            #item = None
+        #        elif token == 'amendment_rejected':
+        #            logger.info('new token: AMENDMENT REJECTED')
+        #            self.state = self.ITEM_LOOKUP
+        #            if not item:
+        #                item = {'statements':[]}
+        #                report.items.append(item)
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'adopted': False})
+        #            #item = None
+        #        elif token == 'decided':
+        #            logger.info('new token: IT WAS SO DECIDED')
+        #            self.state = self.ITEM_LOOKUP
+        #            if not item:
+        #                item = {'statements':[]}
+        #                report.items.append(item)
+        #            item['statements'].append({'header': match.groupdict(),
+        #                                       'decided': True})
+        #            #item = None
+        #        elif token == 'meeting_begin':
+        #            logger.info('new token: MEETING BEGIN')
+        #        elif token == 'meeting_suspended':
+        #            logger.info('new token: MEETING SUSPENDED')
+        #        elif token == 'meeting_end':
+        #            logger.info('new token: MEETING END')
+        #            if match.groupdict()['decided']:
+        #                item['statements'].append({'header': match.groupdict(),
+        #                                           'decided': True})
+        #            return report
 
     def extract(self, infile, outfile):
         logger.info("extract report from '%s'" % infile.name)

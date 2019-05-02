@@ -1,0 +1,17 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+argparse = "==1.2.1"
+coloredlogs = "==5.0"
+humanfriendly = "==2.0.1"
+python-dateutil = "==2.5.3"
+six = "==1.10.0"
+lxml = "*"
+
+[requires]
+python_version = "3.6"

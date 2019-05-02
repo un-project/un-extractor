@@ -1,5 +1,7 @@
+-i https://pypi.org/simple
 argparse==1.2.1
 coloredlogs==5.0
 humanfriendly==2.0.1
+lxml==4.3.3
 python-dateutil==2.5.3
 six==1.10.0

@@ -208,7 +208,7 @@ To add a new test PDF:
 
 ```bash
 # Convert PDF to XML
-pdftohtml -xml your-document.pdf tests/data/your-document.xml
+pdftohtml -xml -enc UTF-8 your-document.pdf tests/data/your-document.xml
 
 # Extract expected output
 uv run un_extractor tests/data/your-document.xml > tests/data/your-document.json

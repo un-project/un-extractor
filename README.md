@@ -38,16 +38,16 @@ pip install -e '.[dev]'
 
 ## Input Preparation
 
-UN General Assembly records are typically provided as PDF files. To use `un_extractor`, you must first convert the PDF to XML format using the `pdftohtml` command:
+UN General Assembly records are typically provided as PDF files. To use `un_extractor`, you must first convert the PDF to XML format using the `pdftohtml` command with UTF‑8 encoding:
 
 ```bash
-pdftohtml -xml -stdout input.pdf | un_extractor --quiet > output.json
+pdftohtml -xml -enc UTF-8 -stdout input.pdf | un_extractor --quiet > output.json
 ```
 
 Or convert to an XML file first, then extract:
 
 ```bash
-pdftohtml -xml input.pdf input.xml
+pdftohtml -xml -enc UTF-8 input.pdf input.xml
 un_extractor input.xml output.json
 ```
 
@@ -77,10 +77,10 @@ un_extractor meeting.xml meeting.json
 uv run un_extractor meeting.xml meeting.json
 
 # Pipe from pdftohtml directly
-pdftohtml -xml -stdout meeting.pdf | un_extractor --quiet > meeting.json
+pdftohtml -xml -enc UTF-8 -stdout meeting.pdf | un_extractor --quiet > meeting.json
 
 # Using uv with piped input
-pdftohtml -xml -stdout meeting.pdf | uv run un_extractor --quiet > meeting.json
+pdftohtml -xml -enc UTF-8 -stdout meeting.pdf | uv run un_extractor --quiet > meeting.json
 
 # Validate XML before extraction
 un_extractor --validate-only meeting.xml

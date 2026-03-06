@@ -24,10 +24,12 @@ JSON Report
 
 ### 1. Input Format: XML from pdftohtml
 
-PDFs are converted using `pdftohtml -xml`, which:
+PDFs are converted using `pdftohtml -xml -enc UTF-8`, which:
 - Preserves document layout via position attributes (`left`, `top`, `width`, `height`)
 - Marks text formatting (bold `<b>`, italic `<i>`) as XML tags
 - Maintains page structure with `<page>` and `<text>` elements
+
+Using `-enc UTF-8` ensures that non‑ASCII characters (e.g. names with accents) are handled correctly.
 
 Example XML structure:
 ```xml

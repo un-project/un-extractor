@@ -1,0 +1,2 @@
+# Include the sample data for testing
+include tests/data/*

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "un-extractor"
+version = "0.1.0"
+description = "Extractor for United Nations General Assembly records."
+authors = [
+    {name = "Olivier Crave", email = "olivier.crave@gmail.com"},
+]
+readme = "README.md"
+license = {text = "MIT"}
+dependencies = [
+    "rich>=13.0",  # replaces coloredlogs for pretty terminal output
+    "humanfriendly>=2.0.1",
+    "lxml>=4.3.3",
+    "python-dateutil>=2.5.3",
+    "six>=1.10.0",
+]
+requires-python = ">=3.8.1"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Text Processing :: Markup :: XML",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0.0",
+    "flake8<7.2.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/un-project/un-extractor"
+Download = "https://github.com/un-project/un-extractor/releases"
+
+[project.scripts]
+un_extractor = "un_extractor.cli.main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["un_extractor*"]

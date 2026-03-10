@@ -93,6 +93,35 @@ _INLINE_CODE_RE = re.compile(
 )
 
 
+# Common short words that stay lowercase in title case (unless first word).
+_LC_WORDS: frozenset[str] = frozenset(
+    {"a", "an", "the", "of", "for", "in", "on", "at", "by", "to",
+     "and", "or", "nor", "but", "as", "with", "from"}
+)
+
+
+def normalize_allcaps(text: str) -> str:
+    """Convert an ALL-CAPS string to title case; leave mixed-case text unchanged.
+
+    Applies a simple word-level title case where common function words
+    (of, the, for, …) remain lowercase unless they start the string.
+    If the text is not predominantly uppercase the original is returned.
+    """
+    alpha = [c for c in text if c.isalpha()]
+    if not alpha or sum(1 for c in alpha if c.isupper()) / len(alpha) <= 0.8:
+        return text
+    words = text.split()
+    out: list[str] = []
+    for i, word in enumerate(words):
+        low = word.lower()
+        if i > 0 and low in _LC_WORDS:
+            out.append(low)
+        else:
+            # Capitalize first letter, lowercase the rest (handles hyphens too)
+            out.append(re.sub(r"[A-Za-z]+", lambda m: m.group().capitalize(), word))
+    return " ".join(out)
+
+
 def _strip_inline_noise(text: str) -> str:
     """Remove doc-code/page-number runs embedded within block text."""
     cleaned = _INLINE_CODE_RE.sub("\n", text)

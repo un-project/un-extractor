@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 
 from src.models import Speech, SpeakerInfo
-from src.pdf.clean_text import _strip_inline_noise
+from src.pdf.clean_text import _strip_inline_noise, normalize_allcaps
 from src.structure.detect_sections import Section
 
 # ---------------------------------------------------------------------------
@@ -115,7 +115,7 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
         name = m.group(1).strip()
         lang = _parse_language(m.group(2))
         role = _infer_role(name, None)
-        return SpeakerInfo(name=name, country=None, language=lang, role=role)
+        return SpeakerInfo(name=normalize_allcaps(name), country=None, language=lang, role=role)
 
     # Try regular speaker (Mr./Mrs./Ms. + country)
     m2 = _SPEAKER_ATTR_RE.match(text)
@@ -140,7 +140,7 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
         country = None if is_dept else affiliation
         role = _infer_role(name, affiliation)
 
-        full_name = f"{title} {name}".strip() if title else name
+        full_name = normalize_allcaps(f"{title} {name}".strip() if title else name)
         return SpeakerInfo(
             name=full_name,
             title=title,

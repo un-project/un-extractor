@@ -119,7 +119,8 @@ def extract_president(text: str) -> PresidentInfo | None:
     if not m:
         return None
     # Strip trailing dot-leaders, underscores, or spaces from the name.
-    name = re.sub(r"[\s._\-]+$", "", m.group(1).strip())
+    from src.pdf.clean_text import normalize_allcaps
+    name = normalize_allcaps(re.sub(r"[\s._\-]+$", "", m.group(1).strip()))
     return PresidentInfo(name=name, country=m.group(2).strip())
 
 

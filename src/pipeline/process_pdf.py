@@ -30,7 +30,7 @@ from src.extraction.vote_extractor import (
     extract_stage_direction,
 )
 from src.models import DocumentItem, MeetingRecord, PresidentInfo
-from src.pdf.clean_text import clean_pages, flatten_blocks
+from src.pdf.clean_text import clean_pages, flatten_blocks, normalize_allcaps
 from src.pdf.extract_text import extract_pages
 from src.structure.detect_sections import Section, detect_sections
 from src.validation.json_validator import validate_record
@@ -63,7 +63,7 @@ def _parse_agenda_header(text: str) -> tuple[int | None, str | None, bool, str]:
     else:
         sub_item = None
         title = after or "—"
-    title = title.replace("(continued)", "").strip() or "—"
+    title = normalize_allcaps(title.replace("(continued)", "").strip() or "—")
     return number, sub_item, continued, title
 
 

@@ -137,3 +137,65 @@ class TestExtractResolutionFromAdoption:
 
     def test_returns_none_for_non_adoption(self) -> None:
         assert extract_resolution_from_adoption("It was so decided.", []) is None
+
+    def test_roman_numeral_adoption(self) -> None:
+        text = "Draft resolution I was adopted (resolution 65/206)."
+        res = extract_resolution_from_adoption(text, [])
+        assert res is not None
+        assert res.draft_symbol == "I"
+        assert res.adopted_symbol == "65/206"
+        assert res.vote_type == "consensus"
+
+    def test_roman_numeral_adoption_no_symbol(self) -> None:
+        text = "Draft resolution XIX was adopted."
+        res = extract_resolution_from_adoption(text, [])
+        assert res is not None
+        assert res.draft_symbol == "XIX"
+        assert res.adopted_symbol is None
+
+    def test_amendment_adoption_recorded(self) -> None:
+        surrounding = [
+            _make_block("adopted by 10 votes to 2, with 1 abstention"),
+            _make_block("In favour: France, Germany, Spain"),
+            _make_block("Against: Israel, USA"),
+            _make_block("Abstaining: Australia"),
+        ]
+        text = "The amendment (A/65/L.53) was adopted by 10 votes to 2, with 1 abstention."
+        res = extract_resolution_from_adoption(text, surrounding)
+        assert res is not None
+        assert res.draft_symbol == "A/65/L.53"
+        assert res.vote_type == "recorded"
+        assert res.yes_count == 10
+        assert res.no_count == 2
+        assert res.abstain_count == 1
+
+    def test_recorded_vote_signal_newer_format(self) -> None:
+        """Country lists appear *before* the adoption line (newer PDF format)."""
+        signal_block = _make_block("A recorded vote was taken.")
+        country_blocks = [
+            _make_block("In favour: Algeria, Angola, Argentina"),
+            _make_block("Against: Israel"),
+            _make_block("Abstaining: Australia"),
+        ]
+        # adoption line comes after; surrounding = signal + country blocks
+        surrounding = [signal_block] + country_blocks
+        text = "Draft resolution A/65/L.71 was adopted by 120 votes to 1, with 5 abstentions."
+        res = extract_resolution_from_adoption(text, surrounding)
+        assert res is not None
+        assert res.vote_type == "recorded"
+        assert res.yes_count == 120
+        assert res.no_count == 1
+        assert res.abstain_count == 5
+        positions = {cv.country: cv.vote_position for cv in res.country_votes}
+        assert positions["Algeria"] == "yes"
+        assert positions["Israel"] == "no"
+        assert positions["Australia"] == "abstain"
+
+    def test_preceding_text_resolves_unknown_symbol(self) -> None:
+        """When adoption line has no symbol, preceding_text provides it."""
+        text = "The draft resolution was adopted."
+        res = extract_resolution_from_adoption(
+            text, [], preceding_text="Draft resolution (A/65/L.99)"
+        )
+        assert res is not None
+        assert res.draft_symbol == "A/65/L.99"

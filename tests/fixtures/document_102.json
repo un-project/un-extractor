@@ -1,0 +1,156 @@
+{
+  "symbol": "A/76/PV.102",
+  "session": 76,
+  "meeting_number": 102,
+  "date": "2022-09-08",
+  "location": "New York",
+  "president_name": "Mr. Shahid",
+  "total_speeches": 87,
+  "total_resolutions": 4,
+  "total_stage_directions": 17,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 2,
+      "item_type": "agenda_item",
+      "agenda_number": 66,
+      "speech_count": 13,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "A/76/L.86",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 3,
+      "item_type": "agenda_item",
+      "agenda_number": 100,
+      "speech_count": 2,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "A/76/L.79",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 4,
+      "item_type": "agenda_item",
+      "agenda_number": 124,
+      "speech_count": 29,
+      "resolution_count": 2,
+      "resolutions": [
+        {
+          "draft_symbol": "A/76/L.85",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "A/76/L.79",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 5,
+      "item_type": "agenda_item",
+      "agenda_number": 117,
+      "speech_count": 13,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 6,
+      "item_type": "agenda_item",
+      "agenda_number": 14,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 7,
+      "item_type": "agenda_item",
+      "agenda_number": 35,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 8,
+      "item_type": "agenda_item",
+      "agenda_number": 41,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 9,
+      "item_type": "agenda_item",
+      "agenda_number": 67,
+      "speech_count": 13,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 10,
+      "item_type": "agenda_item",
+      "agenda_number": 89,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 11,
+      "item_type": "agenda_item",
+      "agenda_number": 121,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 12,
+      "item_type": "agenda_item",
+      "agenda_number": 127,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 13,
+      "item_type": "agenda_item",
+      "agenda_number": 156,
+      "speech_count": 3,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

@@ -1,0 +1,515 @@
+{
+  "symbol": "A/65/PV.71",
+  "session": 65,
+  "meeting_number": 71,
+  "date": "2010-12-21",
+  "location": "New York",
+  "president_name": "Mr. Deiss",
+  "total_speeches": 95,
+  "total_resolutions": 54,
+  "total_stage_directions": 1,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "agenda_item",
+      "agenda_number": 27,
+      "speech_count": 6,
+      "resolution_count": 6,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "III",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "IV",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "V",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 2,
+      "item_type": "agenda_item",
+      "agenda_number": 28,
+      "speech_count": 6,
+      "resolution_count": 6,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "III",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "IV",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "V",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 3,
+      "item_type": "agenda_item",
+      "agenda_number": 61,
+      "speech_count": 3,
+      "resolution_count": 3,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "III",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 4,
+      "item_type": "agenda_item",
+      "agenda_number": 63,
+      "speech_count": 4,
+      "resolution_count": 2,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "recorded",
+          "yes_count": 123,
+          "no_count": 1,
+          "abstain_count": 55
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 5,
+      "item_type": "agenda_item",
+      "agenda_number": 64,
+      "speech_count": 2,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 6,
+      "item_type": "agenda_item",
+      "agenda_number": 65,
+      "speech_count": 1,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 7,
+      "item_type": "agenda_item",
+      "agenda_number": 66,
+      "speech_count": 3,
+      "resolution_count": 3,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "recorded",
+          "yes_count": 129,
+          "no_count": 3,
+          "abstain_count": 52
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 8,
+      "item_type": "agenda_item",
+      "agenda_number": 67,
+      "speech_count": 3,
+      "resolution_count": 3,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "recorded",
+          "yes_count": 177,
+          "no_count": 6,
+          "abstain_count": 4
+        },
+        {
+          "draft_symbol": "III",
+          "vote_type": "recorded",
+          "yes_count": 127,
+          "no_count": 52,
+          "abstain_count": 5
+        }
+      ]
+    },
+    {
+      "position": 9,
+      "item_type": "agenda_item",
+      "agenda_number": 68,
+      "speech_count": 55,
+      "resolution_count": 20,
+      "resolutions": [
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "IV",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "V",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "VI",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "VII",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "VIII",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "IX",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "X",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "XI",
+          "vote_type": "recorded",
+          "yes_count": 132,
+          "no_count": 54,
+          "abstain_count": 0
+        },
+        {
+          "draft_symbol": "XII",
+          "vote_type": "recorded",
+          "yes_count": 131,
+          "no_count": 53,
+          "abstain_count": 0
+        },
+        {
+          "draft_symbol": "XIII",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "XIV",
+          "vote_type": "recorded",
+          "yes_count": 133,
+          "no_count": 24,
+          "abstain_count": 28
+        },
+        {
+          "draft_symbol": "XV",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "XVI",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "XVII",
+          "vote_type": "recorded",
+          "yes_count": 127,
+          "no_count": 54,
+          "abstain_count": 4
+        },
+        {
+          "draft_symbol": "XVIII",
+          "vote_type": "recorded",
+          "yes_count": 126,
+          "no_count": 54,
+          "abstain_count": 5
+        },
+        {
+          "draft_symbol": "XIX",
+          "vote_type": "recorded",
+          "yes_count": 79,
+          "no_count": 67,
+          "abstain_count": 40
+        },
+        {
+          "draft_symbol": "III",
+          "vote_type": "recorded",
+          "yes_count": 78,
+          "no_count": 45,
+          "abstain_count": 59
+        }
+      ]
+    },
+    {
+      "position": 10,
+      "item_type": "agenda_item",
+      "agenda_number": 105,
+      "speech_count": 7,
+      "resolution_count": 7,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "III",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "IV",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "V",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "VI",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 11,
+      "item_type": "agenda_item",
+      "agenda_number": 106,
+      "speech_count": 1,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 12,
+      "item_type": "agenda_item",
+      "agenda_number": 118,
+      "speech_count": 1,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 13,
+      "item_type": "agenda_item",
+      "agenda_number": 130,
+      "speech_count": 1,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

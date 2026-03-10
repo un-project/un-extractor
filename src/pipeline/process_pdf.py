@@ -112,6 +112,11 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
     _pending_vote_blocks: list = []   # accumulated body blocks after vote signal
     _after_vote_signal: bool = False  # True after "A recorded vote was taken."
 
+    # Track the most recent resolution_header text so adoption lines that
+    # carry no draft symbol ("The draft resolution was adopted.") can look up
+    # the symbol from the preceding bold header block.
+    _last_resolution_header_text: str = ""
+
     def _flush_and_start(
         title: str,
         item_type: str,
@@ -133,13 +138,17 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
         elem_pos = 0
         current_item_symbols = set()
 
-    def _try_add_resolution(sec: Section, extra_blocks: list | None = None) -> None:
+    def _try_add_resolution(
+        sec: Section,
+        extra_blocks: list | None = None,
+        preceding_text: str = "",
+    ) -> None:
         """Extract and append a resolution if an adoption line is found."""
         nonlocal elem_pos
         if current is None:
             return
         context_blocks = list(sec.blocks) + (extra_blocks or [])
-        res = extract_resolution_from_adoption(sec.text, context_blocks)
+        res = extract_resolution_from_adoption(sec.text, context_blocks, preceding_text)
         if res is not None and res.draft_symbol not in current_item_symbols:
             current.resolutions.append(
                 res.model_copy(update={"position_in_item": elem_pos})
@@ -185,7 +194,7 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             global_pos += 1
             # Adoption lines embedded in a speaker turn (e.g. The President
             # reading recorded-vote results aloud, as in document_107 L.67).
-            _try_add_resolution(section, _following(section))
+            _try_add_resolution(section, _following(section), _last_resolution_header_text)
 
         # ---- Stage direction -----------------------------------------------------
         elif section.section_type == "stage_direction":
@@ -202,10 +211,14 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
                 # recorded-vote signal and the country lists.
                 if _after_vote_signal:
                     _try_add_resolution(
-                        section, _pending_vote_blocks + _following(section)
+                        section,
+                        _pending_vote_blocks + _following(section),
+                        _last_resolution_header_text,
                     )
                 else:
-                    _try_add_resolution(section, _following(section))
+                    _try_add_resolution(
+                        section, _following(section), _last_resolution_header_text
+                    )
                 _after_vote_signal = False
                 _pending_vote_blocks = []
             elif "recorded vote was taken" in sd.text.lower():
@@ -216,8 +229,11 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
 
         # ---- Resolution header ---------------------------------------------------
         elif section.section_type == "resolution_header":
+            # Track so that a following "The draft resolution was adopted." line
+            # can recover the symbol from this header.
+            _last_resolution_header_text = section.text
             # Sub-heading within an item; also check for embedded adoption.
-            _try_add_resolution(section, _following(section))
+            _try_add_resolution(section, _following(section), _last_resolution_header_text)
 
         # ---- Body ----------------------------------------------------------------
         elif section.section_type == "body":

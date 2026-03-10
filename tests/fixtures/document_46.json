@@ -1,0 +1,37 @@
+{
+  "symbol": "A/48/PV.46",
+  "session": 48,
+  "meeting_number": 46,
+  "date": "1993-11-01",
+  "location": "New York",
+  "president_name": "Mr. Insanally",
+  "total_speeches": 33,
+  "total_resolutions": 0,
+  "total_stage_directions": 16,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "agenda_item",
+      "agenda_number": 14,
+      "speech_count": 5,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 2,
+      "item_type": "agenda_item",
+      "agenda_number": 14,
+      "speech_count": 28,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

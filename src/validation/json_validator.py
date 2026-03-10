@@ -36,6 +36,8 @@ class ValidationError:
 
 _SYMBOL_RE = re.compile(r"^[AS]/(?:\d+/)?PV\.\d+$")
 _DRAFT_SYMBOL_RE = re.compile(r"^(?:A|S)/\S+/L\.\d+")
+# Roman numerals (I, II … XIX and beyond) are valid draft symbols in omnibus sessions.
+_ROMAN_NUMERAL_RE = re.compile(r"^[IVXLCDM]+$", re.IGNORECASE)
 _ADOPTED_SYMBOL_RE = re.compile(r"^\d+/\d+$")
 
 
@@ -78,7 +80,10 @@ def _check_resolution(res: Resolution, prefix: str) -> list[ValidationError]:
 
     if not res.draft_symbol:
         errors.append(ValidationError(f"{prefix}.draft_symbol", "missing"))
-    elif not _DRAFT_SYMBOL_RE.match(res.draft_symbol):
+    elif not (
+        _DRAFT_SYMBOL_RE.match(res.draft_symbol)
+        or _ROMAN_NUMERAL_RE.match(res.draft_symbol)
+    ):
         errors.append(
             ValidationError(
                 f"{prefix}.draft_symbol",

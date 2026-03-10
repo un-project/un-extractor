@@ -219,7 +219,7 @@ class Resolution(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     draft_symbol: Mapped[str] = mapped_column(String(50), nullable=False)
-    adopted_symbol: Mapped[Optional[str]] = mapped_column(String(50), unique=True)
+    adopted_symbol: Mapped[Optional[str]] = mapped_column(String(50))
     title: Mapped[Optional[str]] = mapped_column(Text)
     body: Mapped[str] = mapped_column(String(2), nullable=False)
     session: Mapped[Optional[int]] = mapped_column(Integer)

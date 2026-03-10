@@ -6,7 +6,7 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 ## Extraction accuracy
 
-- [ ] **`unknown` draft symbol** — Some adoption lines match the adoption regex but no
+- [x] **`unknown` draft symbol** — Some adoption lines match the adoption regex but no
   capture group provides a draft symbol (e.g. "The draft decision was adopted." without a
   parenthetical). Consider extracting the symbol from a preceding bold "Draft decision
   (A/…)" header block and linking it to the adoption line.
@@ -38,7 +38,7 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 ## Database
 
-- [ ] **`adopted_symbol` uniqueness constraint** — `resolutions.adopted_symbol` has a
+- [x] **`adopted_symbol` uniqueness constraint** — `resolutions.adopted_symbol` has a
   `UNIQUE` constraint but multiple PDFs may reference the same adopted resolution (e.g. in
   explanation-of-vote sessions). Relax to allow `NULL` and non-unique non-null values, or
   use an upsert strategy.
@@ -51,13 +51,13 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 ## Testing
 
-- [ ] **Test coverage for session-65 patterns** — Add unit tests for Roman-numeral
+- [x] **Test coverage for session-65 patterns** — Add unit tests for Roman-numeral
   adoption lines, amendment adoption lines, and the "A recorded vote was taken." signal.
 
-- [ ] **Integration test fixture** — Add a golden JSON fixture for each of the five
+- [x] **Integration test fixture** — Add a golden JSON fixture for each of the five
   sample PDFs so regressions in extraction output are caught automatically.
 
-- [ ] **Validator test for Roman numeral symbols** — Once the validator accepts Roman
+- [x] **Validator test for Roman numeral symbols** — Once the validator accepts Roman
   numerals, add a corresponding test.
 
 ---

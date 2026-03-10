@@ -1,0 +1,132 @@
+{
+  "symbol": "A/64/PV.121",
+  "session": 64,
+  "meeting_number": 121,
+  "date": "2009-09-18",
+  "location": "New York",
+  "president_name": "Mr. Ali Abdussalam Treki",
+  "total_speeches": 20,
+  "total_resolutions": 5,
+  "total_stage_directions": 2,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 1,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "agenda_item",
+      "agenda_number": 21,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 2,
+      "item_type": "agenda_item",
+      "agenda_number": 48,
+      "speech_count": 8,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "A/64/L.72",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 3,
+      "item_type": "agenda_item",
+      "agenda_number": 52,
+      "speech_count": 1,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 4,
+      "item_type": "agenda_item",
+      "agenda_number": 53,
+      "speech_count": 4,
+      "resolution_count": 2,
+      "resolutions": [
+        {
+          "draft_symbol": "A/64/L.68",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "A/64/L.71",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 5,
+      "item_type": "agenda_item",
+      "agenda_number": 53,
+      "speech_count": 1,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "A/64/L.70",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 6,
+      "item_type": "agenda_item",
+      "agenda_number": 118,
+      "speech_count": 1,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        }
+      ]
+    },
+    {
+      "position": 7,
+      "item_type": "agenda_item",
+      "agenda_number": 119,
+      "speech_count": 1,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 8,
+      "item_type": "agenda_item",
+      "agenda_number": 122,
+      "speech_count": 1,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 9,
+      "item_type": "agenda_item",
+      "agenda_number": 151,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

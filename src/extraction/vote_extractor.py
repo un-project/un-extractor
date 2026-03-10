@@ -66,6 +66,10 @@ _VOTE_TOTALS_ALT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Symbol extracted from a preceding bold header block, e.g. "Draft resolution (A/65/L.71)".
+# Used as a fallback when the adoption line itself carries no symbol.
+_SYMBOL_FROM_CONTEXT_RE = re.compile(r"([AS]/[^)\s,]+)", re.IGNORECASE)
+
 # Signal that a recorded vote was taken (appears as its own italic line)
 _RECORDED_VOTE_SIGNAL_RE = re.compile(
     r"A\s+recorded\s+vote\s+was\s+taken", re.IGNORECASE
@@ -179,6 +183,7 @@ def extract_stage_direction(section: Section, position: int) -> StageDirection:
 def extract_resolution_from_adoption(
     text: str,
     surrounding_blocks: list[TextBlock],
+    preceding_text: str = "",
 ) -> Resolution | None:
     """Parse a ``Resolution`` from an adoption stage-direction text.
 
@@ -203,7 +208,12 @@ def extract_resolution_from_adoption(
     #   group 4 = adopted symbol (case 1/2)
     #   group 5 = amendment symbol (case 3)
     #   group 6 = adopted symbol (case 4)
-    draft_symbol: str = (m.group(2) or m.group(5) or "unknown").rstrip(".,;")
+    draft_symbol: str = (m.group(2) or m.group(5) or "").rstrip(".,;")
+    if not draft_symbol and preceding_text:
+        pm = _SYMBOL_FROM_CONTEXT_RE.search(preceding_text)
+        if pm:
+            draft_symbol = pm.group(1).rstrip(".,;)")
+    draft_symbol = draft_symbol or "unknown"
     adopted_symbol: str | None = (m.group(4) or m.group(6))
     if adopted_symbol:
         adopted_symbol = adopted_symbol.rstrip(".,;)")

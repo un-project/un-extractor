@@ -116,6 +116,25 @@ def _extract_country_votes(blocks: list[TextBlock]) -> list[CountryVote]:
     # Join all block text and look for In favour / Against / Abstaining sections.
     full_text = "\n".join(b.text for b in blocks)
 
+    # Determine the search region.  In the newer PDF format country lists
+    # appear *before* the adoption line; in the older format they appear
+    # after.  Restricting the search to the correct side prevents adjacent
+    # votes' country lists from leaking in via _following() blocks.
+    adoption_m = re.search(r"was adopted", full_text, re.IGNORECASE)
+    if adoption_m:
+        pre_text = full_text[: adoption_m.start()]
+        post_text = full_text[adoption_m.end() :]
+        # Newer format: at least one vote-category header precedes the adoption.
+        if (
+            _IN_FAVOUR_RE.search(pre_text)
+            or _AGAINST_RE.search(pre_text)
+            or _ABSTAINING_RE.search(pre_text)
+        ):
+            full_text = pre_text
+        else:
+            # Older format: country lists follow the adoption line.
+            full_text = post_text
+
     m_fav = _IN_FAVOUR_RE.search(full_text)
     m_against = _AGAINST_RE.search(full_text)
     m_abs = _ABSTAINING_RE.search(full_text)
@@ -182,8 +201,16 @@ def extract_resolution_from_adoption(
     # Determine if a recorded vote signal is present in surrounding blocks
     # ("A recorded vote was taken." appears as a separate italic line before
     # the country lists in the newer PDF format).
+    # Only count the signal as belonging to *this* vote if it appears before
+    # the adoption line — a signal appearing after the adoption line comes
+    # from a subsequent vote and must not contaminate this resolution.
     surrounding_text = "\n".join(b.text for b in surrounding_blocks)
-    has_recorded_signal = bool(_RECORDED_VOTE_SIGNAL_RE.search(surrounding_text))
+    adoption_pos_in_ctx = surrounding_text.lower().find("was adopted")
+    signal_m = _RECORDED_VOTE_SIGNAL_RE.search(surrounding_text)
+    has_recorded_signal = bool(
+        signal_m
+        and (adoption_pos_in_ctx < 0 or signal_m.start() < adoption_pos_in_ctx)
+    )
 
     # Look for vote totals in:
     # 1. The adoption line itself + first few blocks (old format)

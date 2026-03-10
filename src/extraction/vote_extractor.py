@@ -71,10 +71,17 @@ _RECORDED_VOTE_SIGNAL_RE = re.compile(
     r"A\s+recorded\s+vote\s+was\s+taken", re.IGNORECASE
 )
 
-# Per-country vote sections — multi-line lists
-_IN_FAVOUR_RE = re.compile(r"^In\s+favour\s*:\s*(.+)", re.IGNORECASE | re.MULTILINE)
-_AGAINST_RE = re.compile(r"^Against\s*:\s*(.+)", re.IGNORECASE | re.MULTILINE)
-_ABSTAINING_RE = re.compile(r"^Abstaining\s*:\s*(.+)", re.IGNORECASE | re.MULTILINE)
+# Per-country vote section headers — used to locate the start of each list.
+_IN_FAVOUR_RE = re.compile(r"(?:^|\n)In\s+favour\s*:\s*", re.IGNORECASE)
+_AGAINST_RE = re.compile(r"(?:^|\n)Against\s*:\s*", re.IGNORECASE)
+_ABSTAINING_RE = re.compile(r"(?:^|\n)Abstaining\s*:\s*", re.IGNORECASE)
+
+# Marks the end of a country-vote section (next header or adoption/note lines).
+_VOTE_SECTION_STOP_RE = re.compile(
+    r"\n(?:In\s+favour|Against|Abstaining|Draft\s+res|The\s+draft|The\s+amend"
+    r"|was adopted|\[)",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -125,31 +132,33 @@ def _extract_country_votes(blocks: list[TextBlock]) -> list[CountryVote]:
         pre_text = full_text[: adoption_m.start()]
         post_text = full_text[adoption_m.end() :]
         # Newer format: at least one vote-category header precedes the adoption.
-        if (
-            _IN_FAVOUR_RE.search(pre_text)
-            or _AGAINST_RE.search(pre_text)
-            or _ABSTAINING_RE.search(pre_text)
-        ):
+        _any_header = re.compile(
+            r"(?:^|\n)(?:In\s+favour|Against|Abstaining)\s*:", re.IGNORECASE
+        )
+        if _any_header.search(pre_text):
             full_text = pre_text
         else:
             # Older format: country lists follow the adoption line.
             full_text = post_text
 
-    m_fav = _IN_FAVOUR_RE.search(full_text)
-    m_against = _AGAINST_RE.search(full_text)
-    m_abs = _ABSTAINING_RE.search(full_text)
+    def _section_text(header_re: re.Pattern) -> str:
+        """Return everything from *header_re* to the next section boundary."""
+        m = header_re.search(full_text)
+        if not m:
+            return ""
+        start = m.end()
+        stop = _VOTE_SECTION_STOP_RE.search(full_text, start)
+        raw = full_text[start : stop.start() if stop else len(full_text)]
+        # Collapse all whitespace (including newlines from wrapped blocks)
+        # into single spaces so split-across-line names are rejoined.
+        return re.sub(r"\s+", " ", raw).strip()
 
-    if m_fav:
-        for country in _parse_country_list(m_fav.group(1)):
-            votes.append(CountryVote(country=country, vote_position="yes"))
-
-    if m_against:
-        for country in _parse_country_list(m_against.group(1)):
-            votes.append(CountryVote(country=country, vote_position="no"))
-
-    if m_abs:
-        for country in _parse_country_list(m_abs.group(1)):
-            votes.append(CountryVote(country=country, vote_position="abstain"))
+    for country in _parse_country_list(_section_text(_IN_FAVOUR_RE)):
+        votes.append(CountryVote(country=country, vote_position="yes"))
+    for country in _parse_country_list(_section_text(_AGAINST_RE)):
+        votes.append(CountryVote(country=country, vote_position="no"))
+    for country in _parse_country_list(_section_text(_ABSTAINING_RE)):
+        votes.append(CountryVote(country=country, vote_position="abstain"))
 
     return votes
 

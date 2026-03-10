@@ -1,0 +1,31 @@
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+# Pydantic and SQLAlchemy rely on metaclass magic that mypy cannot fully
+# introspect without installed stubs/plugins.  Suppress subclassing errors
+# and decorator-related noise in those modules.
+[[tool.mypy.overrides]]
+module = ["pymupdf", "fitz", "sqlalchemy.*", "anthropic.*", "psycopg2.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["src.db.models", "src.db.database", "src.pdf.extract_text", "src.llm.semantic_extractor"]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [".git", "__pycache__", ".venv", "build", "dist"]

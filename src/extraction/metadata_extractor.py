@@ -40,8 +40,10 @@ _DATE_RE = re.compile(
 # Session from symbol: A/64/ → 64
 _SESSION_FROM_SYMBOL_RE = re.compile(r"[AS]/(\d+)/PV\.")
 
-# President line: "President:  Mr. Ali Abdussalam Treki ……… (Libyan Arab Jamahiriya)"
+# President line with dot-leaders: "President:  Mr. Name ……… (Country)"
 _PRESIDENT_RE = re.compile(r"President\s*:\s*(.+?)\s*\.{2,}\s*\(([^)]+)\)", re.DOTALL)
+# Fallback: older format without dot-leaders, e.g. "President: Mr. INSANALLY (Guyana)"
+_PRESIDENT_SIMPLE_RE = re.compile(r"President\s*:\s*(.+?)\s*\(([^)]+)\)", re.DOTALL)
 
 _MONTH_MAP: dict[str, int] = {
     "january": 1,
@@ -103,19 +105,22 @@ def extract_date(text: str) -> date | None:
 
 def extract_location(text: str) -> str | None:
     """Return the meeting location from *text*."""
-    if "New York" in text:
+    upper = text.upper()
+    if "NEW YORK" in upper:
         return "New York"
-    if "Geneva" in text:
+    if "GENEVA" in upper:
         return "Geneva"
     return None
 
 
 def extract_president(text: str) -> PresidentInfo | None:
     """Return president name and country from *text*."""
-    m = _PRESIDENT_RE.search(text)
+    m = _PRESIDENT_RE.search(text) or _PRESIDENT_SIMPLE_RE.search(text)
     if not m:
         return None
-    return PresidentInfo(name=m.group(1).strip(), country=m.group(2).strip())
+    # Strip trailing dot-leaders, underscores, or spaces from the name.
+    name = re.sub(r"[\s._\-]+$", "", m.group(1).strip())
+    return PresidentInfo(name=name, country=m.group(2).strip())
 
 
 def extract_body(symbol: str) -> Literal["GA", "SC"]:

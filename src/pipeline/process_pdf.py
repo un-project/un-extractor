@@ -357,10 +357,13 @@ def process_pdf(
 
         # Symbol lives in the running page header, which clean_text strips.
         # Fall back to the raw (uncleaned) first-page blocks.
+        # Raw first-page text (all blocks, both columns, uncleaned) is used as a
+        # fallback source for metadata that lives in the running page header.
+        raw_first_page_text = " ".join(b.text for b in raw_pages[0])
+
         if not meta.get("symbol"):
             from src.extraction.metadata_extractor import extract_symbol
 
-            raw_first_page_text = " ".join(b.text for b in raw_pages[0])
             fallback_symbol = extract_symbol(raw_first_page_text)
             if fallback_symbol:
                 from src.extraction.metadata_extractor import (
@@ -372,6 +375,20 @@ def process_pdf(
                 meta["session"] = meta["session"] or extract_session(fallback_symbol)
                 meta["body"] = extract_body(fallback_symbol)
                 log.debug("Symbol recovered from raw page header: %s", fallback_symbol)
+
+        # Date and location may be in the right-column header (older PDFs) rather
+        # than in the cover section blocks.  Fall back to the raw first-page text.
+        if not meta.get("date"):
+            from src.extraction.metadata_extractor import extract_date
+            meta["date"] = extract_date(raw_first_page_text)
+            if meta["date"]:
+                log.debug("Date recovered from raw page: %s", meta["date"])
+
+        if not meta.get("location"):
+            from src.extraction.metadata_extractor import extract_location
+            meta["location"] = extract_location(raw_first_page_text)
+            if meta["location"]:
+                log.debug("Location recovered from raw page: %s", meta["location"])
 
         # Meeting number must come from the symbol (PV.N) — the cover text may
         # not contain "Nth plenary meeting" for older PDFs where that line was

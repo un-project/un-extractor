@@ -37,10 +37,10 @@ _ADOPTION_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Counted vote totals: "by 121 votes to 5, with 3 abstentions"
+# Counted vote totals: "by 121 votes to 5, with 3 abstentions" or "by 120 to 3"
 _VOTE_TOTALS_RE = re.compile(
     r"by\s+(\d+)\s+(?:votes?\s+)?(?:in\s+favour\s+)?to\s+(\d+)"
-    r"(?:\s+against)?,?\s+with\s+(\d+)\s+abstentions?",
+    r"(?:\s+against)?(?:,?\s+with\s+(\d+)\s+abstentions?)?",
     re.IGNORECASE,
 )
 
@@ -205,7 +205,7 @@ def extract_votes_and_directions(
         if sd.direction_type == "adoption":
             # Pass subsequent blocks for country list extraction
             start = section_end_positions[idx] + len(section.blocks)
-            subsequent = all_blocks[start : start + 30]
+            subsequent = all_blocks[start : start + 80]
             res = extract_resolution_from_adoption(sd.text, subsequent)
             if res is not None:
                 resolutions.append(res)

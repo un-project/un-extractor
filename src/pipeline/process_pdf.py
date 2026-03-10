@@ -161,6 +161,23 @@ def process_pdf(
     except Exception as exc:
         raise ExtractionError(pdf_path, "rule_based_extraction", exc) from exc
 
+    # Build adoption context map for resolution title extraction.
+    # Maps draft_symbol -> text of the adoption section + ~8 preceding sections.
+    _adoption_context: dict[str, str] = {}
+    for _i, _sec in enumerate(sections):
+        if (
+            _sec.section_type == "stage_direction"
+            and "was adopted" in _sec.text.lower()
+        ):
+            _ctx_start = max(0, _i - 8)
+            _ctx = "\n".join(s.text for s in sections[_ctx_start : _i + 1])
+            for _res in resolutions:
+                if (
+                    _res.draft_symbol in _sec.text
+                    and _res.draft_symbol not in _adoption_context
+                ):
+                    _adoption_context[_res.draft_symbol] = _ctx
+
     # --- Phase 4: LLM semantic enrichment (optional) ---------------------------
     if use_llm:
         try:
@@ -169,11 +186,11 @@ def process_pdf(
             llm = SemanticExtractor(api_key=llm_api_key)
 
             # Enrich on_behalf_of for speeches that don't have it yet
-            for speech in speeches:
+            for i, speech in enumerate(speeches):
                 if not speech.speaker.on_behalf_of and speech.text:
                     group = llm.extract_group_affiliation(speech.text[:500])
                     if group:
-                        speech = speech.model_copy(
+                        speeches[i] = speech.model_copy(
                             update={
                                 "speaker": speech.speaker.model_copy(
                                     update={"on_behalf_of": group}
@@ -193,6 +210,15 @@ def process_pdf(
                         for cv in res.country_votes
                     ]
 
+            # Extract resolution titles from surrounding document context
+            for res in resolutions:
+                if not res.title and res.draft_symbol in _adoption_context:
+                    title = llm.extract_resolution_title(
+                        res.draft_symbol, _adoption_context[res.draft_symbol]
+                    )
+                    if title:
+                        res.title = title
+
         except Exception as exc:
             log.warning("LLM enrichment failed for %s: %s", pdf_path, exc)
             # Non-fatal: continue without LLM enrichment
@@ -203,6 +229,10 @@ def process_pdf(
         session_num: int = int(meta.get("session") or 0)
         meeting_num: int = int(meta.get("meeting_number") or 0)
         doc_date: date | None = meta.get("date")
+        if doc_date is None:
+            log.warning(
+                "Date not found in %s — defaulting to 1900-01-01", pdf_path.name
+            )
         location: str = meta.get("location") or ""
         president: PresidentInfo | None = meta.get("president")
         body: str = meta.get("body") or "GA"

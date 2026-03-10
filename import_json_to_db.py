@@ -64,12 +64,21 @@ def _get_or_create_speaker(
 
 
 def _get_or_create_resolution(
-    session: Session, draft_symbol: str, body: str, session_num: int | None
+    session: Session,
+    draft_symbol: str,
+    body: str,
+    session_num: int | None,
+    title: str | None = None,
 ) -> Resolution:
     obj = session.query(Resolution).filter_by(draft_symbol=draft_symbol).first()
     if obj is None:
-        obj = Resolution(draft_symbol=draft_symbol, body=body, session=session_num)
+        obj = Resolution(
+            draft_symbol=draft_symbol, body=body, session=session_num, title=title
+        )
         session.add(obj)
+        session.flush()
+    elif title and not obj.title:
+        obj.title = title
         session.flush()
     return obj  # type: ignore[return-value]
 
@@ -135,7 +144,7 @@ def import_record(db_session: Session, record: MeetingRecord) -> None:
     # Resolutions and votes
     for res in record.resolutions:
         resolution = _get_or_create_resolution(
-            db_session, res.draft_symbol, record.body, record.session
+            db_session, res.draft_symbol, record.body, record.session, res.title
         )
         if res.adopted_symbol and not resolution.adopted_symbol:
             resolution.adopted_symbol = res.adopted_symbol
@@ -178,17 +187,17 @@ def import_directory(json_dir: Path, db_url: str | None = None) -> None:
 
     ok = 0
     failed = 0
-    with get_session(engine) as session:
-        for json_path in json_files:
-            try:
-                with json_path.open(encoding="utf-8") as fh:
-                    data = json.load(fh)
-                record = MeetingRecord.model_validate(data)
+    for json_path in json_files:
+        try:
+            with json_path.open(encoding="utf-8") as fh:
+                data = json.load(fh)
+            record = MeetingRecord.model_validate(data)
+            with get_session(engine) as session:
                 import_record(session, record)
-                ok += 1
-            except Exception as exc:
-                log.error("Failed to import %s: %s", json_path.name, exc)
-                failed += 1
+            ok += 1
+        except Exception as exc:
+            log.error("Failed to import %s: %s", json_path.name, exc)
+            failed += 1
 
     log.info("Import complete: %d ok, %d failed", ok, failed)
 

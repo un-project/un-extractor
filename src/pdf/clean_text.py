@@ -33,10 +33,20 @@ _DEFAULT_PAGE_HEIGHT_PT: float = 842.0
 # Page numbers: "3", "3/31"
 _PAGE_NUMBER_RE = re.compile(r"^\s*\d+(?:/\d+)?\s*$")
 
-# Document print codes: "10-53066 (E)", "22-58466"
-_DOC_CODE_RE = re.compile(r"^\s*\d{2}-\d{5}(?:\s*\([A-Z]\))?\s*$")
+# Document print codes and page-number combinations:
+#   Standalone code:     "10-53066 (E)", "22-58466"
+#   Code + page:         "07-50429 2", "07-50429 14"
+#   Page + code:         "3 07-50429", "15 07-50429"
+#   Bare job numbers:    "*1070469*"
+_DOC_CODE_RE = re.compile(
+    r"^\s*(?:"
+    r"\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3})?"  # code (opt letter) (opt page)
+    r"|\d{1,3}\s+\d{2}-\d{5}"                         # page code
+    r"|\*\d{5,8}\*"                                    # *jobnum*
+    r")\s*$"
+)
 
-# Boilerplate disclaimer / footer phrases
+# Boilerplate disclaimer / footer phrases and structural noise
 _DISCLAIMER_FRAGMENTS: tuple[str, ...] = (
     "This record contains the text",
     "Corrections should be submitted",
@@ -45,6 +55,7 @@ _DISCLAIMER_FRAGMENTS: tuple[str, ...] = (
     "Accessible document",
     "verbatimrecords@un.org",
     "Official Document System",
+    "Official Records",  # repeated page header sometimes lands in body area
 )
 
 
@@ -71,6 +82,23 @@ def _in_header_or_footer(
     top_cutoff = page_height * _HEADER_FRACTION
     bottom_cutoff = page_height * _FOOTER_FRACTION
     return block.y0 < top_cutoff or block.y0 > bottom_cutoff
+
+
+# Inline doc-code/page-number patterns that can appear embedded within
+# larger blocks when a page break falls inside a paragraph.  These are
+# stripped from block text rather than discarding the whole block.
+_INLINE_CODE_RE = re.compile(
+    r"\n\s*(?:\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3})?|\d{1,3}\s+\d{2}-\d{5})\s*\n",
+    re.MULTILINE,
+)
+
+
+def _strip_inline_noise(text: str) -> str:
+    """Remove doc-code/page-number runs embedded within block text."""
+    cleaned = _INLINE_CODE_RE.sub("\n", text)
+    # Collapse triple+ newlines left by the removal.
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned
 
 
 def clean_page(

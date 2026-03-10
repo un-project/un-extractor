@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 
 from src.models import Speech, SpeakerInfo
+from src.pdf.clean_text import _strip_inline_noise
 from src.structure.detect_sections import Section
 
 # ---------------------------------------------------------------------------
@@ -200,7 +201,7 @@ def extract_speech(section: Section, position: int) -> Speech | None:
     for block in section.blocks[1:]:
         body_parts.append(block.text.strip())
 
-    full_text = "\n\n".join(p for p in body_parts if p)
+    full_text = _strip_inline_noise("\n\n".join(p for p in body_parts if p))
 
     # Enrich with on_behalf_of if not already set
     if not speaker.on_behalf_of and full_text:

@@ -2,15 +2,16 @@
 
 Tables
 ------
-countries       – UN Member States (canonical names + ISO codes)
-speakers        – People who spoke; country_id is nullable
-documents       – One row per PDF / meeting
-stage_directions – Procedural italic text in document order
-speeches        – One row per speech segment
-resolutions     – Draft / adopted resolutions
-votes           – One voting event per resolution per document
-country_votes   – Per-country vote position (for recorded votes)
-amendments      – (optional) proposed amendments
+countries        – UN Member States (canonical names + ISO codes)
+speakers         – People who spoke; country_id is nullable
+documents        – One row per PDF / meeting
+document_items   – One row per agenda item or named section in a meeting
+stage_directions – Procedural italic text; linked to a document_item
+speeches         – One row per speech segment; linked to a document_item
+resolutions      – Draft / adopted resolutions
+votes            – One voting event per resolution per document_item
+country_votes    – Per-country vote position (for recorded votes)
+amendments       – (optional) proposed amendments
 """
 
 from __future__ import annotations
@@ -64,12 +65,11 @@ class Speaker(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(300), nullable=False)
-    # country_id is nullable: The President, SG, Secretariat staff have no country
     country_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("countries.id"), nullable=True
     )
     role: Mapped[Optional[str]] = mapped_column(String(100))
-    title: Mapped[Optional[str]] = mapped_column(String(20))  # Mr., Mrs., Ms.
+    title: Mapped[Optional[str]] = mapped_column(String(20))
 
     country: Mapped[Optional[Country]] = relationship(back_populates="speakers")
     speeches: Mapped[list["Speech"]] = relationship(back_populates="speaker")
@@ -87,18 +87,59 @@ class Document(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     symbol: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
-    body: Mapped[str] = mapped_column(String(2), nullable=False)  # "GA" or "SC"
+    body: Mapped[str] = mapped_column(String(2), nullable=False)
     meeting_number: Mapped[int] = mapped_column(Integer, nullable=False)
     session: Mapped[int] = mapped_column(Integer, nullable=False)
     date: Mapped[Optional[date]] = mapped_column(Date)
     location: Mapped[Optional[str]] = mapped_column(String(50))
     pdf_path: Mapped[Optional[str]] = mapped_column(String(500))
 
+    items: Mapped[list["DocumentItem"]] = relationship(back_populates="document")
     speeches: Mapped[list["Speech"]] = relationship(back_populates="document")
     stage_directions: Mapped[list["StageDirection"]] = relationship(
         back_populates="document"
     )
     votes: Mapped[list["Vote"]] = relationship(back_populates="document")
+
+
+# ---------------------------------------------------------------------------
+# Document items (agenda items or other named sections)
+# ---------------------------------------------------------------------------
+
+
+class DocumentItem(Base):
+    """One agenda item or other named section within a meeting.
+
+    ``position`` is the zero-based order of this item in the meeting.
+    Speeches, stage directions, and votes within the item share a common
+    ``position_in_item`` counter for document reconstruction.
+    """
+
+    __tablename__ = "document_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("documents.id"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    item_type: Mapped[str] = mapped_column(
+        Enum("agenda_item", "other_item", name="item_type_enum"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    agenda_number: Mapped[Optional[int]] = mapped_column(Integer)
+    sub_item: Mapped[Optional[str]] = mapped_column(String(10))
+    continued: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    document: Mapped[Document] = relationship(back_populates="items")
+    speeches: Mapped[list["Speech"]] = relationship(back_populates="item")
+    stage_directions: Mapped[list["StageDirection"]] = relationship(
+        back_populates="item"
+    )
+    votes: Mapped[list["Vote"]] = relationship(back_populates="item")
+
+    __table_args__ = (
+        UniqueConstraint("document_id", "position", name="uq_item_position"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +153,9 @@ class StageDirection(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     document_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("documents.id"), nullable=False
+    )
+    item_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("document_items.id"), nullable=True
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
     direction_type: Mapped[str] = mapped_column(
@@ -130,8 +174,10 @@ class StageDirection(Base):
         default="other",
     )
     position_in_document: Mapped[int] = mapped_column(Integer, nullable=False)
+    position_in_item: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     document: Mapped[Document] = relationship(back_populates="stage_directions")
+    item: Mapped[Optional[DocumentItem]] = relationship(back_populates="stage_directions")
 
 
 # ---------------------------------------------------------------------------
@@ -146,15 +192,20 @@ class Speech(Base):
     document_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("documents.id"), nullable=False
     )
+    item_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("document_items.id"), nullable=True
+    )
     speaker_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("speakers.id"), nullable=False
     )
-    language: Mapped[Optional[str]] = mapped_column(String(50))  # null = English
+    language: Mapped[Optional[str]] = mapped_column(String(50))
     on_behalf_of: Mapped[Optional[str]] = mapped_column(String(300))
     text: Mapped[str] = mapped_column(Text, nullable=False)
     position_in_document: Mapped[int] = mapped_column(Integer, nullable=False)
+    position_in_item: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     document: Mapped[Document] = relationship(back_populates="speeches")
+    item: Mapped[Optional[DocumentItem]] = relationship(back_populates="speeches")
     speaker: Mapped[Speaker] = relationship(back_populates="speeches")
 
 
@@ -189,6 +240,9 @@ class Vote(Base):
     document_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("documents.id"), nullable=False
     )
+    item_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("document_items.id"), nullable=True
+    )
     resolution_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("resolutions.id"), nullable=False
     )
@@ -209,8 +263,10 @@ class Vote(Base):
     yes_count: Mapped[Optional[int]] = mapped_column(Integer)
     no_count: Mapped[Optional[int]] = mapped_column(Integer)
     abstain_count: Mapped[Optional[int]] = mapped_column(Integer)
+    position_in_item: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     document: Mapped[Document] = relationship(back_populates="votes")
+    item: Mapped[Optional[DocumentItem]] = relationship(back_populates="votes")
     resolution: Mapped[Resolution] = relationship(back_populates="votes")
     country_votes: Mapped[list["CountryVote"]] = relationship(back_populates="vote")
 

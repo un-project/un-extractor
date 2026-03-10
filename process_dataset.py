@@ -53,6 +53,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Enable debug logging",
     )
+    p.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Write intermediate artifacts to output/debug/<stem>/ for inspection",
+    )
     return p
 
 
@@ -76,6 +82,7 @@ def main() -> int:
         max_workers=args.workers,
         use_llm=args.llm,
         llm_api_key=args.api_key,
+        debug=args.debug,
     )
 
     print(

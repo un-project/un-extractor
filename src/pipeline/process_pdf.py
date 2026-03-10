@@ -105,6 +105,13 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
     # and a following stage_direction section.
     current_item_symbols: set[str] = set()
 
+    # For the newer recorded-vote format the country lists appear *before*
+    # the adoption line.  We buffer body blocks that follow a "recorded vote
+    # taken" signal so they can be passed as context when the adoption line
+    # is encountered later.
+    _pending_vote_blocks: list = []   # accumulated body blocks after vote signal
+    _after_vote_signal: bool = False  # True after "A recorded vote was taken."
+
     def _flush_and_start(
         title: str,
         item_type: str,
@@ -165,6 +172,10 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
 
         # ---- Speaker turn --------------------------------------------------------
         if section.section_type == "speaker_turn":
+            # A new speaker resets any pending recorded-vote state so country
+            # lists from one vote don't leak into a later resolution.
+            _after_vote_signal = False
+            _pending_vote_blocks = []
             speech = extract_speech(section, global_pos)
             if speech is not None:
                 current.speeches.append(
@@ -185,7 +196,23 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             elem_pos += 1
             global_pos += 1
             if sd.direction_type == "adoption":
-                _try_add_resolution(section, _following(section))
+                # In the newer PDF format the country lists appear *before* the
+                # adoption line.  If we buffered them, prepend to the following
+                # blocks so extract_resolution_from_adoption can see both the
+                # recorded-vote signal and the country lists.
+                if _after_vote_signal:
+                    _try_add_resolution(
+                        section, _pending_vote_blocks + _following(section)
+                    )
+                else:
+                    _try_add_resolution(section, _following(section))
+                _after_vote_signal = False
+                _pending_vote_blocks = []
+            elif "recorded vote was taken" in sd.text.lower():
+                # Begin buffering: include the signal block itself so that
+                # extract_resolution_from_adoption can detect has_recorded_signal.
+                _after_vote_signal = True
+                _pending_vote_blocks = list(section.blocks)
 
         # ---- Resolution header ---------------------------------------------------
         elif section.section_type == "resolution_header":
@@ -194,9 +221,14 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
 
         # ---- Body ----------------------------------------------------------------
         elif section.section_type == "body":
+            if _after_vote_signal:
+                # Country-list blocks (In favour: …, Against: …, Abstaining: …)
+                # accumulate here; they are passed as context when the adoption
+                # line is encountered.
+                _pending_vote_blocks.extend(section.blocks)
             # A single bold block that isn't metadata looks like a named section
             # heading (e.g. "Expression of sympathy on the passing of …").
-            if (
+            elif (
                 len(section.blocks) == 1
                 and section.blocks[0].bold_start
                 and len(section.text.strip()) < 300

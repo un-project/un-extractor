@@ -4,6 +4,7 @@ Internal representation:
   TextBlock -- paragraph-level unit produced by PDF extraction.
 
 Output Pydantic models:
+  DocumentItem  -- one agenda item or other named section in a meeting.
   MeetingRecord -- top-level JSON output for one meeting.
 """
 
@@ -76,13 +77,6 @@ class PresidentInfo(BaseModel):
     country: str | None = None
 
 
-class AgendaItem(BaseModel):
-    number: int
-    sub_item: str | None = None
-    title: str
-    continued: bool = False
-
-
 class SpeakerInfo(BaseModel):
     name: str
     country: str | None = None
@@ -93,13 +87,16 @@ class SpeakerInfo(BaseModel):
 
 
 class Speech(BaseModel):
-    position: int
+    position: int           # document-wide ordinal (stable ordering across items)
+    position_in_item: int = 0  # order within its DocumentItem (shared counter with
+                               # stage_directions and resolutions for reconstruction)
     speaker: SpeakerInfo
     text: str
 
 
 class StageDirection(BaseModel):
-    position: int
+    position: int           # document-wide ordinal
+    position_in_item: int = 0  # order within its DocumentItem
     text: str
     direction_type: Literal[
         "adoption",
@@ -127,8 +124,36 @@ class Resolution(BaseModel):
     no_count: int | None = None
     abstain_count: int | None = None
     country_votes: list[CountryVote] = []
+    position_in_item: int = 0  # order within its DocumentItem
 
     model_config = {"arbitrary_types_allowed": True}
+
+
+class DocumentItem(BaseModel):
+    """One agenda item or other named section within a meeting.
+
+    The three element lists share a common ``position_in_item`` counter so the
+    full document can be reconstructed by merging them ordered by that field.
+
+    To reconstruct document order within an item::
+
+        all_elements = (
+            [("speech", s.position_in_item, s) for s in item.speeches]
+            + [("stage_direction", d.position_in_item, d) for d in item.stage_directions]
+            + [("resolution", r.position_in_item, r) for r in item.resolutions]
+        )
+        all_elements.sort(key=lambda x: x[1])
+    """
+
+    position: int                              # order of this item in the meeting
+    item_type: Literal["agenda_item", "other_item"]
+    title: str
+    agenda_number: int | None = None           # set for agenda_item type
+    sub_item: str | None = None                # e.g. "b" for sub-item (b)
+    continued: bool = False
+    speeches: list[Speech] = []
+    stage_directions: list[StageDirection] = []
+    resolutions: list[Resolution] = []
 
 
 class MeetingRecord(BaseModel):
@@ -139,10 +164,7 @@ class MeetingRecord(BaseModel):
     date: date
     location: str
     president: PresidentInfo | None = None
-    agenda_items: list[AgendaItem] = []
-    speeches: list[Speech] = []
-    stage_directions: list[StageDirection] = []
-    resolutions: list[Resolution] = []
+    items: list[DocumentItem] = []
 
     @field_validator("symbol")
     @classmethod

@@ -2,9 +2,6 @@
 
 Validates a ``MeetingRecord`` against the expected schema and returns
 a list of validation errors.  An empty list means the record is valid.
-
-On failure the pipeline can retry extraction or flag the document for
-manual review.
 """
 
 from __future__ import annotations
@@ -76,9 +73,8 @@ def _check_meeting_number(meeting_number: int | None) -> list[ValidationError]:
     return []
 
 
-def _check_resolution(res: Resolution, idx: int) -> list[ValidationError]:
+def _check_resolution(res: Resolution, prefix: str) -> list[ValidationError]:
     errors: list[ValidationError] = []
-    prefix = f"resolutions[{idx}]"
 
     if not res.draft_symbol:
         errors.append(ValidationError(f"{prefix}.draft_symbol", "missing"))
@@ -112,9 +108,8 @@ def _check_resolution(res: Resolution, idx: int) -> list[ValidationError]:
     return errors
 
 
-def _check_speech(speech: Speech, idx: int) -> list[ValidationError]:
+def _check_speech(speech: Speech, prefix: str) -> list[ValidationError]:
     errors: list[ValidationError] = []
-    prefix = f"speeches[{idx}]"
     if not speech.speaker.name:
         errors.append(ValidationError(f"{prefix}.speaker.name", "missing"))
     if not speech.text:
@@ -122,10 +117,10 @@ def _check_speech(speech: Speech, idx: int) -> list[ValidationError]:
     return errors
 
 
-def _check_stage_direction(sd: StageDirection, idx: int) -> list[ValidationError]:
+def _check_stage_direction(sd: StageDirection, prefix: str) -> list[ValidationError]:
     errors: list[ValidationError] = []
     if not sd.text:
-        errors.append(ValidationError(f"stage_directions[{idx}].text", "empty"))
+        errors.append(ValidationError(f"{prefix}.text", "empty"))
     return errors
 
 
@@ -149,14 +144,22 @@ def validate_record(record: MeetingRecord) -> list[ValidationError]:
     if not record.location:
         errors.append(ValidationError("location", "missing"))
 
-    for i, res in enumerate(record.resolutions):
-        errors.extend(_check_resolution(res, i))
-
-    for i, speech in enumerate(record.speeches):
-        errors.extend(_check_speech(speech, i))
-
-    for i, sd in enumerate(record.stage_directions):
-        errors.extend(_check_stage_direction(sd, i))
+    speech_idx = sd_idx = res_idx = 0
+    for item_idx, item in enumerate(record.items):
+        item_prefix = f"items[{item_idx}]"
+        for speech in item.speeches:
+            errors.extend(_check_speech(speech, f"{item_prefix}.speeches[{speech_idx}]"))
+            speech_idx += 1
+        for sd in item.stage_directions:
+            errors.extend(
+                _check_stage_direction(sd, f"{item_prefix}.stage_directions[{sd_idx}]")
+            )
+            sd_idx += 1
+        for res in item.resolutions:
+            errors.extend(
+                _check_resolution(res, f"{item_prefix}.resolutions[{res_idx}]")
+            )
+            res_idx += 1
 
     return errors
 

@@ -75,6 +75,7 @@ def _process_one(
     output_dir: Path,
     use_llm: bool,
     llm_api_key: str | None,
+    debug_dir: Path | None = None,
 ) -> ProcessResult:
     try:
         record = process_pdf(
@@ -82,6 +83,7 @@ def _process_one(
             output_dir=output_dir,
             use_llm=use_llm,
             llm_api_key=llm_api_key,
+            debug_dir=debug_dir,
         )
         return ProcessResult(pdf_path=pdf_path, success=True, record=record)
     except ExtractionError as exc:
@@ -130,6 +132,7 @@ def process_batch(
     use_llm: bool = False,
     llm_api_key: str | None = None,
     pdf_paths: list[Path] | None = None,
+    debug: bool = False,
 ) -> BatchSummary:
     """Process all PDFs under *root_dir* in parallel.
 
@@ -155,13 +158,14 @@ def process_batch(
     """
     pdfs = pdf_paths if pdf_paths is not None else find_pdfs(root_dir)
     failed_dir = output_dir / "failed"
+    debug_dir = output_dir / "debug" if debug else None
     summary = BatchSummary(total=len(pdfs))
 
     log.info("Starting batch: %d PDFs, %d workers", len(pdfs), max_workers)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(_process_one, pdf, output_dir, use_llm, llm_api_key): pdf
+            executor.submit(_process_one, pdf, output_dir, use_llm, llm_api_key, debug_dir): pdf
             for pdf in pdfs
         }
         for future in as_completed(futures):

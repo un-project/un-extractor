@@ -77,8 +77,9 @@ _AGAINST_RE = re.compile(r"(?:^|\n)Against\s*:\s*", re.IGNORECASE)
 _ABSTAINING_RE = re.compile(r"(?:^|\n)Abstaining\s*:\s*", re.IGNORECASE)
 
 # Marks the end of a country-vote section (next header or adoption/note lines).
+# \n\s* handles block texts that start with a leading space (e.g. ' Draft …').
 _VOTE_SECTION_STOP_RE = re.compile(
-    r"\n(?:In\s+favour|Against|Abstaining|Draft\s+res|The\s+draft|The\s+amend"
+    r"\n\s*(?:In\s+favour|Against|Abstaining|Draft\s+res|The\s+draft|The\s+amend"
     r"|was adopted|\[)",
     re.IGNORECASE,
 )

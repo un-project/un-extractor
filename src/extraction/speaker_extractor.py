@@ -125,6 +125,12 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
         affiliation = m2.group(3).strip() if m2.group(3) else None
         lang = _parse_language(m2.group(4))
 
+        # Handle "Name (spoke in Language) (Country):" — language note first.
+        # When group(3) is itself a language note, swap the two parentheticals.
+        if affiliation and _LANGUAGE_RE.search(affiliation):
+            lang = _parse_language(affiliation)
+            affiliation = m2.group(4).strip() if m2.group(4) else None
+
         # Determine if affiliation is a country or a UN department
         is_dept = affiliation and any(
             kw in affiliation.lower()

@@ -158,18 +158,19 @@ def _split_attribution_and_body(block_text: str) -> tuple[str, str]:
     The attribution is everything up to and including the first colon
     that follows the speaker name pattern.
     """
-    # Find the first colon that ends the attribution.
-    # Strategy: match the attribution RE and use its end position.
+    # Work on the stripped version so that leading/trailing whitespace in the
+    # raw PDF block text does not cause off-by-one errors when slicing.
+    stripped = block_text.strip()
     for pattern in (_TITULAR_ATTR_RE, _SPEAKER_ATTR_RE):
-        m = pattern.match(block_text.strip())
+        m = pattern.match(stripped)
         if m:
             end = m.end()
-            return block_text[:end].strip(), block_text[end:].strip()
+            return stripped[:end].strip(), stripped[end:].strip()
     # Fallback: split on first colon
-    idx = block_text.find(":")
+    idx = stripped.find(":")
     if idx != -1:
-        return block_text[: idx + 1].strip(), block_text[idx + 1 :].strip()
-    return block_text.strip(), ""
+        return stripped[: idx + 1].strip(), stripped[idx + 1 :].strip()
+    return stripped, ""
 
 
 # ---------------------------------------------------------------------------

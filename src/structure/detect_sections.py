@@ -81,9 +81,16 @@ _DRAFT_RE = re.compile(
     r"^Draft\s+(?:resolution|decision)\s+\(?(A/\S+|S/\S+)", re.IGNORECASE
 )
 
-# Adoption italic line: "Draft resolution X was adopted …"
+# Adoption italic line — matches multiple formats:
+#   "Draft resolution A/64/L.72 was adopted …"
+#   "Draft resolution I was adopted …"   (Roman numeral)
+#   "The amendment (A/65/L.53) was adopted …"
+#   "The draft resolution was adopted …"
 _ADOPTION_RE = re.compile(
-    r"Draft\s+(?:resolution|decision)\s+\S+.*was\s+adopted", re.IGNORECASE
+    r"(?:Draft\s+(?:resolution|decision)\s+\S+.*was\s+adopted"
+    r"|The\s+amendment\s+\([^)]+\)\s+was\s+adopted"
+    r"|The\s+draft\s+(?:resolution|decision)\s+was\s+adopted)",
+    re.IGNORECASE,
 )
 
 # Suspension / resumption
@@ -133,7 +140,11 @@ def _stage_direction_type(
 ]:
     if _ADOPTION_RE.search(text):
         return "adoption"
-    if "It was so decided" in text or "decision" in text.lower():
+    if "It was so decided" in text or re.search(
+        r"draft\s+decision\s+was\s+adopted|The\s+decision\s+was\s+adopted",
+        text,
+        re.IGNORECASE,
+    ):
         return "decision"
     if _SUSPENSION_RE.search(text):
         return "suspension"
@@ -152,16 +163,46 @@ def _stage_direction_type(
 # Main segmentation
 # ---------------------------------------------------------------------------
 
-# Cover page ends when we see the first real agenda item or speaker turn.
-_COVER_PAGE_LIMIT = 1  # First page (index 0) is always the cover.
+def _is_content_boundary(block: TextBlock) -> bool:
+    """Return True if this page-0 block marks the end of cover metadata.
+
+    The cover metadata contains the meeting title line and president line.
+    Italic blocks (stage directions like "The meeting was called to order")
+    and all content blocks (speaker turns, agenda items, headings) are
+    treated as content boundaries so they are processed by the main loop.
+    """
+    if _is_speaker_block(block):
+        return True
+    if _is_agenda_block(block):
+        return True
+    if _is_draft_resolution_block(block):
+        return True
+    # Italic text on the cover page (e.g. "The meeting was called to order")
+    # should be emitted as a stage_direction, not buried in the cover section.
+    if block.all_italic:
+        return True
+    # Bold heading that doesn't match any known metadata pattern
+    if block.bold_start:
+        text = block.text.strip()
+        if (
+            len(text) > 10
+            and not re.search(r"\d+\w*\s+plenary", text, re.IGNORECASE)
+            and not re.match(r"President\s*:", text, re.IGNORECASE)
+            and not re.match(r"Official\s+Records", text, re.IGNORECASE)
+            and not re.match(r"The\s+meeting\s+was", text, re.IGNORECASE)
+            and not re.match(r"United\s+Nations", text, re.IGNORECASE)
+        ):
+            return True
+    return False
 
 
 def detect_sections(blocks: list[TextBlock]) -> list[Section]:
     """Segment *blocks* into typed ``Section`` objects.
 
-    The first page is emitted as a single ``cover`` section.
-    Subsequent blocks are classified and accumulated into sections that
-    end whenever a new section boundary is encountered.
+    The cover section contains only the metadata blocks at the top of page 0
+    (meeting title, president line, etc.).  Content that follows on page 0
+    (speaker turns, agenda items, named headings) is processed as normal body
+    sections — ensuring speeches and items from the first page are captured.
 
     Parameters
     ----------
@@ -179,21 +220,28 @@ def detect_sections(blocks: list[TextBlock]) -> list[Section]:
     sections: list[Section] = []
     position: int = 0
 
-    # ---- Cover section: everything on page 0 ----
+    # ---- Cover section: page-0 blocks up to the first content boundary ----
     cover = Section(section_type="cover", position=position)
-    for block in blocks:
-        if block.page_num == 0:
-            cover.blocks.append(block)
+    cover_end_idx: int = 0
+    for i, block in enumerate(blocks):
+        if block.page_num != 0:
+            cover_end_idx = i
+            break
+        if _is_content_boundary(block):
+            cover_end_idx = i
+            break
+        cover.blocks.append(block)
+    else:
+        cover_end_idx = len(blocks)
+
     if cover.blocks:
         sections.append(cover)
         position += 1
 
-    # ---- Body: pages 1+ ----
+    # ---- Body: all blocks from cover_end_idx onwards (incl. rest of page 0) ----
     current: Section | None = None
 
-    for block in blocks:
-        if block.page_num == 0:
-            continue  # already handled
+    for block in blocks[cover_end_idx:]:
 
         if block.all_italic:
             # Stage direction: flush current section, emit standalone direction.

@@ -32,12 +32,16 @@ The document symbol appears in the top-right corner of each page:
 
     A/{session}/PV.{meeting_number}
 
-Examples: `A/64/PV.121`, `A/76/PV.102`, `A/61/PV.107`
+Examples: `A/64/PV.121`, `A/76/PV.102`, `A/61/PV.107`, `A/65/PV.71`
 
 - `A` = General Assembly (Security Council would use `S`)
 - `{session}` = session number
 - `PV` = Procès-Verbal (verbatim record)
 - `{meeting_number}` = ordinal meeting number within the session
+
+**The meeting number is always extracted from the symbol (`PV.N`), not from the
+"Nth plenary meeting" text.** The text form is used only as a fallback when the
+symbol is unavailable in the cover section.
 
 ## Cover page structure (page 1)
 
@@ -85,11 +89,18 @@ Draft symbols follow the pattern `A/{session}/L.{N}`:
     Draft resolution (A/64/L.72)
     Draft decision (A/76/L.79)
 
-Adoption is recorded in an italic line:
+Adoption is recorded in italic lines. Several formats exist:
 
-    Draft resolution A/64/L.72 was adopted (resolution 64/299).
-    Draft decision A/76/L.79 was adopted (decision 76/575).
-    Draft decision A/64/L.71, as orally corrected, was adopted.
+    Draft resolution A/64/L.72 was adopted (resolution 64/299).       ← named symbol
+    Draft decision A/64/L.71, as orally corrected, was adopted.       ← with correction
+    Draft resolution I was adopted (resolution 65/206).               ← Roman numeral
+    Draft resolution II was adopted (resolution 65/207).
+    The amendment (A/65/L.53) was adopted by 93 votes to 55.          ← amendment
+    The draft decision was adopted.                                    ← generic
+
+In session 65 and similar documents, resolutions within a Third-Committee report are
+referred to by Roman numeral (I, II, III …) rather than full draft symbol. These are
+matched by the extractor and stored with the Roman numeral as the `draft_symbol`.
 
 After adoption the symbol changes: `A/64/L.72` → resolution `64/299`.
 
@@ -145,16 +156,21 @@ Two vote types occur in these records:
 
 When "It was so decided." is written, assume unanimous agreement; no country_votes rows.
 
-**2. Recorded vote** — includes vote totals AND a per-country breakdown printed in the record:
+**2. Recorded vote** — signalled by "A recorded vote was taken." Country lists come
+first, then the summary line with totals at the end:
 
-    The draft resolution was adopted by 121 votes to 5, with 3 abstentions.
-
-    In favour: Algeria, Angola, Argentina, ... (long list)
+    A recorded vote was taken.
+    In favour: Algeria, Angola, Argentina, ... (long list, may span many text blocks)
     Against: Israel, Marshall Islands, Micronesia, Nauru, United States of America
     Abstaining: Australia, Canada, Colombia, ...
+    Draft resolution I was adopted by 109 votes to 41, with 35 abstentions (resolution 65/206).
+
+Note: vote totals appear **after** the country lists in the newer format. The extractor
+scans up to 80 surrounding blocks to find them. The signal line "A recorded vote was taken."
+is also used to confirm vote type even before totals are found.
 
 The per-country lists ARE present inline in the verbatim record. Extract them as the
-source for the `country_votes` table. The extraction pattern is:
+source for the `country_votes` table. The extraction patterns:
 
     In favour:\s+(comma-separated country names)
     Against:\s+(comma-separated country names)
@@ -298,13 +314,29 @@ Sections to detect:
 
 Detection strategy:
 
-- Cover page: first page, extract symbol from header, meeting metadata from body
+- Cover page: first page, extract symbol from header, meeting metadata from body.
+  The cover section ends at the first italic block (which becomes a stage direction) or
+  the first bold content heading — whichever comes first.
 - Agenda items: bold text matching "Agenda item \d+" pattern
 - Draft resolutions: bold "Draft resolution (A/..." or "Draft decision (A/..."
-- Adoption lines: italic lines matching "Draft resolution .* was adopted"
+- Adoption lines: italic lines matching adoption patterns (see Votes section)
 - Speaker turns: bold names matching Name (Country): or Name (Country) (spoke in Language):
-- Stage directions: italic text not matching adoption pattern
+- Stage directions: italic text (including on the cover page)
 - Closing: italic "The meeting rose at ..."
+
+**Document order reconstruction.** Within each `DocumentItem`, speeches, stage directions,
+and resolutions share a common `position_in_item` counter. To replay the full meeting:
+
+    all_elements = (
+        [("speech", s.position_in_item, s) for s in item.speeches]
+        + [("stage_direction", d.position_in_item, d) for d in item.stage_directions]
+        + [("resolution", r.position_in_item, r) for r in item.resolutions]
+    )
+    all_elements.sort(key=lambda x: x[1])
+
+When a stage direction appears mid-speech, speech continuation text is appended to the
+preceding speech so no text is lost. The stage direction keeps its position between the
+two segments.
 
 Output example:
 
@@ -370,14 +402,16 @@ Extract:
 Two cases:
 
 1. Consensus adoption — "It was so decided." follows the adoption line, no country list:
-   Pattern: `Draft (?:resolution|decision) (A/\S+) was adopted \((resolution|decision) (\S+)\)\.`
    Extract: draft_symbol, adopted_symbol, vote_type=consensus
 
-2. Recorded vote — vote totals followed by country lists:
-   Pattern: `(\d+) (?:votes? )?in favour(?: to (\d+) against)?, with (\d+) abstentions?`
+2. Recorded vote — signalled by "A recorded vote was taken." before the country lists.
+   Vote totals may appear before OR after the country lists:
+
+   Signal: `A recorded vote was taken\.`
+   Totals: `by\s+(\d+)\s+(?:votes?\s+)?to\s+(\d+)(?:\s+against)?(?:,?\s+with\s+(\d+)\s+abstentions?)?`
    Extract: yes_count, no_count, abstain_count, vote_type=recorded
 
-   Then extract per-country positions from the lines that follow:
+   Per-country positions — scan surrounding blocks:
    Pattern: `^In favour:\s+(.+)$` → list of country names, vote_position=yes
    Pattern: `^Against:\s+(.+)$`   → list of country names, vote_position=no
    Pattern: `^Abstaining:\s+(.+)$` → list of country names, vote_position=abstain
@@ -388,7 +422,12 @@ Two cases:
 
 ### Draft resolution adoption
 
-Pattern: `Draft (?:resolution|decision) (A/\S+)(?:, as orally corrected,)? was adopted(?: \((resolution|decision) (\S+)\))?`
+Multiple patterns are supported:
+
+    Draft (?:resolution|decision) (A/\S+)(?:, as orally corrected,)? was adopted(?: \((resolution|decision) (\S+)\))?
+    Draft (?:resolution|decision) ([IVXLCDM]+) was adopted(?: \((resolution|decision) (\S+)\))?
+    The amendment \((A/\S+)\) was adopted.*
+    The draft (?:resolution|decision) was adopted.*
 
 Extract:
 - draft_symbol

@@ -76,8 +76,16 @@ def extract_session(symbol: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def extract_meeting_number(text: str) -> int | None:
-    """Return the ordinal meeting number from *text*."""
+def extract_meeting_number(text: str, symbol: str | None = None) -> int | None:
+    """Return the meeting number.
+
+    Primary source: document symbol (e.g. ``A/64/PV.121`` → 121).
+    Fallback: ordinal text in cover page (e.g. "121st plenary meeting").
+    """
+    if symbol:
+        m = re.search(r"PV\.(\d+)$", symbol)
+        if m:
+            return int(m.group(1))
     m = _MEETING_NUM_RE.search(text)
     return int(m.group(1)) if m else None
 
@@ -127,7 +135,7 @@ def extract_all(blocks: list[TextBlock]) -> dict[str, object]:
 
     symbol = extract_symbol(full_text)
     session = extract_session(symbol) if symbol else None
-    meeting_number = extract_meeting_number(full_text)
+    meeting_number = extract_meeting_number(full_text, symbol)
     meeting_date = extract_date(full_text)
     location = extract_location(full_text)
     president = extract_president(full_text)

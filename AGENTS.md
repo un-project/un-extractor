@@ -37,18 +37,22 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
 
 ## Development commands
 
-There is no build system yet. When one is set up, document the key commands here:
-
-    # Install dependencies
+    # Create a virtual environment and install dependencies
+    python -m venv .venv && source .venv/bin/activate
     pip install -r requirements.txt
 
-    # Process a single PDF
+    # Process a single PDF (outputs JSON to output/)
     python src/pipeline/process_pdf.py data/raw_pdfs/en/ga/64/pv/document_121.pdf
 
-    # Process full dataset
-    python process_dataset.py data/raw_pdfs/
+    # Process a single PDF with debug artifacts
+    python src/pipeline/process_pdf.py \
+        data/raw_pdfs/en/ga/64/pv/document_121.pdf \
+        --output output/ --debug output/debug/
 
-    # Import JSON to database
+    # Process full dataset in parallel
+    python process_dataset.py data/raw_pdfs/ --output output/ --workers 8
+
+    # Import JSON to database (set DATABASE_URL first)
     python import_json_to_db.py output/
 
     # Run tests
@@ -70,7 +74,9 @@ There is no build system yet. When one is set up, document the key commands here
 Supplement with `"Bold"` / `"Italic"` in `span['font']` for malformed PDFs.
 
 **Document symbol.** Each page header contains the symbol `A/{session}/PV.{N}` (or `S/...`
-for Security Council). This is the primary identifier.
+for Security Council). This is the primary identifier. The meeting number is extracted
+**directly from the symbol** (`PV.N` → N) as the primary source, with "Nth plenary meeting"
+text in the cover as a fallback.
 
 **Speaker turns.** Speaker names are bold in the original PDF. The pattern is:
 
@@ -82,27 +88,53 @@ Extract the bold flag from PyMuPDF span metadata (`flags & 0x10`), not just text
 All speakers are stored in the `speakers` table including those without a country (The
 President, The Secretary-General, Secretariat staff) — these have `country_id = null`.
 
+**Important:** Raw PDF text blocks often have leading/trailing whitespace. Always call
+`.strip()` before applying regex patterns anchored with `^`. The attribution regex
+(`_TITULAR_ATTR_RE`, `_SPEAKER_ATTR_RE`) and the text split must both operate on the
+same stripped string to avoid off-by-one position errors.
+
 **Stage directions.** Italic text records procedural events (e.g. *It was so decided.*,
 *The meeting rose at 5.20 p.m.*). They are not speeches, but **they must be stored in the
-`stage_directions` table** because the full procedural record must be preserved. Each row
-has `position_in_document` so the complete meeting sequence can be reconstructed by
-ordering both `speeches` and `stage_directions` by that field.
+`stage_directions` table** because the full procedural record must be preserved.
+
+Document order is reconstructed using a **shared `position_in_item` counter** within each
+`DocumentItem`. Speeches, stage directions, and resolutions within the same item all share
+this counter and can be sorted by it to replay the meeting flow in exact order. To
+reconstruct the full document:
+
+1. Sort `DocumentItem` objects by `item.position`.
+2. Within each item, merge speeches, stage directions, and resolutions sorted by
+   `position_in_item`.
+
+Stage directions on the cover page (e.g. *The meeting was called to order at 3.30 p.m.*)
+are captured as the first stage direction of the first `DocumentItem`, not buried in cover
+metadata.
+
+When a stage direction appears mid-speech (between paragraphs), the speech text before
+and after the stage direction is preserved: the continuation text is appended to the
+preceding speech so no content is lost. The stage direction itself keeps its own
+`position_in_item` between the two speech segments.
 
 **Consensus vs. recorded votes.** When "It was so decided." follows an adoption line,
 the vote was by consensus — assume all members agreed; no `country_votes` rows are created.
-When a recorded vote occurs, the verbatim record prints vote totals AND a full per-country
-breakdown in the format:
+When a recorded vote occurs, the verbatim record prints the signal line "A recorded vote was
+taken." followed by per-country breakdown and then vote totals:
 
+    A recorded vote was taken.
     In favour: Algeria, Angola, Argentina, ...
     Against: Israel, United States of America
     Abstaining: Australia, Canada, ...
+    Draft resolution I was adopted by 109 votes to 41, with 35 abstentions (resolution 65/206).
 
 Extract these lists to populate the `country_votes` table. Each country name must be
 matched to the `countries` table (use LLM normalisation if no exact match).
 
-**Adoption line pattern.**
+**Adoption line patterns.** Several formats exist:
 
-    Draft resolution A/64/L.72 was adopted (resolution 64/299).
+    Draft resolution A/64/L.72 was adopted (resolution 64/299).   ← named symbol
+    Draft resolution I was adopted (resolution 65/206).            ← Roman numeral
+    The amendment (A/65/L.53) was adopted by N votes to M.        ← amendment
+    The draft decision was adopted.                                ← generic
 
 The draft symbol `A/{session}/L.{N}` and the adopted symbol `{session}/{N}` are both
 extractable by regex.
@@ -138,8 +170,11 @@ tables — always use `country_id` FK to the `countries` table).
 - Unit tests for each extractor (regex patterns, edge cases)
 - Integration tests using the sample PDFs in `data/raw_pdfs/`
 - Fixture files in `tests/fixtures/` for verified extraction outputs
-- The three sample PDFs cover sessions 61, 64, and 76 and give good coverage of format
-  variation across years
+- Four sample PDFs cover sessions 61, 64, 65, and 76:
+  - `en/ga/61/pv/document_107.pdf` — A/61/PV.107: recorded votes, country vote lists
+  - `en/ga/64/pv/document_121.pdf` — A/64/PV.121: consensus adoptions
+  - `en/ga/65/pv/document_71.pdf` — A/65/PV.71: amendments, many resolutions, Roman-numeral draft labels
+  - `en/ga/76/pv/document_102.pdf` — A/76/PV.102: recent format
 
 ## Error handling conventions
 

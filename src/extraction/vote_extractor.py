@@ -27,13 +27,28 @@ from src.structure.detect_sections import Section, _stage_direction_type
 # Patterns
 # ---------------------------------------------------------------------------
 
-# Adoption line: "Draft resolution A/64/L.72 was adopted (resolution 64/299)."
+# Adoption line — three patterns:
+#
+# 1. Named symbol:  "Draft resolution A/64/L.72 was adopted (resolution 64/299)."
+# 2. Roman numeral: "Draft resolution I was adopted (resolution 65/206)."
+#                   "Draft resolution II was adopted (resolution 65/207)."
+# 3. Amendment:     "The amendment (A/65/L.53) was adopted by N votes to M."
+# 4. Generic:       "The draft decision was adopted."
 _ADOPTION_RE = re.compile(
-    r"Draft\s+(resolution|decision)\s+((?:A|S)/\S+?)"
+    r"(?:"
+    # Case 1 & 2: "Draft (resolution|decision) <SYMBOL> was adopted"
+    r"Draft\s+(resolution|decision)\s+((?:(?:A|S)/\S+?)|[IVXLCDM]+)"
     r"(?:,\s*as\s+orally\s+corrected,)?"
     r"\s+was\s+adopted"
     r"(?:\s+\((resolution|decision)\s+(\S+?)\))?"
-    r"[\.\s]",
+    r"|"
+    # Case 3: "The amendment (A/65/L.53) was adopted"
+    r"The\s+amendment\s+\(((?:A|S)/\S+?)\)\s+was\s+adopted"
+    r"|"
+    # Case 4: "The draft (resolution|decision) was adopted"
+    r"The\s+draft\s+(?:resolution|decision)\s+was\s+adopted"
+    r"(?:\s+\((resolution|decision)\s+(\S+?)\))?"
+    r")",
     re.IGNORECASE,
 )
 
@@ -49,6 +64,11 @@ _VOTE_TOTALS_ALT_RE = re.compile(
     r"(\d+)\s+(?:votes?\s+)?in\s+favour\s+to\s+(\d+)\s+against"
     r"(?:,\s+with\s+(\d+)\s+abstentions?)?",
     re.IGNORECASE,
+)
+
+# Signal that a recorded vote was taken (appears as its own italic line)
+_RECORDED_VOTE_SIGNAL_RE = re.compile(
+    r"A\s+recorded\s+vote\s+was\s+taken", re.IGNORECASE
 )
 
 # Per-country vote sections — multi-line lists
@@ -135,21 +155,47 @@ def extract_resolution_from_adoption(
 
     *surrounding_blocks* are the blocks that follow the adoption line
     (needed to find per-country vote lists for recorded votes).
+
+    Handles three vote-total positions:
+    - Totals on the adoption line itself (older format).
+    - Totals in the first few surrounding blocks (older format).
+    - Totals *after* country lists in surrounding blocks (newer format where
+      country lists appear before the summary line).
     """
     m = _ADOPTION_RE.search(text)
     if not m:
         return None
 
-    draft_symbol = m.group(2).rstrip(".,;")
-    adopted_symbol: str | None = m.group(4)
+    # Extract draft symbol from whichever capture group matched.
+    # Group layout for the combined regex:
+    #   group 1 = "resolution"/"decision" (case 1/2)
+    #   group 2 = draft symbol or Roman numeral (case 1/2)
+    #   group 3 = "resolution"/"decision" (adopted, case 1/2)
+    #   group 4 = adopted symbol (case 1/2)
+    #   group 5 = amendment symbol (case 3)
+    #   group 6 = adopted symbol (case 4)
+    draft_symbol: str = (m.group(2) or m.group(5) or "unknown").rstrip(".,;")
+    adopted_symbol: str | None = (m.group(4) or m.group(6))
     if adopted_symbol:
         adopted_symbol = adopted_symbol.rstrip(".,;)")
 
-    # Check for vote totals in the same text or nearby blocks
-    full_context = text + " " + " ".join(b.text for b in surrounding_blocks[:5])
-    yes, no, abstain = _extract_vote_totals(full_context)
+    # Determine if a recorded vote signal is present in surrounding blocks
+    # ("A recorded vote was taken." appears as a separate italic line before
+    # the country lists in the newer PDF format).
+    surrounding_text = "\n".join(b.text for b in surrounding_blocks)
+    has_recorded_signal = bool(_RECORDED_VOTE_SIGNAL_RE.search(surrounding_text))
 
-    if yes is not None:
+    # Look for vote totals in:
+    # 1. The adoption line itself + first few blocks (old format)
+    # 2. Anywhere in the surrounding blocks (new format: totals after lists)
+    early_context = text + " " + " ".join(b.text for b in surrounding_blocks[:5])
+    yes, no, abstain = _extract_vote_totals(early_context)
+
+    if yes is None and (has_recorded_signal or _RECORDED_VOTE_SIGNAL_RE.search(text)):
+        # Totals appear at the end of the country lists — scan all blocks
+        yes, no, abstain = _extract_vote_totals(surrounding_text)
+
+    if yes is not None or has_recorded_signal:
         vote_type = "recorded"
         country_votes = _extract_country_votes(surrounding_blocks)
     else:

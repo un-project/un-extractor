@@ -6,14 +6,11 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 ## Extraction accuracy
 
-- [x] **`unknown` draft symbol** — Some adoption lines match the adoption regex but no
-  capture group provides a draft symbol (e.g. "The draft decision was adopted." without a
-  parenthetical). Consider extracting the symbol from a preceding bold "Draft decision
-  (A/…)" header block and linking it to the adoption line.
-
-- [ ] **Roman-numeral resolution symbol validation** — The JSON validator flags Roman
-  numerals (I, II … XIX) as unexpected `draft_symbol` format. Update the validator to
-  accept Roman numerals as valid draft symbols when no `A/…` symbol is available.
+- [ ] **`unknown` draft symbol (remaining)** — A handful of adoption lines ("The draft
+  decision was adopted.") appear with no preceding bold header and no parenthetical symbol,
+  so the draft symbol cannot be resolved. These are typically procedural decisions that
+  don't correspond to a numbered draft. Consider skipping resolution creation for these
+  cases rather than storing `draft_symbol = "unknown"`.
 
 ---
 
@@ -38,27 +35,9 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 ## Database
 
-- [x] **`adopted_symbol` uniqueness constraint** — `resolutions.adopted_symbol` has a
-  `UNIQUE` constraint but multiple PDFs may reference the same adopted resolution (e.g. in
-  explanation-of-vote sessions). Relax to allow `NULL` and non-unique non-null values, or
-  use an upsert strategy.
-
 - [ ] **Amendment table population** — `src/db/models.py` defines the `amendments` table
   but `import_json_to_db.py` does not populate it yet. Wire up amendment import when the
   extractor starts producing amendment records.
-
----
-
-## Testing
-
-- [x] **Test coverage for session-65 patterns** — Add unit tests for Roman-numeral
-  adoption lines, amendment adoption lines, and the "A recorded vote was taken." signal.
-
-- [x] **Integration test fixture** — Add a golden JSON fixture for each of the five
-  sample PDFs so regressions in extraction output are caught automatically.
-
-- [x] **Validator test for Roman numeral symbols** — Once the validator accepts Roman
-  numerals, add a corresponding test.
 
 ---
 

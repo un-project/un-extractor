@@ -6,14 +6,6 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 ## Extraction accuracy
 
-- [ ] **Location extraction** — `location` is missing for older PDFs (61, 64, 65) whose
-  cover page metadata is only in the stripped running header. Detect "New York" / "Geneva"
-  from the raw (uncleaned) first-page text as a fallback, similar to the symbol fallback.
-
-- [ ] **Date extraction for session-65 PDF** — `document_71.pdf` (A/65/PV.71) produces no
-  date. The cover page structure for that document differs; investigate and add a fallback
-  pattern.
-
 - [ ] **`unknown` draft symbol** — Some adoption lines match the adoption regex but no
   capture group provides a draft symbol (e.g. "The draft decision was adopted." without a
   parenthetical). Consider extracting the symbol from a preceding bold "Draft decision
@@ -23,17 +15,9 @@ Open tasks and known limitations for the un-extractor2 pipeline.
   numerals (I, II … XIX) as unexpected `draft_symbol` format. Update the validator to
   accept Roman numerals as valid draft symbols when no `A/…` symbol is available.
 
-- [ ] **Country-list wrapping** — Per-country vote lists in recorded votes sometimes wrap
-  across multiple text blocks. The current `_extract_country_votes` joins block text with
-  `\n`, but the regex captures only the first line after `In favour:`. Verify multi-block
-  country lists are fully captured.
-
 ---
 
 ## Metadata
-
-- [ ] **President line without dots** — Some cover pages omit the dot-leader between the
-  name and country. Check `_PRESIDENT_RE` handles this edge case.
 
 - [ ] **Security Council documents** — Symbol prefix `S/PV.NNNN` is supported by the
   regex but no SC PDFs are in the sample set. Validate against at least one SC document.
@@ -70,7 +54,7 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 - [ ] **Test coverage for session-65 patterns** — Add unit tests for Roman-numeral
   adoption lines, amendment adoption lines, and the "A recorded vote was taken." signal.
 
-- [ ] **Integration test fixture** — Add a golden JSON fixture for each of the four
+- [ ] **Integration test fixture** — Add a golden JSON fixture for each of the five
   sample PDFs so regressions in extraction output are caught automatically.
 
 - [ ] **Validator test for Roman numeral symbols** — Once the validator accepts Roman
@@ -82,6 +66,3 @@ Open tasks and known limitations for the un-extractor2 pipeline.
 
 - [ ] **LLM enrichment walkthrough** — Add a section to README.md showing a concrete
   example of running with `--llm` and what fields it populates vs. rule-based extraction.
-
-- [ ] **Database setup guide** — Document how to create the PostgreSQL schema
-  (`CREATE TABLE` / Alembic migration) before running `import_json_to_db.py`.

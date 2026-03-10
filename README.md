@@ -101,11 +101,69 @@ python process_dataset.py data/raw_pdfs/ --output output/ --workers 8
 
 ### Import JSON to database
 
-Set `DATABASE_URL` first (e.g. `postgresql://user:pass@localhost/undb`), then:
+#### 1. Create a PostgreSQL database
+
+```bash
+createdb undb
+```
+
+Or inside `psql`:
+
+```sql
+CREATE DATABASE undb;
+```
+
+#### 2. Set the connection string
+
+```bash
+export DATABASE_URL="postgresql://user:pass@localhost/undb"
+```
+
+#### 3. Create the schema
+
+The schema is created automatically on first import. You can also create it manually:
+
+```bash
+python - <<'EOF'
+from src.db.database import create_schema, get_engine
+create_schema(get_engine())
+print("Schema created.")
+EOF
+```
+
+This runs `CREATE TABLE IF NOT EXISTS` for all tables — safe to call repeatedly.
+
+#### 4. Run the importer
 
 ```bash
 python import_json_to_db.py output/
+# or with an explicit URL:
+python import_json_to_db.py output/ --db postgresql://user:pass@localhost/undb
 ```
+
+The importer is idempotent per document: re-importing a JSON file for a symbol already in the database is a no-op.
+
+#### Database schema overview
+
+| Table | Description |
+|---|---|
+| `countries` | UN member states (name, ISO-2, ISO-3) |
+| `speakers` | People who spoke; linked to a country |
+| `documents` | One row per meeting PDF (symbol, date, session, location) |
+| `document_items` | Agenda items and named sections within a meeting |
+| `stage_directions` | Italic procedural text (adoptions, suspensions, …) |
+| `speeches` | One speech segment per speaker turn |
+| `resolutions` | Draft/adopted resolutions; shared across meetings |
+| `votes` | One voting event per resolution per meeting |
+| `country_votes` | Per-country vote position for recorded votes |
+| `amendments` | (reserved) proposed amendments |
+
+Key relationships:
+- `speeches` → `speakers` → `countries`
+- `votes` → `resolutions`; `country_votes` → `votes` + `countries`
+- All content rows link back to `documents` and `document_items`
+
+To reconstruct the full text of a meeting in order, join `document_items` (ordered by `position`), then merge `speeches`, `stage_directions`, and `votes` within each item on `position_in_item`.
 
 ### Run tests
 
@@ -218,6 +276,7 @@ Four sample PDFs are included in `data/raw_pdfs/`:
 
 | File | Symbol | Notes |
 |---|---|---|
+| `en/ga/48/pv/document_46.pdf` | A/48/PV.46 | Older format (1993): ALL-CAPS names, no dot-leaders |
 | `en/ga/61/pv/document_107.pdf` | A/61/PV.107 | Recorded votes, country vote lists |
 | `en/ga/64/pv/document_121.pdf` | A/64/PV.121 | Consensus adoptions |
 | `en/ga/65/pv/document_71.pdf` | A/65/PV.71 | Amendments, many resolutions |

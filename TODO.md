@@ -1,6 +1,6 @@
 # TODO
 
-Open tasks and known limitations for the un-extractor2 pipeline.
+Open tasks and known limitations for the un-extractor pipeline.
 
 ---
 

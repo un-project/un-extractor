@@ -1,4 +1,4 @@
-# un-extractor2
+# un-extractor
 
 A pipeline that converts United Nations meeting verbatim records (procès-verbaux) from PDF into structured JSON and stores them in PostgreSQL.
 

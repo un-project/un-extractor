@@ -50,7 +50,7 @@ def _get_or_create_country(session: Session, name: str) -> Country | None:
         obj = Country(name=name)
         session.add(obj)
         session.flush()
-    return obj  # type: ignore[return-value]
+    return obj
 
 
 def _get_or_create_speaker(
@@ -62,9 +62,11 @@ def _get_or_create_speaker(
     title: str | None,
 ) -> Speaker:
     country_id = country.id if country else None
-    obj = session.query(Speaker).filter_by(
-        name=name, country_id=country_id, organization=organization
-    ).first()
+    obj = (
+        session.query(Speaker)
+        .filter_by(name=name, country_id=country_id, organization=organization)
+        .first()
+    )
     if obj is None:
         obj = Speaker(
             name=name,
@@ -75,7 +77,7 @@ def _get_or_create_speaker(
         )
         session.add(obj)
         session.flush()
-    return obj  # type: ignore[return-value]
+    return obj
 
 
 def _get_or_create_resolution(
@@ -95,7 +97,7 @@ def _get_or_create_resolution(
     elif title and not obj.title:
         obj.title = title
         session.flush()
-    return obj  # type: ignore[return-value]
+    return obj
 
 
 # ---------------------------------------------------------------------------

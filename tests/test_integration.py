@@ -31,7 +31,9 @@ To regenerate fixtures after an intentional change:
                      for res in item.resolutions]}
                 for item in r.items],
         }
-        Path(f"tests/fixtures/{pdf.stem}.json").write_text(json.dumps(summary, indent=2))
+        Path(f"tests/fixtures/{pdf.stem}.json").write_text(
+            json.dumps(summary, indent=2)
+        )
         print(f"Regenerated {pdf.stem}.json")
     EOF
 """
@@ -95,12 +97,15 @@ def test_pipeline_matches_golden_fixture(pdf_path: Path) -> None:
     """Pipeline output must match the stored golden fixture."""
     fixture_path = _FIXTURES_DIR / f"{pdf_path.stem}.json"
     if not fixture_path.exists():
-        pytest.skip(f"No fixture for {pdf_path.stem} — run the regeneration snippet above")
+        pytest.skip(
+            f"No fixture for {pdf_path.stem} — run the regeneration snippet above"
+        )
 
     expected = json.loads(fixture_path.read_text())
     actual = _summarise(pdf_path)
 
     assert actual == expected, (
         f"Pipeline output for {pdf_path.name} differs from golden fixture.\n"
-        "If the change is intentional, regenerate fixtures using the snippet in this file's docstring."
+        "If the change is intentional, regenerate fixtures using the snippet"
+        " in this file's docstring."
     )

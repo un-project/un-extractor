@@ -153,7 +153,9 @@ def validate_record(record: MeetingRecord) -> list[ValidationError]:
     for item_idx, item in enumerate(record.items):
         item_prefix = f"items[{item_idx}]"
         for speech in item.speeches:
-            errors.extend(_check_speech(speech, f"{item_prefix}.speeches[{speech_idx}]"))
+            errors.extend(
+                _check_speech(speech, f"{item_prefix}.speeches[{speech_idx}]")
+            )
             speech_idx += 1
         for sd in item.stage_directions:
             errors.extend(

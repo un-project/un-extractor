@@ -29,7 +29,7 @@ from src.extraction.vote_extractor import (
     extract_resolution_from_adoption,
     extract_stage_direction,
 )
-from src.models import DocumentItem, MeetingRecord, PresidentInfo
+from src.models import DocumentItem, MeetingRecord, PresidentInfo, TextBlock
 from src.pdf.clean_text import clean_pages, flatten_blocks, normalize_allcaps
 from src.pdf.extract_text import extract_pages
 from src.structure.detect_sections import Section, detect_sections
@@ -91,14 +91,14 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
         sec_offset[id(sec)] = running
         running += len(sec.blocks)
 
-    def _following(sec: Section, n: int = 80) -> list:
+    def _following(sec: Section, n: int = 80) -> list[TextBlock]:
         start = sec_offset[id(sec)] + len(sec.blocks)
         return all_blocks[start : start + n]
 
     items: list[DocumentItem] = []
     current: DocumentItem | None = None
-    global_pos = 0   # document-wide speech/stage-direction counter
-    elem_pos = 0     # position within the current item (shared across types)
+    global_pos = 0  # document-wide speech/stage-direction counter
+    elem_pos = 0  # position within the current item (shared across types)
 
     # Track draft_symbols already added to current item to avoid duplicates
     # when adoption text appears in both an agenda_item/speaker_turn section
@@ -109,7 +109,9 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
     # the adoption line.  We buffer body blocks that follow a "recorded vote
     # taken" signal so they can be passed as context when the adoption line
     # is encountered later.
-    _pending_vote_blocks: list = []   # accumulated body blocks after vote signal
+    _pending_vote_blocks: list[TextBlock] = (
+        []
+    )  # accumulated body blocks after vote signal
     _after_vote_signal: bool = False  # True after "A recorded vote was taken."
 
     # Track the most recent resolution_header text so adoption lines that
@@ -140,7 +142,7 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
 
     def _try_add_resolution(
         sec: Section,
-        extra_blocks: list | None = None,
+        extra_blocks: list[TextBlock] | None = None,
         preceding_text: str = "",
     ) -> None:
         """Extract and append a resolution if an adoption line is found."""
@@ -186,7 +188,7 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             _after_vote_signal = False
             _pending_vote_blocks = []
             speech = extract_speech(section, global_pos)
-            if speech is not None:
+            if speech is not None and current is not None:
                 current.speeches.append(
                     speech.model_copy(update={"position_in_item": elem_pos})
                 )
@@ -194,14 +196,17 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             global_pos += 1
             # Adoption lines embedded in a speaker turn (e.g. The President
             # reading recorded-vote results aloud, as in document_107 L.67).
-            _try_add_resolution(section, _following(section), _last_resolution_header_text)
+            _try_add_resolution(
+                section, _following(section), _last_resolution_header_text
+            )
 
         # ---- Stage direction -----------------------------------------------------
         elif section.section_type == "stage_direction":
             sd = extract_stage_direction(section, global_pos)
-            current.stage_directions.append(
-                sd.model_copy(update={"position_in_item": elem_pos})
-            )
+            if current is not None:
+                current.stage_directions.append(
+                    sd.model_copy(update={"position_in_item": elem_pos})
+                )
             elem_pos += 1
             global_pos += 1
             if sd.direction_type == "adoption":
@@ -233,7 +238,9 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             # can recover the symbol from this header.
             _last_resolution_header_text = section.text
             # Sub-heading within an item; also check for embedded adoption.
-            _try_add_resolution(section, _following(section), _last_resolution_header_text)
+            _try_add_resolution(
+                section, _following(section), _last_resolution_header_text
+            )
 
         # ---- Body ----------------------------------------------------------------
         elif section.section_type == "body":
@@ -328,7 +335,9 @@ def process_pdf(
         parts = pdf_path.parts
         if "raw_pdfs" in parts:
             idx = parts.index("raw_pdfs")
-            rel = Path(*parts[idx + 1 :]).with_suffix("")  # e.g. en/ga/65/pv/document_71
+            rel = Path(*parts[idx + 1 :]).with_suffix(
+                ""
+            )  # e.g. en/ga/65/pv/document_71
         else:
             rel = Path(pdf_path.stem)
         d = debug_dir / rel
@@ -396,12 +405,14 @@ def process_pdf(
         # than in the cover section blocks.  Fall back to the raw first-page text.
         if not meta.get("date"):
             from src.extraction.metadata_extractor import extract_date
+
             meta["date"] = extract_date(raw_first_page_text)
             if meta["date"]:
                 log.debug("Date recovered from raw page: %s", meta["date"])
 
         if not meta.get("location"):
             from src.extraction.metadata_extractor import extract_location
+
             meta["location"] = extract_location(raw_first_page_text)
             if meta["location"]:
                 log.debug("Location recovered from raw page: %s", meta["location"])

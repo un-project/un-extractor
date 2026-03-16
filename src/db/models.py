@@ -75,7 +75,9 @@ class Speaker(Base):
     country: Mapped[Optional[Country]] = relationship(back_populates="speakers")
     speeches: Mapped[list["Speech"]] = relationship(back_populates="speaker")
 
-    __table_args__ = (UniqueConstraint("name", "country_id", "organization", name="uq_speaker"),)
+    __table_args__ = (
+        UniqueConstraint("name", "country_id", "organization", name="uq_speaker"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +180,9 @@ class StageDirection(Base):
     position_in_item: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     document: Mapped[Document] = relationship(back_populates="stage_directions")
-    item: Mapped[Optional[DocumentItem]] = relationship(back_populates="stage_directions")
+    item: Mapped[Optional[DocumentItem]] = relationship(
+        back_populates="stage_directions"
+    )
 
 
 # ---------------------------------------------------------------------------

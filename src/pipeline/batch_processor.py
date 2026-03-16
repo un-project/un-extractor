@@ -165,7 +165,9 @@ def process_batch(
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(_process_one, pdf, output_dir, use_llm, llm_api_key, debug_dir): pdf
+            executor.submit(
+                _process_one, pdf, output_dir, use_llm, llm_api_key, debug_dir
+            ): pdf
             for pdf in pdfs
         }
         for future in as_completed(futures):

@@ -116,7 +116,9 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
         name = m.group(1).strip()
         lang = _parse_language(m.group(2))
         role = _infer_role(name, None)
-        return SpeakerInfo(name=normalize_allcaps(name), country=None, language=lang, role=role)
+        return SpeakerInfo(
+            name=normalize_allcaps(name), country=None, language=lang, role=role
+        )
 
     # Try regular speaker (Mr./Mrs./Ms. + country)
     m2 = _SPEAKER_ATTR_RE.match(text)

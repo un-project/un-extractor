@@ -10,6 +10,8 @@ The lookup is case-insensitive so it catches capitalization variants too.
 
 from __future__ import annotations
 
+import re
+
 # ---------------------------------------------------------------------------
 # Static alias table
 # ---------------------------------------------------------------------------
@@ -28,7 +30,7 @@ _ALIASES: dict[str, str] = {
     "Asutralia": "Australia",
     "Australlia": "Australia",
     "Australaia": "Australia",
-    "Columbia": "Colombia",         # common OCR/spelling error
+    "Columbia": "Colombia",  # common OCR/spelling error
     # ------------------------------------------------------------------
     # "The X" / article prefix variants
     # ------------------------------------------------------------------
@@ -160,21 +162,43 @@ _ALIASES_LOWER: dict[str, str] = {k.lower(): v for k, v in _ALIASES.items()}
 # "Russian Federation" is a valid country name.
 _ORG_KEYWORDS: frozenset[str] = frozenset(
     {
-        "organization", "organisation",
-        "committee", "commission",
-        "union", "fund", "agency",
-        "programme", "program",
-        "association", "council",
-        "forum", "community",
-        "institute", "institution",
-        "bank", "court", "tribunal",
-        "network", "coalition", "alliance",
-        "congress", "conference", "initiative",
-        "foundation", "society",
-        "centre", "center",
-        "league", "group", "authority",
-        "system", "corporation", "company",
-        "partnership", "project", "holdings",
+        "organization",
+        "organisation",
+        "committee",
+        "commission",
+        "union",
+        "fund",
+        "agency",
+        "programme",
+        "program",
+        "association",
+        "council",
+        "forum",
+        "community",
+        "institute",
+        "institution",
+        "bank",
+        "court",
+        "tribunal",
+        "network",
+        "coalition",
+        "alliance",
+        "congress",
+        "conference",
+        "initiative",
+        "foundation",
+        "society",
+        "centre",
+        "center",
+        "league",
+        "group",
+        "authority",
+        "system",
+        "corporation",
+        "company",
+        "partnership",
+        "project",
+        "holdings",
         "limited",
     }
 )
@@ -182,20 +206,35 @@ _ORG_KEYWORDS: frozenset[str] = frozenset(
 # Role-title prefixes: if the affiliation string starts with one of these
 # (case-insensitive) it describes a person's role, not a country.
 _ORG_ROLE_PREFIXES: tuple[str, ...] = (
-    "president of", "president,",
-    "secretary-general", "secretary of", "secretary,",
-    "under-secretary", "assistant secretary",
-    "executive director", "executive secretary",
-    "director of", "director general", "director,",
-    "chief,", "chief of",
-    "chairman of", "chairperson", "chair,",
-    "acting chairman", "acting chair", "acting secretary",
+    "president of",
+    "president,",
+    "secretary-general",
+    "secretary of",
+    "secretary,",
+    "under-secretary",
+    "assistant secretary",
+    "executive director",
+    "executive secretary",
+    "director of",
+    "director general",
+    "director,",
+    "chief,",
+    "chief of",
+    "chairman of",
+    "chairperson",
+    "chair,",
+    "acting chairman",
+    "acting chair",
+    "acting secretary",
     "co-chair",
     "rapporteur",
-    "special representative", "special adviser", "special advisor",
+    "special representative",
+    "special adviser",
+    "special advisor",
     "special envoy",
     "high commissioner",
-    "deputy secretary", "deputy high",
+    "deputy secretary",
+    "deputy high",
     "judge,",
     "advocate of",
     "observer for",
@@ -206,13 +245,39 @@ _ORG_ROLE_PREFIXES: tuple[str, ...] = (
 # above but are definitely not countries.
 _ORG_ACRONYMS: frozenset[str] = frozenset(
     {
-        "unicef", "unesco", "undp", "unfpa", "unhcr", "unep",
-        "who", "fao", "imf", "wto", "ilo", "iaea", "icc", "icj",
-        "icrc", "wmo", "icao", "imo", "itu", "upu", "wipo", "ifad",
-        "unido", "interpol", "un-women", "gnp+",
-        "access now", "social watch", "mena-rosa", "m17m.org",
+        "unicef",
+        "unesco",
+        "undp",
+        "unfpa",
+        "unhcr",
+        "unep",
+        "who",
+        "fao",
+        "imf",
+        "wto",
+        "ilo",
+        "iaea",
+        "icc",
+        "icj",
+        "icrc",
+        "wmo",
+        "icao",
+        "imo",
+        "itu",
+        "upu",
+        "wipo",
+        "ifad",
+        "unido",
+        "interpol",
+        "un-women",
+        "gnp+",
+        "access now",
+        "social watch",
+        "mena-rosa",
+        "m17m.org",
         "south centre",
-        "sovereign order of malta", "sovereign military order of malta",
+        "sovereign order of malta",
+        "sovereign military order of malta",
     }
 )
 
@@ -223,13 +288,11 @@ _ORG_ACRONYMS: frozenset[str] = frozenset(
 
 
 def is_organization(name: str) -> bool:
-    """Return ``True`` if *name* looks like an organization / role rather than a country.
+    """Return ``True`` if *name* is an organization / role rather than a country.
 
     Call this *after* ``normalize_country_name`` so that known aliases have
     already been resolved (e.g. "Republic of the Congo" → "Congo").
     """
-    import re  # local import to avoid module-level dependency issues
-
     lower = name.strip().lower()
     if not lower:
         return False

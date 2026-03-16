@@ -44,8 +44,7 @@ _ADOPTION_RE = re.compile(
     r"(?:\s+\((resolution|decision)\s+(\S+?)\))?"
     r"|"
     # Case 3: "The amendment (A/65/L.53) was adopted"
-    r"The\s+amendment\s+\(((?:A|S)/\S+?)\)\s+was\s+adopted"
-    r"|"
+    r"The\s+amendment\s+\(((?:A|S)/\S+?)\)\s+was\s+adopted" r"|"
     # Case 4: "The draft (resolution|decision) was adopted"
     r"The\s+draft\s+(?:resolution|decision)\s+was\s+adopted"
     r"(?:\s+\((resolution|decision)\s+(\S+?)\))?"
@@ -67,7 +66,8 @@ _VOTE_TOTALS_ALT_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Symbol extracted from a preceding bold header block, e.g. "Draft resolution (A/65/L.71)".
+# Symbol extracted from a preceding bold header block,
+# e.g. "Draft resolution (A/65/L.71)".
 # Used as a fallback when the adoption line itself carries no symbol.
 _SYMBOL_FROM_CONTEXT_RE = re.compile(r"([AS]/[^)\s,]+)", re.IGNORECASE)
 
@@ -147,7 +147,7 @@ def _extract_country_votes(blocks: list[TextBlock]) -> list[CountryVote]:
             # Older format: country lists follow the adoption line.
             full_text = post_text
 
-    def _section_text(header_re: re.Pattern) -> str:
+    def _section_text(header_re: re.Pattern[str]) -> str:
         """Return everything from *header_re* to the next section boundary."""
         m = header_re.search(full_text)
         if not m:
@@ -215,7 +215,7 @@ def extract_resolution_from_adoption(
         if pm:
             draft_symbol = pm.group(1).rstrip(".,;)")
     draft_symbol = draft_symbol or "unknown"
-    adopted_symbol: str | None = (m.group(4) or m.group(6))
+    adopted_symbol: str | None = m.group(4) or m.group(6)
     if adopted_symbol:
         adopted_symbol = adopted_symbol.rstrip(".,;)")
 
@@ -229,8 +229,7 @@ def extract_resolution_from_adoption(
     adoption_pos_in_ctx = surrounding_text.lower().find("was adopted")
     signal_m = _RECORDED_VOTE_SIGNAL_RE.search(surrounding_text)
     has_recorded_signal = bool(
-        signal_m
-        and (adoption_pos_in_ctx < 0 or signal_m.start() < adoption_pos_in_ctx)
+        signal_m and (adoption_pos_in_ctx < 0 or signal_m.start() < adoption_pos_in_ctx)
     )
 
     # Look for vote totals in:

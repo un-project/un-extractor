@@ -160,7 +160,9 @@ class TestExtractResolutionFromAdoption:
             _make_block("Against: Israel, USA"),
             _make_block("Abstaining: Australia"),
         ]
-        text = "The amendment (A/65/L.53) was adopted by 10 votes to 2, with 1 abstention."
+        text = (
+            "The amendment (A/65/L.53) was adopted by 10 votes to 2, with 1 abstention."
+        )
         res = extract_resolution_from_adoption(text, surrounding)
         assert res is not None
         assert res.draft_symbol == "A/65/L.53"
@@ -179,7 +181,10 @@ class TestExtractResolutionFromAdoption:
         ]
         # adoption line comes after; surrounding = signal + country blocks
         surrounding = [signal_block] + country_blocks
-        text = "Draft resolution A/65/L.71 was adopted by 120 votes to 1, with 5 abstentions."
+        text = (
+            "Draft resolution A/65/L.71 was adopted by 120 votes to 1,"
+            " with 5 abstentions."
+        )
         res = extract_resolution_from_adoption(text, surrounding)
         assert res is not None
         assert res.vote_type == "recorded"

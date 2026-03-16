@@ -88,15 +88,15 @@ class SpeakerInfo(BaseModel):
 
 
 class Speech(BaseModel):
-    position: int           # document-wide ordinal (stable ordering across items)
+    position: int  # document-wide ordinal (stable ordering across items)
     position_in_item: int = 0  # order within its DocumentItem (shared counter with
-                               # stage_directions and resolutions for reconstruction)
+    # stage_directions and resolutions for reconstruction)
     speaker: SpeakerInfo
     text: str
 
 
 class StageDirection(BaseModel):
-    position: int           # document-wide ordinal
+    position: int  # document-wide ordinal
     position_in_item: int = 0  # order within its DocumentItem
     text: str
     direction_type: Literal[
@@ -140,17 +140,18 @@ class DocumentItem(BaseModel):
 
         all_elements = (
             [("speech", s.position_in_item, s) for s in item.speeches]
-            + [("stage_direction", d.position_in_item, d) for d in item.stage_directions]
+            + [("stage_direction", d.position_in_item, d)
+               for d in item.stage_directions]
             + [("resolution", r.position_in_item, r) for r in item.resolutions]
         )
         all_elements.sort(key=lambda x: x[1])
     """
 
-    position: int                              # order of this item in the meeting
+    position: int  # order of this item in the meeting
     item_type: Literal["agenda_item", "other_item"]
     title: str
-    agenda_number: int | None = None           # set for agenda_item type
-    sub_item: str | None = None                # e.g. "b" for sub-item (b)
+    agenda_number: int | None = None  # set for agenda_item type
+    sub_item: str | None = None  # e.g. "b" for sub-item (b)
     continued: bool = False
     speeches: list[Speech] = []
     stage_directions: list[StageDirection] = []

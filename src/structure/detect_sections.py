@@ -163,6 +163,7 @@ def _stage_direction_type(
 # Main segmentation
 # ---------------------------------------------------------------------------
 
+
 def _is_content_boundary(block: TextBlock) -> bool:
     """Return True if this page-0 block marks the end of cover metadata.
 

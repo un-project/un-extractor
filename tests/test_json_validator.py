@@ -4,22 +4,22 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
-
 from src.models import (
     CountryVote,
     DocumentItem,
     MeetingRecord,
     PresidentInfo,
     Resolution,
-    Speech,
-    SpeakerInfo,
-    StageDirection,
 )
-from src.validation.json_validator import ValidationError, _check_resolution, validate_record
+from src.validation.json_validator import (
+    _check_resolution,
+    validate_record,
+)
 
 
-def _make_resolution(draft_symbol: str = "A/64/L.72", vote_type: str = "consensus") -> Resolution:
+def _make_resolution(
+    draft_symbol: str = "A/64/L.72", vote_type: str = "consensus"
+) -> Resolution:
     return Resolution(
         draft_symbol=draft_symbol,
         vote_type=vote_type,
@@ -47,7 +47,9 @@ def _make_record(**overrides) -> MeetingRecord:
 
 class TestCheckResolution:
     def test_valid_l_series(self) -> None:
-        errors = _check_resolution(_make_resolution("A/64/L.72"), "items[0].resolutions[0]")
+        errors = _check_resolution(
+            _make_resolution("A/64/L.72"), "items[0].resolutions[0]"
+        )
         assert errors == []
 
     def test_valid_sc_symbol(self) -> None:
@@ -110,11 +112,13 @@ class TestValidateRecord:
 
     def test_missing_symbol(self) -> None:
         from src.validation.json_validator import _check_symbol
+
         errors = _check_symbol(None)
         assert any(e.field == "symbol" for e in errors)
 
     def test_missing_date(self) -> None:
         from src.validation.json_validator import _check_date
+
         errors = _check_date(None)
         assert any(e.field == "date" for e in errors)
 

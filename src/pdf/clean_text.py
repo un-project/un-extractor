@@ -40,9 +40,9 @@ _PAGE_NUMBER_RE = re.compile(r"^\s*\d+(?:/\d+)?\s*$")
 #   Bare job numbers:    "*1070469*"
 _DOC_CODE_RE = re.compile(
     r"^\s*(?:"
-    r"\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3})?"  # code (opt letter) (opt page)
-    r"|\d{1,3}\s+\d{2}-\d{5}"                         # page code
-    r"|\*\d{5,8}\*"                                    # *jobnum*
+    r"\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3}(?:/\d+)?)?"  # code (opt letter) (opt page or page/total)
+    r"|\d{1,3}(?:/\d+)?\s+\d{2}-\d{5}"                         # page (or page/total) then code
+    r"|\*\d{5,8}\*"                                             # *jobnum*
     r")\s*$"
 )
 
@@ -88,7 +88,7 @@ def _in_header_or_footer(
 # larger blocks when a page break falls inside a paragraph.  These are
 # stripped from block text rather than discarding the whole block.
 _INLINE_CODE_RE = re.compile(
-    r"\n\s*(?:\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3})?|\d{1,3}\s+\d{2}-\d{5})\s*\n",
+    r"\n\s*(?:\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3}(?:/\d+)?)?|\d{1,3}(?:/\d+)?\s+\d{2}-\d{5})\s*\n",
     re.MULTILINE,
 )
 

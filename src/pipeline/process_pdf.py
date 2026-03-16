@@ -27,6 +27,7 @@ from src.extraction.metadata_extractor import extract_all as extract_metadata
 from src.extraction.speaker_extractor import extract_speech
 from src.extraction.vote_extractor import (
     extract_resolution_from_adoption,
+    extract_resolution_title,
     extract_stage_direction,
 )
 from src.models import DocumentItem, MeetingRecord, PresidentInfo, TextBlock
@@ -472,6 +473,15 @@ def process_pdf(
                         and _res.draft_symbol not in _adoption_context
                     ):
                         _adoption_context[_res.draft_symbol] = _ctx
+
+    # Extract resolution titles from the adoption context using the "entitled"
+    # pattern (e.g. "draft resolution A/76/L.86, entitled 'Financing for …'").
+    for _item in items:
+        for _res in _item.resolutions:
+            if not _res.title and _res.draft_symbol in _adoption_context:
+                _res.title = extract_resolution_title(
+                    _adoption_context[_res.draft_symbol], _res.draft_symbol
+                )
 
     # --- Phase 4: LLM semantic enrichment (optional) ---------------------------
     if use_llm:

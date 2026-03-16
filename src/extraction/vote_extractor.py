@@ -71,6 +71,24 @@ _VOTE_TOTALS_ALT_RE = re.compile(
 # Used as a fallback when the adoption line itself carries no symbol.
 _SYMBOL_FROM_CONTEXT_RE = re.compile(r"([AS]/[^)\s,]+)", re.IGNORECASE)
 
+# Resolution title — President announces "entitled 'Title'" before the vote.
+# Matches both ASCII and Unicode typographic quotes.
+# Two sub-patterns to handle different orderings:
+#   A: "Draft resolution SYMBOL[,] [is] entitled <QUOTE>Title<QUOTE>"
+#   B: bare "entitled <QUOTE>Title<QUOTE>" (fallback)
+_OPEN_QUOTE = r"""["'\u201c\u2018]"""
+_CLOSE_QUOTE = r"""["'\u201d\u2019]"""
+_ENTITLED_ANCHORED_RE = re.compile(
+    r"draft\s+(?:resolution|decision)\s+\S+"  # symbol (any)
+    r"(?:,\s+|\s+is\s+|\s+)"
+    r"entitled\s+" + _OPEN_QUOTE + r"(.+?)" + _CLOSE_QUOTE,
+    re.IGNORECASE | re.DOTALL,
+)
+_ENTITLED_RE = re.compile(
+    r"entitled\s+" + _OPEN_QUOTE + r"(.+?)" + _CLOSE_QUOTE,
+    re.IGNORECASE | re.DOTALL,
+)
+
 # Signal that a recorded vote was taken (appears as its own italic line)
 _RECORDED_VOTE_SIGNAL_RE = re.compile(
     r"A\s+recorded\s+vote\s+was\s+taken", re.IGNORECASE
@@ -258,6 +276,43 @@ def extract_resolution_from_adoption(
         abstain_count=abstain,
         country_votes=country_votes,
     )
+
+
+def extract_resolution_title(context: str, draft_symbol: str) -> str | None:
+    """Return the title for *draft_symbol* from surrounding context text.
+
+    Searches for the President's announcement pattern::
+
+        Draft resolution A/76/L.86, entitled "Financing for peacebuilding".
+        Draft resolution I is entitled "Follow-up to …".
+
+    First tries an anchored search where the symbol appears on the same line
+    as "entitled".  Falls back to the last bare "entitled '…'" match in the
+    context (last rather than first so that text about earlier resolutions in
+    the same context window does not shadow the current one).
+    """
+    if not context:
+        return None
+
+    # Try anchored: "Draft resolution SYMBOL ... entitled 'Title'"
+    for m in _ENTITLED_ANCHORED_RE.finditer(context):
+        raw_sym = m.group(0).split()[2].rstrip(",")
+        # Accept if the captured symbol text is a suffix/match of draft_symbol
+        if (
+            raw_sym.upper() == draft_symbol.upper()
+            or draft_symbol.upper().endswith(raw_sym.upper())
+            or raw_sym.upper().endswith(draft_symbol.upper())
+        ):
+            return m.group(1).strip()
+
+    # Fallback: last "entitled 'Title'" in the context
+    last: re.Match[str] | None = None
+    for m in _ENTITLED_RE.finditer(context):
+        last = m
+    if last:
+        return last.group(1).strip()
+
+    return None
 
 
 def extract_votes_and_directions(

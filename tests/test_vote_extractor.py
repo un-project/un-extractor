@@ -8,6 +8,7 @@ from src.extraction.vote_extractor import (
     _extract_vote_totals,
     _parse_country_list,
     extract_resolution_from_adoption,
+    extract_resolution_title,
 )
 from src.models import FormattedSegment, TextBlock
 
@@ -204,3 +205,39 @@ class TestExtractResolutionFromAdoption:
         )
         assert res is not None
         assert res.draft_symbol == "A/65/L.99"
+
+
+class TestExtractResolutionTitle:
+    def test_anchored_symbol_match(self) -> None:
+        ctx = (
+            "The President: The Assembly will take a decision on draft resolution"
+            " A/76/L.86, entitled \u201cFinancing for peacebuilding\u201d."
+            " May I take it"
+        )
+        assert (
+            extract_resolution_title(ctx, "A/76/L.86") == "Financing for peacebuilding"
+        )
+
+    def test_roman_numeral_is_entitled(self) -> None:
+        ctx = (
+            "Draft resolution I is entitled \u201cFollow-up to the Second"
+            " World Assembly on Ageing\u201d. The Third Committee adopted"
+        )
+        assert (
+            extract_resolution_title(ctx, "I")
+            == "Follow-up to the Second World Assembly on Ageing"
+        )
+
+    def test_fallback_last_match(self) -> None:
+        ctx = 'entitled "Earlier title". ... entitled "Correct title".'
+        assert extract_resolution_title(ctx, "unknown") == "Correct title"
+
+    def test_ascii_quotes(self) -> None:
+        ctx = 'draft resolution II, entitled "Trafficking in women and girls".'
+        assert extract_resolution_title(ctx, "II") == "Trafficking in women and girls"
+
+    def test_no_match_returns_none(self) -> None:
+        assert extract_resolution_title("No entitled text here.", "A/64/L.1") is None
+
+    def test_empty_context_returns_none(self) -> None:
+        assert extract_resolution_title("", "A/64/L.1") is None

@@ -68,13 +68,14 @@ class Speaker(Base):
     country_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("countries.id"), nullable=True
     )
+    organization: Mapped[Optional[str]] = mapped_column(String(400), nullable=True)
     role: Mapped[Optional[str]] = mapped_column(String(100))
     title: Mapped[Optional[str]] = mapped_column(String(20))
 
     country: Mapped[Optional[Country]] = relationship(back_populates="speakers")
     speeches: Mapped[list["Speech"]] = relationship(back_populates="speaker")
 
-    __table_args__ = (UniqueConstraint("name", "country_id", name="uq_speaker"),)
+    __table_args__ = (UniqueConstraint("name", "country_id", "organization", name="uq_speaker"),)
 
 
 # ---------------------------------------------------------------------------

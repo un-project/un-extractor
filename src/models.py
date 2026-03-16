@@ -80,6 +80,7 @@ class PresidentInfo(BaseModel):
 class SpeakerInfo(BaseModel):
     name: str
     country: str | None = None
+    organization: str | None = None  # non-country affiliation (NGO, UN body, etc.)
     language: str | None = None  # spoken language; None means English
     role: str | None = None  # e.g. "Representative", "President"
     title: str | None = None  # e.g. "Mr.", "Mrs.", "Ms.", "H.E."

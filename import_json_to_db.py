@@ -57,13 +57,22 @@ def _get_or_create_speaker(
     session: Session,
     name: str,
     country: Country | None,
+    organization: str | None,
     role: str | None,
     title: str | None,
 ) -> Speaker:
     country_id = country.id if country else None
-    obj = session.query(Speaker).filter_by(name=name, country_id=country_id).first()
+    obj = session.query(Speaker).filter_by(
+        name=name, country_id=country_id, organization=organization
+    ).first()
     if obj is None:
-        obj = Speaker(name=name, country_id=country_id, role=role, title=title)
+        obj = Speaker(
+            name=name,
+            country_id=country_id,
+            organization=organization,
+            role=role,
+            title=title,
+        )
         session.add(obj)
         session.flush()
     return obj  # type: ignore[return-value]
@@ -150,6 +159,7 @@ def import_record(db_session: Session, record: MeetingRecord) -> None:
                 db_session,
                 name=sp.name,
                 country=country,
+                organization=sp.organization,
                 role=sp.role,
                 title=sp.title,
             )

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 
-from src.extraction.country_aliases import normalize_country_name
+from src.extraction.country_aliases import is_organization, normalize_country_name
 from src.models import Speech, SpeakerInfo
 from src.pdf.clean_text import _strip_inline_noise, normalize_allcaps
 from src.structure.detect_sections import Section
@@ -132,13 +132,21 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
             lang = _parse_language(affiliation)
             affiliation = m2.group(4).strip() if m2.group(4) else None
 
-        # Determine if affiliation is a country or a UN department
-        is_dept = affiliation and any(
-            kw in affiliation.lower()
-            for kw in ("department", "office", "bureau", "division", "secretariat")
-        )
-
-        country = None if is_dept else (normalize_country_name(affiliation) if affiliation else None)
+        # Classify affiliation as country, organization, or UN department
+        country: str | None = None
+        organization: str | None = None
+        if affiliation:
+            normalized = normalize_country_name(affiliation)
+            is_dept = any(
+                kw in affiliation.lower()
+                for kw in ("department", "office", "bureau", "division", "secretariat")
+            )
+            if is_dept:
+                organization = affiliation
+            elif is_organization(normalized):
+                organization = normalized
+            else:
+                country = normalized
         role = _infer_role(name, affiliation)
 
         full_name = normalize_allcaps(f"{title} {name}".strip() if title else name)
@@ -146,6 +154,7 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
             name=full_name,
             title=title,
             country=country,
+            organization=organization,
             language=lang,
             role=role,
         )

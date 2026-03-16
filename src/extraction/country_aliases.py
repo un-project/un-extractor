@@ -152,8 +152,102 @@ _ALIASES_LOWER: dict[str, str] = {k.lower(): v for k, v in _ALIASES.items()}
 
 
 # ---------------------------------------------------------------------------
+# Organization detection
+# ---------------------------------------------------------------------------
+
+# Words that, when found as whole words, reliably indicate an organization
+# rather than a country name.  "federation" is intentionally excluded because
+# "Russian Federation" is a valid country name.
+_ORG_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "organization", "organisation",
+        "committee", "commission",
+        "union", "fund", "agency",
+        "programme", "program",
+        "association", "council",
+        "forum", "community",
+        "institute", "institution",
+        "bank", "court", "tribunal",
+        "network", "coalition", "alliance",
+        "congress", "conference", "initiative",
+        "foundation", "society",
+        "centre", "center",
+        "league", "group", "authority",
+        "system", "corporation", "company",
+        "partnership", "project", "holdings",
+        "limited",
+    }
+)
+
+# Role-title prefixes: if the affiliation string starts with one of these
+# (case-insensitive) it describes a person's role, not a country.
+_ORG_ROLE_PREFIXES: tuple[str, ...] = (
+    "president of", "president,",
+    "secretary-general", "secretary of", "secretary,",
+    "under-secretary", "assistant secretary",
+    "executive director", "executive secretary",
+    "director of", "director general", "director,",
+    "chief,", "chief of",
+    "chairman of", "chairperson", "chair,",
+    "acting chairman", "acting chair", "acting secretary",
+    "co-chair",
+    "rapporteur",
+    "special representative", "special adviser", "special advisor",
+    "special envoy",
+    "high commissioner",
+    "deputy secretary", "deputy high",
+    "judge,",
+    "advocate of",
+    "observer for",
+    "united nations",  # catches all UN bodies
+)
+
+# Well-known acronyms / short names that don't contain any of the keywords
+# above but are definitely not countries.
+_ORG_ACRONYMS: frozenset[str] = frozenset(
+    {
+        "unicef", "unesco", "undp", "unfpa", "unhcr", "unep",
+        "who", "fao", "imf", "wto", "ilo", "iaea", "icc", "icj",
+        "icrc", "wmo", "icao", "imo", "itu", "upu", "wipo", "ifad",
+        "unido", "interpol", "un-women", "gnp+",
+        "access now", "social watch", "mena-rosa", "m17m.org",
+        "south centre",
+        "sovereign order of malta", "sovereign military order of malta",
+    }
+)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def is_organization(name: str) -> bool:
+    """Return ``True`` if *name* looks like an organization / role rather than a country.
+
+    Call this *after* ``normalize_country_name`` so that known aliases have
+    already been resolved (e.g. "Republic of the Congo" → "Congo").
+    """
+    import re  # local import to avoid module-level dependency issues
+
+    lower = name.strip().lower()
+    if not lower:
+        return False
+    # Known acronyms and explicit names
+    if lower in _ORG_ACRONYMS:
+        return True
+    # Role-title prefixes
+    for prefix in _ORG_ROLE_PREFIXES:
+        if lower.startswith(prefix):
+            return True
+    # Organizational keywords as whole words
+    for kw in _ORG_KEYWORDS:
+        if re.search(r"\b" + re.escape(kw) + r"\b", lower):
+            return True
+    # Domain-style names (e.g. "M17M.ORG")
+    if re.search(r"\.\w{2,4}$", lower):
+        return True
+    return False
 
 
 def normalize_country_name(name: str) -> str:

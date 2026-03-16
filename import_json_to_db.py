@@ -18,6 +18,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from src.db.database import create_schema, get_engine, get_session
+from src.extraction.country_aliases import normalize_country_name
 from src.db.models import (
     Country,
     CountryVote,
@@ -39,7 +40,11 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _get_or_create_country(session: Session, name: str) -> Country:
+def _get_or_create_country(session: Session, name: str) -> Country | None:
+    name = normalize_country_name(name)
+    if not name or name.lower() == "none":
+        log.warning("Skipping blank/null country name")
+        return None
     obj = session.query(Country).filter_by(name=name).first()
     if obj is None:
         obj = Country(name=name)
@@ -185,6 +190,8 @@ def import_record(db_session: Session, record: MeetingRecord) -> None:
 
             for cv in res.country_votes:
                 country = _get_or_create_country(db_session, cv.country)
+                if country is None:
+                    continue
                 obj_cv = CountryVote(
                     vote_id=vote.id,
                     country_id=country.id,

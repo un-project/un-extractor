@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+from src.extraction.country_aliases import normalize_country_name
 from src.models import Speech, SpeakerInfo
 from src.pdf.clean_text import _strip_inline_noise, normalize_allcaps
 from src.structure.detect_sections import Section
@@ -137,7 +138,7 @@ def parse_speaker_info(attribution_text: str) -> SpeakerInfo | None:
             for kw in ("department", "office", "bureau", "division", "secretariat")
         )
 
-        country = None if is_dept else affiliation
+        country = None if is_dept else (normalize_country_name(affiliation) if affiliation else None)
         role = _infer_role(name, affiliation)
 
         full_name = normalize_allcaps(f"{title} {name}".strip() if title else name)

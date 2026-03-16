@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import re
 
+from src.extraction.country_aliases import normalize_country_name
 from src.models import CountryVote, Resolution, StageDirection, TextBlock
 from src.structure.detect_sections import Section, _stage_direction_type
 
@@ -104,7 +105,7 @@ def _parse_country_list(raw: str) -> list[str]:
     clean = re.sub(r"\s+", " ", raw.strip()).rstrip(".")
     # Simple comma split — downstream LLM normalisation handles edge cases
     parts = [p.strip() for p in clean.split(",")]
-    return [p for p in parts if p]
+    return [normalize_country_name(p) for p in parts if p]
 
 
 def _extract_vote_totals(

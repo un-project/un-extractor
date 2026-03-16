@@ -17,17 +17,17 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install dev dependencies
-        run: uv pip install --system -r requirements.txt
+      - name: Install dependencies
+        run: uv sync
 
       - name: black
-        run: black --check src/ tests/ *.py
+        run: uv run black --check src/ tests/ *.py
 
       - name: flake8
-        run: flake8 src/ tests/ *.py
+        run: uv run flake8 src/ tests/ *.py
 
       - name: mypy
-        run: mypy src/
+        run: uv run mypy src/
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -46,7 +46,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv pip install --system -r requirements.txt
+        run: uv sync
 
       - name: pytest
-        run: pytest --cov=src --cov-report=term-missing
+        run: uv run pytest --cov=src --cov-report=term-missing

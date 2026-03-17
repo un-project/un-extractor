@@ -89,11 +89,13 @@ _ALIASES: dict[str, str] = {
     "Korea": "Republic of Korea",
     "South Korea": "Republic of Korea",
     "North Korea": "Democratic People's Republic of Korea",
-    "Democratic People\u2019s Republic of Korea": "Democratic People's Republic of Korea",  # curly apostrophe
+    # curly apostrophe variant
+    "Democratic People\u2019s Republic of Korea": "Democratic People's Republic of Korea",
     "Vietnam": "Viet Nam",
     "Viet-Nam": "Viet Nam",
     "Laos": "Lao People's Democratic Republic",
-    "Lao People\u2019s Democratic Republic": "Lao People's Democratic Republic",  # curly apostrophe
+    # curly apostrophe variant
+    "Lao People\u2019s Democratic Republic": "Lao People's Democratic Republic",
     "Bolivia": "Plurinational State of Bolivia",
     "Venezuela": "Bolivarian Republic of Venezuela",
     "Ivory Coast": "Côte d'Ivoire",

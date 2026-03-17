@@ -31,6 +31,13 @@ _ALIASES: dict[str, str] = {
     "Australlia": "Australia",
     "Australaia": "Australia",
     "Columbia": "Colombia",  # common OCR/spelling error
+    "Demark": "Denmark",
+    "Irag": "Iraq",
+    "Marshal Islands": "Marshall Islands",
+    "United Arab Emiraes": "United Arab Emirates",
+    "Mozambigue": "Mozambique",
+    "Lichtenstein": "Liechtenstein",
+    "Guinea Bissau": "Guinea-Bissau",
     # ------------------------------------------------------------------
     # "The X" / article prefix variants
     # ------------------------------------------------------------------
@@ -40,10 +47,12 @@ _ALIASES: dict[str, str] = {
     "the Gambia": "Gambia",
     "The Netherlands": "Netherlands",
     "the Netherlands": "Netherlands",
+    "Kingdom of the Netherlands": "Netherlands",
     "The Philippines": "Philippines",
     "the Philippines": "Philippines",
     "The Solomon Islands": "Solomon Islands",
     "the Solomon Islands": "Solomon Islands",
+    "Solomon": "Solomon Islands",
     # ------------------------------------------------------------------
     # "Republic of X" variants present in older PV records
     # ------------------------------------------------------------------
@@ -80,14 +89,17 @@ _ALIASES: dict[str, str] = {
     "Korea": "Republic of Korea",
     "South Korea": "Republic of Korea",
     "North Korea": "Democratic People's Republic of Korea",
+    "Democratic People\u2019s Republic of Korea": "Democratic People's Republic of Korea",  # curly apostrophe
     "Vietnam": "Viet Nam",
     "Viet-Nam": "Viet Nam",
     "Laos": "Lao People's Democratic Republic",
+    "Lao People\u2019s Democratic Republic": "Lao People's Democratic Republic",  # curly apostrophe
     "Bolivia": "Plurinational State of Bolivia",
     "Venezuela": "Bolivarian Republic of Venezuela",
     "Ivory Coast": "Côte d'Ivoire",
     "Cote d'Ivoire": "Côte d'Ivoire",
     "Côte dIvoire": "Côte d'Ivoire",
+    "Cote d'lvoire": "Côte d'Ivoire",  # OCR: lowercase l for I
     "Democratic Republic of Congo": "Democratic Republic of the Congo",
     "DR Congo": "Democratic Republic of the Congo",
     "DRC": "Democratic Republic of the Congo",
@@ -100,6 +112,7 @@ _ALIASES: dict[str, str] = {
     "Federated States of Micronesia": "Micronesia (Federated States of)",
     "Saint Kitts": "Saint Kitts and Nevis",
     "Saint Vincent": "Saint Vincent and the Grenadines",
+    "Saint Vincent and": "Saint Vincent and the Grenadines",
     "Trinidad": "Trinidad and Tobago",
     "Antigua": "Antigua and Barbuda",
     "Bosnia": "Bosnia and Herzegovina",

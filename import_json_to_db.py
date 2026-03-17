@@ -105,24 +105,46 @@ def _get_or_create_resolution(
 # ---------------------------------------------------------------------------
 
 
-def import_record(db_session: Session, record: MeetingRecord) -> None:
+def _delete_document(db_session: Session, doc: Document) -> None:
+    """Delete a document and all its dependent rows (preserving resolutions)."""
+    vote_ids = [v.id for v in db_session.query(Vote.id).filter_by(document_id=doc.id)]
+    if vote_ids:
+        db_session.query(CountryVote).filter(CountryVote.vote_id.in_(vote_ids)).delete(
+            synchronize_session=False
+        )
+    db_session.query(Vote).filter_by(document_id=doc.id).delete(synchronize_session=False)
+    db_session.query(Speech).filter_by(document_id=doc.id).delete(synchronize_session=False)
+    db_session.query(StageDirection).filter_by(document_id=doc.id).delete(
+        synchronize_session=False
+    )
+    db_session.query(DocumentItem).filter_by(document_id=doc.id).delete(
+        synchronize_session=False
+    )
+    db_session.delete(doc)
+    db_session.flush()
+
+
+def import_record(db_session: Session, record: MeetingRecord, recreate: bool = False) -> None:
     """Import one ``MeetingRecord`` into the database."""
     # Document
     doc = db_session.query(Document).filter_by(symbol=record.symbol).first()
-    if doc is None:
-        doc = Document(
-            symbol=record.symbol,
-            body=record.body,
-            meeting_number=record.meeting_number,
-            session=record.session,
-            date=record.date,
-            location=record.location,
-        )
-        db_session.add(doc)
-        db_session.flush()
-    else:
-        log.info("Document %s already in DB — skipping", record.symbol)
-        return
+    if doc is not None:
+        if not recreate:
+            log.info("Document %s already in DB — skipping", record.symbol)
+            return
+        log.info("Document %s already in DB — deleting for recreate", record.symbol)
+        _delete_document(db_session, doc)
+
+    doc = Document(
+        symbol=record.symbol,
+        body=record.body,
+        meeting_number=record.meeting_number,
+        session=record.session,
+        date=record.date,
+        location=record.location,
+    )
+    db_session.add(doc)
+    db_session.flush()
 
     # Iterate items in document order
     for item_data in record.items:
@@ -215,7 +237,9 @@ def import_record(db_session: Session, record: MeetingRecord) -> None:
     log.info("Imported %s", record.symbol)
 
 
-def import_directory(json_dir: Path, db_url: str | None = None) -> None:
+def import_directory(
+    json_dir: Path, db_url: str | None = None, recreate: bool = False
+) -> None:
     """Import all JSON files in *json_dir* into the database."""
     json_files = sorted(json_dir.glob("meeting_*.json"))
     if not json_files:
@@ -233,7 +257,7 @@ def import_directory(json_dir: Path, db_url: str | None = None) -> None:
                 data = json.load(fh)
             record = MeetingRecord.model_validate(data)
             with get_session(engine) as session:
-                import_record(session, record)
+                import_record(session, record, recreate=recreate)
             ok += 1
         except Exception as exc:
             log.error("Failed to import %s: %s", json_path.name, exc)
@@ -258,6 +282,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--db", default=None, help="Database URL (overrides DATABASE_URL env var)"
     )
+    p.add_argument(
+        "--recreate",
+        action="store_true",
+        default=False,
+        help="Delete and re-import documents that already exist in the database",
+    )
     p.add_argument("--verbose", action="store_true", default=False)
     return p
 
@@ -276,7 +306,7 @@ def main() -> int:
         return 1
 
     try:
-        import_directory(args.json_dir, db_url=args.db)
+        import_directory(args.json_dir, db_url=args.db, recreate=args.recreate)
     except Exception as exc:
         log.error("Import aborted: %s", exc)
         return 1

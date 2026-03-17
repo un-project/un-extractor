@@ -112,8 +112,12 @@ def _delete_document(db_session: Session, doc: Document) -> None:
         db_session.query(CountryVote).filter(CountryVote.vote_id.in_(vote_ids)).delete(
             synchronize_session=False
         )
-    db_session.query(Vote).filter_by(document_id=doc.id).delete(synchronize_session=False)
-    db_session.query(Speech).filter_by(document_id=doc.id).delete(synchronize_session=False)
+    db_session.query(Vote).filter_by(document_id=doc.id).delete(
+        synchronize_session=False
+    )
+    db_session.query(Speech).filter_by(document_id=doc.id).delete(
+        synchronize_session=False
+    )
     db_session.query(StageDirection).filter_by(document_id=doc.id).delete(
         synchronize_session=False
     )
@@ -124,7 +128,9 @@ def _delete_document(db_session: Session, doc: Document) -> None:
     db_session.flush()
 
 
-def import_record(db_session: Session, record: MeetingRecord, recreate: bool = False) -> None:
+def import_record(
+    db_session: Session, record: MeetingRecord, recreate: bool = False
+) -> None:
     """Import one ``MeetingRecord`` into the database."""
     # Document
     doc = db_session.query(Document).filter_by(symbol=record.symbol).first()

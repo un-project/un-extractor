@@ -67,6 +67,19 @@ class TestExtractVoteTotals:
         assert yes == 100
         assert no == 0
 
+    def test_short_form_no_votes_keyword(self) -> None:
+        # "by 121 to 5" — older records omit the word "votes"
+        yes, no, abstain = _extract_vote_totals("adopted by 121 to 5")
+        assert yes == 121
+        assert no == 5
+        assert abstain == 0
+
+    def test_short_form_with_abstentions(self) -> None:
+        yes, no, abstain = _extract_vote_totals("by 121 to 5, with 3 abstentions")
+        assert yes == 121
+        assert no == 5
+        assert abstain == 3
+
     def test_returns_none_tuple_if_absent(self) -> None:
         yes, no, abstain = _extract_vote_totals("It was so decided.")
         assert yes is None

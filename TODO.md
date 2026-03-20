@@ -23,9 +23,9 @@ Open tasks and known limitations for the un-extractor pipeline.
   list and records zero per-country votes. Make the header patterns accept optional leading
   whitespace: `r"(?:^|\n)\s*In\s+favour\s*:"`.
 
-- [ ] **Vote totals regex requires "votes" keyword** — `_VOTE_TOTALS_RE` matches "by 121
-  votes to 5" but not the shorter "by 121 to 5" form that appears in some older records.
-  Add a third totals pattern or make the "votes?" group optional throughout.
+- [x] **Vote totals "votes" keyword** — `_VOTE_TOTALS_RE` already has `(?:votes?\s+)?`
+  as an optional group, so "by 121 to 5" was always matched. Added explicit test cases
+  for the short form with and without abstentions to pin the behavior.
 
 - [ ] **Agenda continuation items not split correctly** — `_AGENDA_RE` matches "Agenda
   item 13" but not "Agenda item 13 (continued)" when "(continued)" is part of the same

@@ -43,6 +43,7 @@ class TextBlock:
     page_num: int
     y0: float
     x0: float
+    page_height: float = 0.0  # actual page height in points; 0.0 = unknown
 
     @property
     def text(self) -> str:

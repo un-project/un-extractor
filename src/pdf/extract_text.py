@@ -41,7 +41,9 @@ def _is_italic(span: dict[str, Any]) -> bool:
     return bool(flags & _ITALIC_FLAG) or "italic" in font or "oblique" in font
 
 
-def _block_to_textblock(block: dict[str, Any], page_num: int) -> TextBlock | None:
+def _block_to_textblock(
+    block: dict[str, Any], page_num: int, page_height: float
+) -> TextBlock | None:
     """Convert a PyMuPDF text block dict into a ``TextBlock``.
 
     Returns ``None`` for image blocks or empty blocks.
@@ -76,12 +78,14 @@ def _block_to_textblock(block: dict[str, Any], page_num: int) -> TextBlock | Non
         page_num=page_num,
         y0=bbox[1],
         x0=bbox[0],
+        page_height=page_height,
     )
 
 
 def _extract_page_blocks(page: Any, page_num: int) -> list[TextBlock]:
     """Extract ``TextBlock`` objects from one page in two-column reading order."""
     mid_x: float = page.rect.width / 2.0
+    height: float = page.rect.height
 
     raw: dict[str, Any] = page.get_text("dict")
     all_blocks: list[dict[str, Any]] = raw.get("blocks", [])
@@ -104,7 +108,7 @@ def _extract_page_blocks(page: Any, page_num: int) -> list[TextBlock]:
 
     result: list[TextBlock] = []
     for block in left_blocks + right_blocks:
-        tb = _block_to_textblock(block, page_num)
+        tb = _block_to_textblock(block, page_num, height)
         if tb is not None:
             result.append(tb)
     return result

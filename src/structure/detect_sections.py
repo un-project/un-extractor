@@ -76,6 +76,42 @@ _DEPT_SPEAKER_RE = re.compile(
 # Agenda item: "Agenda item 13" or "Agenda items 21 to 26"
 _AGENDA_RE = re.compile(r"^Agenda\s+items?\s+\d+", re.IGNORECASE)
 
+# ---------------------------------------------------------------------------
+# Scanned / OCR-document fallback patterns (no bold/italic metadata preserved)
+# ---------------------------------------------------------------------------
+
+# Older verbatim records typeset speaker surnames in ALL CAPS and embed the
+# attribution inline with the paragraph number, e.g.:
+#   "1. Mr. AHMED (Pakistan):"
+#   "56. Mr. ANDERSEN (Denmark):"
+#   "106. Sir Maori KIKI (Papua New Guinea):"
+# The separator is sometimes ";" due to OCR misreading ":".
+_SCANNED_SPEAKER_RE = re.compile(
+    r"^\d+\.\s+"
+    r"(?:"
+    r"(?:H\.E\.\s+)?(?:Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)\s+"  # standard title
+    r"|(?:Sir|Dame)\s+\w+\s+"  # "Sir FirstName" or "Dame FirstName"
+    r")"
+    r"[A-Z]{2}[A-Z\w\-\s\.]*?"  # ALL-CAPS surname (≥ 2 consecutive caps)
+    r"\s*\([^)]+\)"  # (Country or affiliation)
+    r"(?:\s*\([^)]+\))?"  # optional second parenthetical
+    r"\s*[:;]",
+    re.UNICODE,
+)
+
+# Titular speakers that may or may not carry a paragraph number in scanned docs
+_SCANNED_TITULAR_RE = re.compile(
+    r"^(?:\d+\.\s+)?"
+    r"The\s+(?:President|Secretary-General|Chair(?:man|woman|person)?|"
+    r"Deputy\s+Secretary-General|Acting\s+President)"
+    r"(?:\s*\([^)]+\))?"
+    r"\s*[:;]",
+    re.IGNORECASE,
+)
+
+# ALL-CAPS agenda heading used in older documents: "AGENDA ITEM 9"
+_AGENDA_ALLCAPS_RE = re.compile(r"^AGENDA\s+ITEMS?\s+\d+", re.UNICODE)
+
 # Draft resolution / decision header
 _DRAFT_RE = re.compile(
     r"^Draft\s+(?:resolution|decision)\s+\(?(A/\S+|S/\S+)", re.IGNORECASE
@@ -108,18 +144,24 @@ _LANGUAGE_NOTE_RE = re.compile(r"^\(spoke\s+in\s+\w+\)\s*$", re.IGNORECASE)
 
 def _is_speaker_block(block: TextBlock) -> bool:
     """True if *block* is the opening attribution of a speech."""
-    if not block.bold_start:
-        return False
     text = block.text.strip()
-    return bool(
-        _SPEAKER_RE.match(text)
-        or _TITULAR_RE.match(text)
-        or _DEPT_SPEAKER_RE.match(text)
-    )
+    if block.bold_start:
+        return bool(
+            _SPEAKER_RE.match(text)
+            or _TITULAR_RE.match(text)
+            or _DEPT_SPEAKER_RE.match(text)
+        )
+    # Fallback for scanned/OCR documents where bold metadata is absent:
+    # detect by ALL-CAPS surname pattern or titled speaker with paragraph number.
+    return bool(_SCANNED_SPEAKER_RE.match(text) or _SCANNED_TITULAR_RE.match(text))
 
 
 def _is_agenda_block(block: TextBlock) -> bool:
-    return block.bold_start and bool(_AGENDA_RE.match(block.text.strip()))
+    text = block.text.strip()
+    if block.bold_start:
+        return bool(_AGENDA_RE.match(text))
+    # Scanned docs typeset agenda headings in ALL CAPS without bold metadata.
+    return bool(_AGENDA_ALLCAPS_RE.match(text))
 
 
 def _is_draft_resolution_block(block: TextBlock) -> bool:

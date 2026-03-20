@@ -21,7 +21,11 @@ from src.models import TextBlock
 # We use fractions so the logic degrades gracefully for other page sizes.
 
 _HEADER_FRACTION: float = 0.09  # top ~9 % of page
-_FOOTER_FRACTION: float = 0.91  # bottom ~9 % of page
+_FOOTER_FRACTION: float = 0.95  # bottom ~5 % of page
+# Older scanned documents (pre-1990) have content extending to ~93 % of page
+# height.  All true footer noise (page numbers, job codes, disclaimers) is
+# caught by _is_noise() independently of position, so a tighter spatial band
+# avoids cutting off legitimate content near the bottom margin.
 
 # Typical A4 height; used only when page_height is not passed explicitly.
 _DEFAULT_PAGE_HEIGHT_PT: float = 842.0
@@ -59,6 +63,15 @@ _DISCLAIMER_FRAGMENTS: tuple[str, ...] = (
     "Official Records",  # repeated page header sometimes lands in body area
 )
 
+# Running page header used on body pages of newer documents (post-~2000):
+#   "General Assembly Sixty-first session  107th plenary meeting Thursday, …"
+# These are not caught by position alone when the PDF's actual page height
+# differs from the hardcoded default (e.g. US Letter 792pt vs A4 842pt).
+_RUNNING_HEADER_RE = re.compile(
+    r"^(?:General\s+Assembly|Security\s+Council)\s+\S.{0,60}"
+    r"(?:session|Session)(?:\s|$)",
+)
+
 
 def _is_noise(block: TextBlock) -> bool:
     """Return ``True`` if *block* carries no content."""
@@ -72,6 +85,8 @@ def _is_noise(block: TextBlock) -> bool:
     for fragment in _DISCLAIMER_FRAGMENTS:
         if fragment in text:
             return True
+    if _RUNNING_HEADER_RE.match(text):
+        return True
     return False
 
 
@@ -80,8 +95,10 @@ def _in_header_or_footer(
     page_height: float = _DEFAULT_PAGE_HEIGHT_PT,
 ) -> bool:
     """Return ``True`` if *block* falls in the header or footer band."""
-    top_cutoff = page_height * _HEADER_FRACTION
-    bottom_cutoff = page_height * _FOOTER_FRACTION
+    # Use the height recorded on the block when available (set during extraction).
+    h = block.page_height if block.page_height > 0 else page_height
+    top_cutoff = h * _HEADER_FRACTION
+    bottom_cutoff = h * _FOOTER_FRACTION
     return block.y0 < top_cutoff or block.y0 > bottom_cutoff
 
 

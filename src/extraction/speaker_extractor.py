@@ -28,17 +28,19 @@ from src.structure.detect_sections import Section
 
 # Matches the full speaker attribution up to and including the colon.
 # Groups:
-#   1 – title (Mr.|Mrs.|Ms.|Dr.|Prof.|H.E.)  or None
+#   1 – title (Mr.|Mrs.|Ms.|Dr.|Prof.|H.E.|Sir|Dame)  or None
 #   2 – name
 #   3 – country / affiliation (first parenthetical)
 #   4 – language note, e.g. "spoke in Spanish"  or None
+# Accepts ";" as a separator in addition to ":" to handle OCR errors in
+# older scanned documents where ":" is sometimes read as ";".
 _SPEAKER_ATTR_RE = re.compile(
     r"^"
-    r"(?:(H\.E\.|Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)\s+)?"  # optional title
+    r"(?:(H\.E\.|Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Sir|Dame)\s+)?"  # optional title
     r"([\w\s\-\u00C0-\u024F\.]+?)"  # name (allows accented chars, hyphens)
     r"\s*\(([^)]+)\)"  # (country or affiliation)
     r"(?:\s*\(([^)]+)\))?"  # optional (spoke in Language)
-    r"\s*:",
+    r"\s*[:;]",
     re.IGNORECASE | re.UNICODE,
 )
 
@@ -47,12 +49,14 @@ _TITULAR_ATTR_RE = re.compile(
     r"^(The\s+(?:President|Secretary-General|Chair(?:man|woman|person)?|"
     r"Deputy\s+Secretary-General|Acting\s+President))"
     r"(?:\s*\(([^)]+)\))?"  # optional (spoke in Language)
-    r"\s*:",
+    r"\s*[:;]",
     re.IGNORECASE,
 )
 
-# Language note inside parentheses: "(spoke in French)"
-_LANGUAGE_RE = re.compile(r"spoke\s+in\s+(\w+)", re.IGNORECASE)
+# Language note inside parentheses: "(spoke in French)" or "(interpretation from Spanish)"
+_LANGUAGE_RE = re.compile(
+    r"(?:spoke\s+in|interpretation\s+from)\s+(\w+)", re.IGNORECASE
+)
 
 # Group / bloc attribution in speech text
 _ON_BEHALF_RE = re.compile(
@@ -170,26 +174,41 @@ def _extract_on_behalf_of(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+# Paragraph number prefix present in older scanned documents, e.g. "1. " or "32. "
+_PARA_NUM_RE = re.compile(r"^\d+\.\s+")
+
+
 def _split_attribution_and_body(block_text: str) -> tuple[str, str]:
     """Split the first block of a speaker section into attribution and body.
 
     Returns ``(attribution_text, speech_body_text)``.
     The attribution is everything up to and including the first colon
     that follows the speaker name pattern.
+
+    Older scanned documents embed the speaker attribution inline after a
+    paragraph number (e.g. "1. Mr. AHMED (Pakistan): text…").  The
+    paragraph number is stripped before pattern matching so the same
+    attribution patterns work for both old and new documents.
     """
-    # Work on the stripped version so that leading/trailing whitespace in the
-    # raw PDF block text does not cause off-by-one errors when slicing.
     stripped = block_text.strip()
+    # Strip leading paragraph number if present (scanned doc format).
+    unnumbered = _PARA_NUM_RE.sub("", stripped, count=1)
     for pattern in (_TITULAR_ATTR_RE, _SPEAKER_ATTR_RE):
-        m = pattern.match(stripped)
+        m = pattern.match(unnumbered)
         if m:
             end = m.end()
-            return stripped[:end].strip(), stripped[end:].strip()
-    # Fallback: split on first colon
-    idx = stripped.find(":")
+            return unnumbered[:end].strip(), unnumbered[end:].strip()
+    # Fallback: split on first colon (or semicolon for OCR-corrupted older docs)
+    colon_idx = unnumbered.find(":")
+    semi_idx = unnumbered.find(";")
+    # Prefer whichever comes first within the first 100 chars (attribution zone)
+    if colon_idx == -1 or (0 <= semi_idx < colon_idx and semi_idx < 100):
+        idx = semi_idx
+    else:
+        idx = colon_idx
     if idx != -1:
-        return stripped[: idx + 1].strip(), stripped[idx + 1 :].strip()
-    return stripped, ""
+        return unnumbered[: idx + 1].strip(), unnumbered[idx + 1 :].strip()
+    return unnumbered, ""
 
 
 # ---------------------------------------------------------------------------

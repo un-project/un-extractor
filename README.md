@@ -262,6 +262,8 @@ For the full document, order items by `item.position` first, then apply the abov
 
 **Italic = stage direction.** Procedural text (adoptions, suspensions, etc.) is always italic.
 
+**Scanned / older documents.** PDFs from the 1970s–1980s are scanned images with an OCR text layer. They lack bold/italic metadata, so speaker detection falls back to the ALL-CAPS surname pattern used in that era: `1. Mr. SURNAME (Country):`. The paragraph number prefix and occasional `;` separator (OCR error for `:`) are handled automatically. Language notes may appear as `(interpretation from Spanish)` rather than `(spoke in Spanish)`.
+
 **Document symbol.** Appears in the page header: `A/{session}/PV.{meeting_number}`. Meeting number is extracted from this symbol (e.g. `A/61/PV.107` → meeting 107).
 
 **Votes.** Consensus votes are signalled by "It was so decided." Recorded votes include the line "A recorded vote was taken." followed by country lists (`In favour:`, `Against:`, `Abstaining:`) and a summary line with totals.
@@ -276,6 +278,7 @@ Four sample PDFs are included in `data/raw_pdfs/`:
 
 | File | Symbol | Notes |
 |---|---|---|
+| `en/ga/31/pv/document_8.pdf` | A/31/PV.8 | Scanned (1976): OCR text layer, ALL-CAPS names, inline speaker format |
 | `en/ga/48/pv/document_46.pdf` | A/48/PV.46 | Older format (1993): ALL-CAPS names, no dot-leaders |
 | `en/ga/61/pv/document_107.pdf` | A/61/PV.107 | Recorded votes, country vote lists |
 | `en/ga/64/pv/document_121.pdf` | A/64/PV.121 | Consensus adoptions |

@@ -105,10 +105,19 @@ def _process_one(
 def _write_failure_report(
     result: ProcessResult,
     failed_dir: Path,
+    root_dir: Path | None = None,
 ) -> None:
     """Write a JSON failure report for a failed PDF."""
     failed_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = result.pdf_path.stem
+    try:
+        rel = result.pdf_path.relative_to(root_dir) if root_dir else None
+    except ValueError:
+        rel = None
+    safe_name = (
+        rel.with_suffix("").as_posix().replace("/", "_")
+        if rel is not None
+        else result.pdf_path.stem
+    )
     report = {
         "pdf_path": str(result.pdf_path),
         "phase": result.phase,
@@ -181,7 +190,7 @@ def process_batch(
                 log.warning(
                     "✗ %s [%s]: %s", result.pdf_path.name, result.phase, result.error
                 )
-                _write_failure_report(result, failed_dir)
+                _write_failure_report(result, failed_dir, root_dir)
 
     log.info(
         "Batch complete: %d/%d succeeded (%.1f%%)",

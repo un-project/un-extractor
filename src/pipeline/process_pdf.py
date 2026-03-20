@@ -127,7 +127,7 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
         sub_item: str | None = None,
         continued: bool = False,
     ) -> None:
-        nonlocal current, elem_pos, current_item_symbols
+        nonlocal current, elem_pos, current_item_symbols, _last_resolution_header_text
         if current is not None:
             items.append(current)
         current = DocumentItem(
@@ -140,6 +140,7 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
         )
         elem_pos = 0
         current_item_symbols = set()
+        _last_resolution_header_text = ""
 
     def _try_add_resolution(
         sec: Section,

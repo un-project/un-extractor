@@ -12,10 +12,9 @@ Open tasks and known limitations for the un-extractor pipeline.
   don't correspond to a numbered draft. Consider skipping resolution creation for these
   cases rather than storing `draft_symbol = "unknown"`.
 
-- [ ] **Resolution symbol leaks across agenda items** — `_last_resolution_header_text` is
-  never reset when a new agenda item starts (`process_pdf.py:169`). A "The draft resolution
-  was adopted." line in item N+1 can inherit the symbol from a resolution header in item N.
-  Reset the variable inside `_flush_and_start`.
+- [x] **Resolution symbol leaks across agenda items** — `_last_resolution_header_text` is
+  now cleared inside `_flush_and_start`, preventing a symbol from a prior agenda item's
+  resolution header from being attributed to an adoption line with no symbol in the next item.
 
 - [x] **Country list detection misses indented headers** — Added `\s*` after the
   `(?:^|\n)` anchor in all three header patterns, matching the existing `_VOTE_SECTION_STOP_RE`

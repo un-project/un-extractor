@@ -17,11 +17,9 @@ Open tasks and known limitations for the un-extractor pipeline.
   was adopted." line in item N+1 can inherit the symbol from a resolution header in item N.
   Reset the variable inside `_flush_and_start`.
 
-- [ ] **Country list detection misses indented headers** — `_IN_FAVOUR_RE` / `_AGAINST_RE`
-  / `_ABSTAINING_RE` require the label at the start of a line or after `\n`. When a block
-  has a leading space (e.g., `" In favour: …"`), the pattern silently misses the country
-  list and records zero per-country votes. Make the header patterns accept optional leading
-  whitespace: `r"(?:^|\n)\s*In\s+favour\s*:"`.
+- [x] **Country list detection misses indented headers** — Added `\s*` after the
+  `(?:^|\n)` anchor in all three header patterns, matching the existing `_VOTE_SECTION_STOP_RE`
+  which already used `\n\s*`. Test added for blocks with a leading space.
 
 - [x] **Vote totals "votes" keyword** — `_VOTE_TOTALS_RE` already has `(?:votes?\s+)?`
   as an optional group, so "by 121 to 5" was always matched. Added explicit test cases

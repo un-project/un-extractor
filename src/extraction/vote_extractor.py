@@ -113,9 +113,9 @@ _RECORDED_VOTE_SIGNAL_RE = re.compile(
 )
 
 # Per-country vote section headers — used to locate the start of each list.
-_IN_FAVOUR_RE = re.compile(r"(?:^|\n)In\s+favour\s*:\s*", re.IGNORECASE)
-_AGAINST_RE = re.compile(r"(?:^|\n)Against\s*:\s*", re.IGNORECASE)
-_ABSTAINING_RE = re.compile(r"(?:^|\n)Abstaining\s*:\s*", re.IGNORECASE)
+_IN_FAVOUR_RE = re.compile(r"(?:^|\n)\s*In\s+favour\s*:\s*", re.IGNORECASE)
+_AGAINST_RE = re.compile(r"(?:^|\n)\s*Against\s*:\s*", re.IGNORECASE)
+_ABSTAINING_RE = re.compile(r"(?:^|\n)\s*Abstaining\s*:\s*", re.IGNORECASE)
 
 # Marks the end of a country-vote section (next header or adoption/note lines).
 # \n\s* handles block texts that start with a leading space (e.g. ' Draft …').

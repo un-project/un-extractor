@@ -108,6 +108,19 @@ class TestExtractCountryVotes:
         blocks = [_make_block("It was so decided.")]
         assert _extract_country_votes(blocks) == []
 
+    def test_leading_whitespace_on_headers(self) -> None:
+        # Blocks sometimes start with a leading space; headers must still match.
+        blocks = [
+            _make_block(" In favour: Algeria, Angola"),
+            _make_block(" Against: Israel"),
+            _make_block(" Abstaining: Australia"),
+        ]
+        votes = _extract_country_votes(blocks)
+        positions = {cv.country: cv.vote_position for cv in votes}
+        assert positions["Algeria"] == "yes"
+        assert positions["Israel"] == "no"
+        assert positions["Australia"] == "abstain"
+
 
 class TestExtractResolutionFromAdoption:
     def test_consensus_adoption(self) -> None:

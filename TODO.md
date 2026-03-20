@@ -37,10 +37,14 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Metadata
 
-- [ ] **Security Council documents** — Symbol prefix `S/PV.NNNN` is supported by the
-  regex but no SC PDFs are in the sample set. Validate against at least one SC document.
-  SC symbols have no session component; `extract_session` should return `None` explicitly
-  for the `S/` prefix rather than silently falling through.
+- [x] **Security Council documents** — Validated against `S/PV.8422`. Cover section
+  detection, president extraction, session=None, SC adoption pattern ("has been adopted
+  as resolution NNNN (YYYY)"), SC vote-total phrasing ("none against", spelled-out words),
+  "show of hands" vote signal, SC draft symbol recovery, and "None" country filtering all
+  implemented. Known limitation: the last entry in a GA-style comma list that uses "and"
+  before the final country (e.g. "…Northern Ireland and United States of America") is
+  split correctly only when the part contains 2+ "and"s; single-"and" names like
+  "Trinidad and Tobago" are preserved.
 
 - [x] **Date year range validation** — `extract_date` now rejects years outside
   1945–2100, returning `None` for implausible OCR artifacts instead of propagating them
@@ -94,9 +98,8 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Testing
 
-- [ ] **Security Council integration test** — Add at least one SC PDF (`S/PV.*`) and a
-  matching fixture to prevent regressions in SC-specific paths (no session, different
-  symbol format).
+- [ ] **Security Council integration test** — Add a golden fixture for `S/PV.8422`
+  covering: session=None, president, SC adoption pattern, vote totals, and country votes.
 
 - [x] **Vote extraction edge cases** — All four cases now tested: vote totals without
   "votes" keyword (already worked); "In favour:" with leading whitespace (fix + test added

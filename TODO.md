@@ -98,9 +98,11 @@ Open tasks and known limitations for the un-extractor pipeline.
   matching fixture to prevent regressions in SC-specific paths (no session, different
   symbol format).
 
-- [ ] **Vote extraction edge cases** — Add unit tests for: vote totals without the "votes"
-  keyword; "In favour:" with leading whitespace; country names duplicated across positions;
-  amendment votes (should not inherit country lists from the parent resolution vote).
+- [x] **Vote extraction edge cases** — All four cases now tested: vote totals without
+  "votes" keyword (already worked); "In favour:" with leading whitespace (fix + test added
+  earlier); country name duplicated across two vote positions (both entries preserved);
+  amendment with no own country lists (returns recorded vote with counts, empty
+  `country_votes`); and `None` returned when no draft symbol can be resolved.
 
 - [x] **Database import tests** — `tests/test_import_json_to_db.py` added: first import,
   idempotent re-import, `--recreate`, resolution sharing, country/speaker deduplication,

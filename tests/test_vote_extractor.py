@@ -121,6 +121,29 @@ class TestExtractCountryVotes:
         assert positions["Israel"] == "no"
         assert positions["Australia"] == "abstain"
 
+    def test_country_duplicated_across_positions(self) -> None:
+        # A country erroneously listed in two categories (OCR/PDF error).
+        # Both entries are returned; the caller is responsible for deduplication.
+        blocks = [
+            _make_block("In favour: France, Germany"),
+            _make_block("Against: United States of America"),
+            _make_block("Abstaining: France"),  # duplicate
+        ]
+        votes = _extract_country_votes(blocks)
+        france_votes = [cv for cv in votes if cv.country == "France"]
+        assert len(france_votes) == 2
+        positions_set = {cv.vote_position for cv in france_votes}
+        assert positions_set == {"yes", "abstain"}
+
+    def test_no_country_lists_returns_empty(self) -> None:
+        # Surrounding blocks that contain no vote-category headers yield no
+        # per-country votes (e.g. amendment adopted by division with totals only).
+        blocks = [
+            _make_block("Speakers on the amendment continued."),
+            _make_block("The vote was taken."),
+        ]
+        assert _extract_country_votes(blocks) == []
+
 
 class TestExtractResolutionFromAdoption:
     def test_consensus_adoption(self) -> None:
@@ -222,6 +245,24 @@ class TestExtractResolutionFromAdoption:
         assert positions["Algeria"] == "yes"
         assert positions["Israel"] == "no"
         assert positions["Australia"] == "abstain"
+
+    def test_no_symbol_returns_none(self) -> None:
+        # "The draft decision was adopted." with no preceding header → None
+        res = extract_resolution_from_adoption("The draft decision was adopted.", [])
+        assert res is None
+
+    def test_amendment_no_own_country_lists(self) -> None:
+        # Amendment adoption line with only vote totals; no country lists in
+        # surrounding blocks → recorded vote with counts but empty country_votes.
+        text = "The amendment (A/65/L.53) was adopted by 10 votes to 2."
+        surrounding = [_make_block("Some procedural text without country lists.")]
+        res = extract_resolution_from_adoption(text, surrounding)
+        assert res is not None
+        assert res.draft_symbol == "A/65/L.53"
+        assert res.vote_type == "recorded"
+        assert res.yes_count == 10
+        assert res.no_count == 2
+        assert res.country_votes == []
 
     def test_preceding_text_resolves_unknown_symbol(self) -> None:
         """When adoption line has no symbol, preceding_text provides it."""

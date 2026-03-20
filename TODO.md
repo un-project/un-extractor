@@ -106,9 +106,9 @@ Open tasks and known limitations for the un-extractor pipeline.
   keyword; "In favour:" with leading whitespace; country names duplicated across positions;
   amendment votes (should not inherit country lists from the parent resolution vote).
 
-- [ ] **Database import tests** — The importer is currently untested. Add tests with a
-  SQLite in-memory database (or a real PostgreSQL via a test fixture) covering: first
-  import, idempotent re-import, `--recreate`, and partial-failure rollback.
+- [x] **Database import tests** — `tests/test_import_json_to_db.py` added: first import,
+  idempotent re-import, `--recreate`, resolution sharing, country/speaker deduplication,
+  and partial-failure rollback, all using an in-memory SQLite database.
 
 ---
 

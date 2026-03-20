@@ -93,6 +93,16 @@ class TestExtractDate:
     def test_returns_none_if_absent(self) -> None:
         assert extract_date("No date in this text") is None
 
+    def test_rejects_implausible_year(self) -> None:
+        assert extract_date("1 January 1944") is None
+        assert extract_date("1 January 2101") is None
+
+    def test_accepts_boundary_years(self) -> None:
+        from datetime import date as _date
+
+        assert extract_date("24 October 1945") == _date(1945, 10, 24)
+        assert extract_date("31 December 2100") == _date(2100, 12, 31)
+
 
 class TestExtractLocation:
     def test_new_york(self) -> None:

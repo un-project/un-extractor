@@ -100,6 +100,8 @@ def extract_date(text: str) -> date | None:
     day = int(m.group(1))
     month = _MONTH_MAP[m.group(2).lower()]
     year = int(m.group(3))
+    if not (1945 <= year <= 2100):
+        return None
     return date(year, month, day)
 
 

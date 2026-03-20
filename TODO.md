@@ -46,9 +46,9 @@ Open tasks and known limitations for the un-extractor pipeline.
   SC symbols have no session component; `extract_session` should return `None` explicitly
   for the `S/` prefix rather than silently falling through.
 
-- [ ] **Date year range validation** — `extract_date` accepts any 4-digit year including
-  implausible OCR artifacts. Add a bounds check `1945 ≤ year ≤ 2100` at extraction time
-  rather than waiting for `validate_record`.
+- [x] **Date year range validation** — `extract_date` now rejects years outside
+  1945–2100, returning `None` for implausible OCR artifacts instead of propagating them
+  to `validate_record`.
 
 - [ ] **Location extraction false positives** — `extract_location` searches all text, so
   delegates mentioning "New York" in speeches can trigger a match outside the cover page.

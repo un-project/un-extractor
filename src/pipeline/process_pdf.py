@@ -185,6 +185,9 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
 
         # ---- Speaker turn --------------------------------------------------------
         if section.section_type == "speaker_turn":
+            # Save any buffered vote blocks before clearing (SC: the adoption
+            # announcement is in a speech that follows the country lists).
+            saved_pending = _pending_vote_blocks if _after_vote_signal else []
             # A new speaker resets any pending recorded-vote state so country
             # lists from one vote don't leak into a later resolution.
             _after_vote_signal = False
@@ -198,8 +201,19 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             global_pos += 1
             # Adoption lines embedded in a speaker turn (e.g. The President
             # reading recorded-vote results aloud, as in document_107 L.67).
+            # For SC, the country lists are already in saved_pending; do not
+            # append _following(section) or speech text from later delegates
+            # leaks into the "Abstaining" section via the country-vote parser.
+            # For GA, saved_pending is empty so we fall back to following blocks.
+            surrounding = saved_pending if saved_pending else _following(section)
+            if not _last_resolution_header_text and current is not None:
+                speech_context = " ".join(s.text for s in current.speeches[-5:])
+            else:
+                speech_context = ""
             _try_add_resolution(
-                section, _following(section), _last_resolution_header_text
+                section,
+                surrounding,
+                _last_resolution_header_text or speech_context,
             )
 
         # ---- Stage direction -----------------------------------------------------
@@ -228,7 +242,9 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
                     )
                 _after_vote_signal = False
                 _pending_vote_blocks = []
-            elif "recorded vote was taken" in sd.text.lower():
+            elif re.search(
+                r"(?:recorded\s+)?vote\s+was\s+taken", sd.text, re.IGNORECASE
+            ):
                 # Begin buffering: include the signal block itself so that
                 # extract_resolution_from_adoption can detect has_recorded_signal.
                 _after_vote_signal = True
@@ -541,7 +557,10 @@ def process_pdf(
     # --- Phase 5: Assemble and validate ----------------------------------------
     try:
         symbol: str = meta.get("symbol") or ""
-        session_num: int = int(meta.get("session") or 0)
+        _session_raw = meta.get("session")
+        session_num: int | None = (
+            int(_session_raw) if _session_raw is not None else None
+        )
         meeting_num: int = int(meta.get("meeting_number") or 0)
         doc_date: date | None = meta.get("date")
         if doc_date is None:

@@ -41,7 +41,10 @@ _DATE_RE = re.compile(
 _SESSION_FROM_SYMBOL_RE = re.compile(r"[AS]/(\d+)/PV\.")
 
 # President line with dot-leaders: "President:  Mr. Name ……… (Country)"
-_PRESIDENT_RE = re.compile(r"President\s*:\s*(.+?)\s*\.{2,}\s*\(([^)]+)\)", re.DOTALL)
+# Handles both consecutive dots (GA: "...........") and spaced dots (SC: ". .  .  .")
+_PRESIDENT_RE = re.compile(
+    r"President\s*:\s*(.+?)\s*[.\s]{3,}\s*\(([^)]+)\)", re.DOTALL
+)
 # Fallback: older format without dot-leaders, e.g. "President: Mr. INSANALLY (Guyana)"
 _PRESIDENT_SIMPLE_RE = re.compile(r"President\s*:\s*(.+?)\s*\(([^)]+)\)", re.DOTALL)
 

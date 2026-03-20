@@ -170,7 +170,7 @@ class DocumentItem(BaseModel):
 class MeetingRecord(BaseModel):
     symbol: str  # e.g. "A/64/PV.121"
     body: Literal["GA", "SC"]
-    session: int
+    session: int | None  # None for Security Council (no session numbering)
     meeting_number: int
     date: date
     location: str

@@ -35,10 +35,12 @@ class ValidationError:
 # ---------------------------------------------------------------------------
 
 _SYMBOL_RE = re.compile(r"^[AS]/(?:\d+/)?PV\.\d+$")
-_DRAFT_SYMBOL_RE = re.compile(r"^(?:A|S)/\S+/L\.\d+")
+# GA draft: A/64/L.72 or S/.../L.N; SC draft: S/2018/1016 (year/serial, no /L.)
+_DRAFT_SYMBOL_RE = re.compile(r"^(?:(?:A|S)/\S+/L\.\d+|S/\d{4}/\d+)")
 # Roman numerals (I, II … XIX and beyond) are valid draft symbols in omnibus sessions.
 _ROMAN_NUMERAL_RE = re.compile(r"^[IVXLCDM]+$", re.IGNORECASE)
-_ADOPTED_SYMBOL_RE = re.compile(r"^\d+/\d+$")
+# GA adopted: 64/299; SC adopted: 2448 (2018)
+_ADOPTED_SYMBOL_RE = re.compile(r"^(?:\d+/\d+|\d+\s*\(\d{4}\))$")
 
 
 def _check_symbol(symbol: str | None) -> list[ValidationError]:
@@ -57,7 +59,9 @@ def _check_date(d: date | None) -> list[ValidationError]:
     return []
 
 
-def _check_session(session: int | None) -> list[ValidationError]:
+def _check_session(session: int | None, body: str = "GA") -> list[ValidationError]:
+    if body == "SC":
+        return []  # Security Council has no session numbering
     if session is None:
         return [ValidationError("session", "missing")]
     if session <= 0:
@@ -143,7 +147,7 @@ def validate_record(record: MeetingRecord) -> list[ValidationError]:
 
     errors.extend(_check_symbol(record.symbol))
     errors.extend(_check_date(record.date))
-    errors.extend(_check_session(record.session))
+    errors.extend(_check_session(record.session, record.body))
     errors.extend(_check_meeting_number(record.meeting_number))
 
     if not record.location:

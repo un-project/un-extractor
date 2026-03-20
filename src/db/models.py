@@ -92,7 +92,7 @@ class Document(Base):
     symbol: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
     body: Mapped[str] = mapped_column(String(2), nullable=False)
     meeting_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    session: Mapped[int] = mapped_column(Integer, nullable=False)
+    session: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     date: Mapped[Optional[date]] = mapped_column(Date)
     location: Mapped[Optional[str]] = mapped_column(String(50))
     pdf_path: Mapped[Optional[str]] = mapped_column(String(500))

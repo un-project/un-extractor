@@ -28,7 +28,7 @@ from src.structure.detect_sections import Section, _stage_direction_type
 # Patterns
 # ---------------------------------------------------------------------------
 
-# Adoption line — five patterns:
+# Adoption line — six patterns:
 #
 # 1. Named symbol:  "Draft resolution A/64/L.72 was adopted (resolution 64/299)."
 # 2. Roman numeral: "Draft resolution I was adopted (resolution 65/206)."
@@ -36,6 +36,7 @@ from src.structure.detect_sections import Section, _stage_direction_type
 # 3. Amendment:     "The amendment (A/65/L.53) was adopted by N votes to M."
 # 4. Generic:       "The draft decision was adopted."
 # 5. No symbol:     "Draft resolution was adopted by 113 votes …"  (recent format)
+# 6. SC format:     "The draft resolution has been adopted as resolution 2448 (2018)."
 #
 # Group layout:
 #   1 – "resolution"/"decision"  (cases 1/2)
@@ -47,6 +48,7 @@ from src.structure.detect_sections import Section, _stage_direction_type
 #   7 – adopted symbol  (case 4)
 #   8 – "resolution"/"decision"  (optional adopted clause, case 5)
 #   9 – adopted symbol  (case 5)
+#  10 – SC adopted symbol "NNNN (YYYY)"  (case 6)
 _ADOPTION_RE = re.compile(
     r"(?:"
     # Cases 1 & 2: "Draft (resolution|decision) <SYMBOL> was adopted"
@@ -66,6 +68,11 @@ _ADOPTION_RE = re.compile(
     # Vote totals may appear between "was adopted" and "(resolution X/Y)".
     r"Draft\s+(?:resolution|decision)\s+was\s+adopted"
     r"(?:.*?\((resolution|decision)\s+(\S+?)\))?"
+    r"|"
+    # Case 6 (SC): "The draft resolution has been adopted as resolution 2448 (2018)."
+    # Draft symbol is absent; recovered from preceding speech context.
+    r"The\s+draft\s+(?:resolution|decision)\s+has\s+been\s+adopted"
+    r"(?:\s+as\s+(?:resolution|decision)\s+(\d+\s*\(\d{4}\)))?"
     r")",
     re.IGNORECASE,
 )
@@ -84,8 +91,46 @@ _VOTE_TOTALS_ALT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# SC vote totals announced by the President after the vote:
+#   "received 13 votes in favour, none against and two abstentions"
+# Numbers may be digits OR spelled-out words (none/two/etc.).
+_SC_VOTE_TOTALS_RE = re.compile(
+    r"received\s+(\d+)\s+votes?\s+in\s+favour,\s*"
+    r"(none|zero|\d+)\s+against"
+    r"(?:\s+and\s*(none|zero|one|two|three|four|five|six|seven|eight|nine|ten|"
+    r"eleven|twelve|thirteen|fourteen|fifteen|\d+)\s+abstentions?)?",
+    re.IGNORECASE,
+)
+
+_WORD_TO_INT: dict[str, int] = {
+    "none": 0,
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+}
+
+
+def _parse_vote_count(s: str) -> int:
+    """Convert a vote-count token (digit string or English word) to int."""
+    s = s.lower().strip()
+    return _WORD_TO_INT.get(s, int(s) if s.isdigit() else 0)
+
+
 # Symbol extracted from a preceding bold header block,
-# e.g. "Draft resolution (A/65/L.71)".
+# e.g. "Draft resolution (A/65/L.71)" or SC speech "document S/2018/1016".
 # Used as a fallback when the adoption line itself carries no symbol.
 _SYMBOL_FROM_CONTEXT_RE = re.compile(r"([AS]/[^)\s,]+)", re.IGNORECASE)
 
@@ -107,9 +152,11 @@ _ENTITLED_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
-# Signal that a recorded vote was taken (appears as its own italic line)
+# Signal that a vote was taken (recorded vote signal, or SC show-of-hands line).
+# Matches:  "A recorded vote was taken."
+#           "A vote was taken by show of hands."  (SC)
 _RECORDED_VOTE_SIGNAL_RE = re.compile(
-    r"A\s+recorded\s+vote\s+was\s+taken", re.IGNORECASE
+    r"A\s+(?:recorded\s+)?vote\s+was\s+taken", re.IGNORECASE
 )
 
 # Per-country vote section headers — used to locate the start of each list.
@@ -139,9 +186,31 @@ def _parse_country_list(raw: str) -> list[str]:
     """
     # Normalise whitespace
     clean = re.sub(r"\s+", " ", raw.strip()).rstrip(".")
-    # Simple comma split — downstream LLM normalisation handles edge cases
-    parts = [p.strip() for p in clean.split(",")]
-    return [normalize_country_name(p) for p in parts if p]
+    # "None" means zero countries voted in this category (SC convention).
+    if clean.lower() == "none":
+        return []
+    if "," not in clean:
+        # SC short lists use "and" as the sole separator (e.g. "China and
+        # Russian Federation").  Split on " and " only when there are no
+        # commas, to avoid breaking multi-word names that contain "and"
+        # (e.g. "United Kingdom of Great Britain and Northern Ireland").
+        parts = re.split(r"\s+and\s+", clean)
+    else:
+        # Standard comma-separated list — downstream LLM handles edge cases.
+        comma_parts = [p.strip() for p in clean.split(",")]
+        parts = []
+        for part in comma_parts:
+            # A part with 2+ " and " sequences has a list-separating "and"
+            # at the end (e.g. "United Kingdom of Great Britain and Northern
+            # Ireland and United States of America").  Split at the last one.
+            ands = [m.start() for m in re.finditer(r"\s+and\s+", part, re.IGNORECASE)]
+            if len(ands) >= 2:
+                split_pos = ands[-1]
+                parts.append(part[:split_pos].strip())
+                parts.append(part[split_pos:].strip().lstrip("and").strip())
+            else:
+                parts.append(part)
+    return [normalize_country_name(p) for p in parts if p and p.lower() != "none"]
 
 
 def _extract_vote_totals(
@@ -155,6 +224,13 @@ def _extract_vote_totals(
             no = int(m.group(2))
             abstain = int(m.group(3)) if m.group(3) else 0
             return yes, no, abstain
+    # SC format: "received 13 votes in favour, none against and two abstentions"
+    m = _SC_VOTE_TOTALS_RE.search(text)
+    if m:
+        yes = int(m.group(1))
+        no = _parse_vote_count(m.group(2))
+        abstain = _parse_vote_count(m.group(3)) if m.group(3) else 0
+        return yes, no, abstain
     return None, None, None
 
 
@@ -247,9 +323,14 @@ def extract_resolution_from_adoption(
     if not draft_symbol:
         return None
     # Groups 4, 7, 9 are the adopted symbol for cases 1/2, 4, 5 respectively.
-    adopted_symbol: str | None = m.group(4) or m.group(7) or m.group(9)
-    if adopted_symbol:
-        adopted_symbol = adopted_symbol.rstrip(".,;)")
+    # Group 10 is the SC adopted symbol "NNNN (YYYY)" (case 6) — keep the ")"
+    # that closes the year, so strip only punctuation but not ")".
+    if m.group(10):
+        adopted_symbol: str | None = m.group(10).strip()
+    else:
+        adopted_symbol = m.group(4) or m.group(7) or m.group(9) or None
+        if adopted_symbol:
+            adopted_symbol = adopted_symbol.rstrip(".,;)")
 
     # Determine if a recorded vote signal is present in surrounding blocks
     # ("A recorded vote was taken." appears as a separate italic line before

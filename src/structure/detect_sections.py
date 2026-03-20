@@ -224,20 +224,26 @@ def _is_content_boundary(block: TextBlock) -> bool:
         return True
     # Italic text on the cover page (e.g. "The meeting was called to order")
     # should be emitted as a stage_direction, not buried in the cover section.
+    # Exception: SC cover pages use italic for the President and Members roster.
     if block.all_italic or (
         block.italic_start and bool(_ADOPTION_RE.search(block.text.strip()))
     ):
+        text = block.text.strip()
+        if re.match(r"(?:President|Members)\s*:", text, re.IGNORECASE):
+            return False  # cover metadata even if italic (SC cover page)
         return True
     # Bold heading that doesn't match any known metadata pattern
     if block.bold_start:
         text = block.text.strip()
         if (
             len(text) > 10
-            and not re.search(r"\d+\w*\s+plenary", text, re.IGNORECASE)
+            # GA: "121st plenary meeting"; SC: "8422nd meeting"
+            and not re.search(r"\d+\w*\s+(?:plenary\s+)?meeting", text, re.IGNORECASE)
             and not re.match(r"President\s*:", text, re.IGNORECASE)
             and not re.match(r"Official\s+Records", text, re.IGNORECASE)
             and not re.match(r"The\s+meeting\s+was", text, re.IGNORECASE)
             and not re.match(r"United\s+Nations", text, re.IGNORECASE)
+            and not re.match(r"Security\s+Council", text, re.IGNORECASE)
         ):
             return True
     return False

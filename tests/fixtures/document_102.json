@@ -6,7 +6,7 @@
   "location": "New York",
   "president_name": "Mr. Shahid",
   "total_speeches": 87,
-  "total_resolutions": 4,
+  "total_resolutions": 3,
   "total_stage_directions": 21,
   "items": [
     {
@@ -62,17 +62,10 @@
       "item_type": "agenda_item",
       "agenda_number": 124,
       "speech_count": 29,
-      "resolution_count": 2,
+      "resolution_count": 1,
       "resolutions": [
         {
           "draft_symbol": "A/76/L.85",
-          "vote_type": "consensus",
-          "yes_count": null,
-          "no_count": null,
-          "abstain_count": null
-        },
-        {
-          "draft_symbol": "unknown",
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,

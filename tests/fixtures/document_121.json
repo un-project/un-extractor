@@ -6,7 +6,7 @@
   "location": "New York",
   "president_name": "Mr. Ali Abdussalam Treki",
   "total_speeches": 20,
-  "total_resolutions": 5,
+  "total_resolutions": 4,
   "total_stage_directions": 7,
   "items": [
     {
@@ -93,16 +93,8 @@
       "item_type": "agenda_item",
       "agenda_number": 118,
       "speech_count": 1,
-      "resolution_count": 1,
-      "resolutions": [
-        {
-          "draft_symbol": "unknown",
-          "vote_type": "consensus",
-          "yes_count": null,
-          "no_count": null,
-          "abstain_count": null
-        }
-      ]
+      "resolution_count": 0,
+      "resolutions": []
     },
     {
       "position": 7,

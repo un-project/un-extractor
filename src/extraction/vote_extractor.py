@@ -244,7 +244,8 @@ def extract_resolution_from_adoption(
         pm = _SYMBOL_FROM_CONTEXT_RE.search(preceding_text)
         if pm:
             draft_symbol = pm.group(1).rstrip(".,;)")
-    draft_symbol = draft_symbol or "unknown"
+    if not draft_symbol:
+        return None
     # Groups 4, 7, 9 are the adopted symbol for cases 1/2, 4, 5 respectively.
     adopted_symbol: str | None = m.group(4) or m.group(7) or m.group(9)
     if adopted_symbol:

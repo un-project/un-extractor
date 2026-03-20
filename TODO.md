@@ -6,11 +6,10 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Extraction accuracy
 
-- [ ] **`unknown` draft symbol (remaining)** — A handful of adoption lines ("The draft
-  decision was adopted.") appear with no preceding bold header and no parenthetical symbol,
-  so the draft symbol cannot be resolved. These are typically procedural decisions that
-  don't correspond to a numbered draft. Consider skipping resolution creation for these
-  cases rather than storing `draft_symbol = "unknown"`.
+- [x] **`unknown` draft symbol** — `extract_resolution_from_adoption` now returns `None`
+  when no draft symbol can be resolved (no capture group, no parenthetical, no preceding
+  header), so unresolvable procedural decisions are silently skipped instead of being
+  stored with `draft_symbol = "unknown"`.
 
 - [x] **Resolution symbol leaks across agenda items** — `_last_resolution_header_text` is
   now cleared inside `_flush_and_start`, preventing a symbol from a prior agenda item's

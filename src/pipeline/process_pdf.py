@@ -277,12 +277,16 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
                 # accumulate here; they are passed as context when the adoption
                 # line is encountered.
                 _pending_vote_blocks.extend(section.blocks)
-            # A single bold block that isn't metadata looks like a named section
-            # heading (e.g. "Expression of sympathy on the passing of …").
+            # All-bold section (1 or 2 blocks) looks like a named heading.
+            # Single-block: GA/SC topic lines; two-block: SC topic + reference
+            # document line (e.g. "The situation in… / Letter dated 19 March…").
+            # Exclude ALL-CAPS blocks — those are GA resolution/document titles,
+            # not section boundaries.
             elif (
-                len(section.blocks) == 1
-                and section.blocks[0].bold_start
+                len(section.blocks) <= 2
+                and all(b.bold_start for b in section.blocks)
                 and len(section.text.strip()) < 300
+                and not all(b.text.strip().isupper() for b in section.blocks)
             ):
                 _flush_and_start(title=section.text.strip(), item_type="other_item")
             elif current is not None and current.speeches:

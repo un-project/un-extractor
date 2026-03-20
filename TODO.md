@@ -23,10 +23,10 @@ Open tasks and known limitations for the un-extractor pipeline.
   as an optional group, so "by 121 to 5" was always matched. Added explicit test cases
   for the short form with and without abstentions to pin the behavior.
 
-- [ ] **Agenda continuation items not split correctly** — `_AGENDA_RE` matches "Agenda
-  item 13" but not "Agenda item 13 (continued)" when "(continued)" is part of the same
-  block. These items get merged into the previous item instead of starting a new one.
-  Extend the regex and set `continued=True` when matched.
+- [x] **Agenda continuation items** — `_AGENDA_RE` already matches "Agenda item 13
+  (continued)" (pattern only anchors the start, not the end) and `_parse_agenda_header`
+  already sets `continued=True` via `"(continued)" in text.lower()`. Added tests to
+  pin detection and parsing for all continued variants including ALL-CAPS scanned forms.
 
 - [ ] **Smart-quote mismatch in title extraction** — `_ENTITLED_RE` defines separate
   `_OPEN_QUOTE` / `_CLOSE_QUOTE` character classes. Mismatched typographic quotes

@@ -1,0 +1,29 @@
+{
+  "symbol": "A/31/PV.8",
+  "session": 31,
+  "meeting_number": 8,
+  "date": "1976-09-28",
+  "location": "New York",
+  "president_name": null,
+  "total_speeches": 10,
+  "total_resolutions": 0,
+  "total_stage_directions": 4,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "agenda_item",
+      "agenda_number": 9,
+      "speech_count": 10,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

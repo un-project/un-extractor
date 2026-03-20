@@ -232,6 +232,16 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
                 # extract_resolution_from_adoption can detect has_recorded_signal.
                 _after_vote_signal = True
                 _pending_vote_blocks = list(section.blocks)
+            elif _after_vote_signal and re.match(
+                r"^(?:In\s+favour|Against|Abstaining)\s*:",
+                sd.text.strip(),
+                re.IGNORECASE
+            ):
+                # Vote-category headers ("In favour:", "Against:", "Abstaining:")
+                # are italic stage directions; include them in the pending buffer
+                # so _extract_country_votes can attribute each country list to
+                # the correct vote position.
+                _pending_vote_blocks.extend(section.blocks)
 
         # ---- Resolution header ---------------------------------------------------
         elif section.section_type == "resolution_header":

@@ -1,0 +1,45 @@
+{
+  "symbol": "A/79/PV.29",
+  "session": 79,
+  "meeting_number": 29,
+  "date": "2024-10-29",
+  "location": "New York",
+  "president_name": "Mr. Yang",
+  "total_speeches": 43,
+  "total_resolutions": 1,
+  "total_stage_directions": 9,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "agenda_item",
+      "agenda_number": 74,
+      "speech_count": 23,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "A/79/L.8",
+          "vote_type": "recorded",
+          "yes_count": 113,
+          "no_count": 10,
+          "abstain_count": 30
+        }
+      ]
+    },
+    {
+      "position": 2,
+      "item_type": "agenda_item",
+      "agenda_number": 73,
+      "speech_count": 20,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

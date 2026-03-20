@@ -122,10 +122,12 @@ _DRAFT_RE = re.compile(
 #   "Draft resolution I was adopted …"   (Roman numeral)
 #   "The amendment (A/65/L.53) was adopted …"
 #   "The draft resolution was adopted …"
+#   "Draft resolution was adopted by …"  (recent format: no symbol in line)
 _ADOPTION_RE = re.compile(
     r"(?:Draft\s+(?:resolution|decision)\s+\S+.*was\s+adopted"
     r"|The\s+amendment\s+\([^)]+\)\s+was\s+adopted"
-    r"|The\s+draft\s+(?:resolution|decision)\s+was\s+adopted)",
+    r"|The\s+draft\s+(?:resolution|decision)\s+was\s+adopted"
+    r"|Draft\s+(?:resolution|decision)\s+was\s+adopted)",
     re.IGNORECASE,
 )
 
@@ -222,7 +224,9 @@ def _is_content_boundary(block: TextBlock) -> bool:
         return True
     # Italic text on the cover page (e.g. "The meeting was called to order")
     # should be emitted as a stage_direction, not buried in the cover section.
-    if block.all_italic:
+    if block.all_italic or (
+        block.italic_start and bool(_ADOPTION_RE.search(block.text.strip()))
+    ):
         return True
     # Bold heading that doesn't match any known metadata pattern
     if block.bold_start:
@@ -286,7 +290,14 @@ def detect_sections(blocks: list[TextBlock]) -> list[Section]:
 
     for block in blocks[cover_end_idx:]:
 
-        if block.all_italic:
+        # Treat as a stage direction if fully italic OR if it starts italic and
+        # the text is an adoption line.  Some PDFs render the parenthetical
+        # "(resolution X/Y)" in non-italic, making all_italic=False even though
+        # the semantics are identical.
+        is_stage = block.all_italic or (
+            block.italic_start and bool(_ADOPTION_RE.search(block.text.strip()))
+        )
+        if is_stage:
             # Stage direction: flush current section, emit standalone direction.
             if current is not None:
                 sections.append(current)

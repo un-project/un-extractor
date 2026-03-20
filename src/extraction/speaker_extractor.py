@@ -53,7 +53,8 @@ _TITULAR_ATTR_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Language note inside parentheses: "(spoke in French)" or "(interpretation from Spanish)"
+# Language note inside parentheses: "(spoke in French)" or
+# "(interpretation from Spanish)"
 _LANGUAGE_RE = re.compile(
     r"(?:spoke\s+in|interpretation\s+from)\s+(\w+)", re.IGNORECASE
 )

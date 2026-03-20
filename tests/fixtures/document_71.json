@@ -6,8 +6,8 @@
   "location": "New York",
   "president_name": "Mr. Deiss",
   "total_speeches": 95,
-  "total_resolutions": 54,
-  "total_stage_directions": 1,
+  "total_resolutions": 55,
+  "total_stage_directions": 60,
   "items": [
     {
       "position": 0,
@@ -476,10 +476,17 @@
       "item_type": "agenda_item",
       "agenda_number": 106,
       "speech_count": 1,
-      "resolution_count": 1,
+      "resolution_count": 2,
       "resolutions": [
         {
           "draft_symbol": "I",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
+        {
+          "draft_symbol": "II",
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,

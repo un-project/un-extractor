@@ -6,8 +6,8 @@
   "location": "New York",
   "president_name": "Ms. Al-Khalifa",
   "total_speeches": 54,
-  "total_resolutions": 4,
-  "total_stage_directions": 1,
+  "total_resolutions": 5,
+  "total_stage_directions": 5,
   "items": [
     {
       "position": 0,
@@ -38,8 +38,15 @@
       "item_type": "agenda_item",
       "agenda_number": 15,
       "speech_count": 7,
-      "resolution_count": 1,
+      "resolution_count": 2,
       "resolutions": [
+        {
+          "draft_symbol": "unknown",
+          "vote_type": "consensus",
+          "yes_count": null,
+          "no_count": null,
+          "abstain_count": null
+        },
         {
           "draft_symbol": "A/61/L.66",
           "vote_type": "consensus",

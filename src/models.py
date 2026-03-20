@@ -64,6 +64,14 @@ class TextBlock:
         return bool(meaningful) and all(s.italic for s in meaningful)
 
     @property
+    def italic_start(self) -> bool:
+        """True if the first non-whitespace segment is italic."""
+        for seg in self.segments:
+            if seg.text.strip():
+                return seg.italic
+        return False
+
+    @property
     def has_bold(self) -> bool:
         return any(s.bold for s in self.segments if s.text.strip())
 

@@ -28,26 +28,45 @@ from src.structure.detect_sections import Section, _stage_direction_type
 # Patterns
 # ---------------------------------------------------------------------------
 
-# Adoption line — three patterns:
+# Adoption line — five patterns:
 #
 # 1. Named symbol:  "Draft resolution A/64/L.72 was adopted (resolution 64/299)."
 # 2. Roman numeral: "Draft resolution I was adopted (resolution 65/206)."
 #                   "Draft resolution II was adopted (resolution 65/207)."
 # 3. Amendment:     "The amendment (A/65/L.53) was adopted by N votes to M."
 # 4. Generic:       "The draft decision was adopted."
+# 5. No symbol:     "Draft resolution was adopted by 113 votes …"  (recent format)
+#
+# Group layout:
+#   1 – "resolution"/"decision"  (cases 1/2)
+#   2 – draft symbol or Roman numeral  (cases 1/2)
+#   3 – "resolution"/"decision"  (optional adopted clause, cases 1/2)
+#   4 – adopted symbol  (cases 1/2)
+#   5 – amendment symbol  (case 3)
+#   6 – "resolution"/"decision"  (optional adopted clause, case 4)
+#   7 – adopted symbol  (case 4)
+#   8 – "resolution"/"decision"  (optional adopted clause, case 5)
+#   9 – adopted symbol  (case 5)
 _ADOPTION_RE = re.compile(
     r"(?:"
-    # Case 1 & 2: "Draft (resolution|decision) <SYMBOL> was adopted"
+    # Cases 1 & 2: "Draft (resolution|decision) <SYMBOL> was adopted"
     r"Draft\s+(resolution|decision)\s+((?:(?:A|S)/\S+?)|[IVXLCDM]+)"
     r"(?:,\s*as\s+orally\s+corrected,)?"
     r"\s+was\s+adopted"
     r"(?:\s+\((resolution|decision)\s+(\S+?)\))?"
     r"|"
     # Case 3: "The amendment (A/65/L.53) was adopted"
-    r"The\s+amendment\s+\(((?:A|S)/\S+?)\)\s+was\s+adopted" r"|"
+    r"The\s+amendment\s+\(((?:A|S)/\S+?)\)\s+was\s+adopted"
+    r"|"
     # Case 4: "The draft (resolution|decision) was adopted"
     r"The\s+draft\s+(?:resolution|decision)\s+was\s+adopted"
     r"(?:\s+\((resolution|decision)\s+(\S+?)\))?"
+    r"|"
+    # Case 5 (recent): "Draft (resolution|decision) was adopted" — symbol absent
+    # from this line; draft_symbol recovered from the preceding resolution header.
+    # Vote totals may appear between "was adopted" and "(resolution X/Y)".
+    r"Draft\s+(?:resolution|decision)\s+was\s+adopted"
+    r"(?:.*?\((resolution|decision)\s+(\S+?)\))?"
     r")",
     re.IGNORECASE,
 )
@@ -220,20 +239,15 @@ def extract_resolution_from_adoption(
         return None
 
     # Extract draft symbol from whichever capture group matched.
-    # Group layout for the combined regex:
-    #   group 1 = "resolution"/"decision" (case 1/2)
-    #   group 2 = draft symbol or Roman numeral (case 1/2)
-    #   group 3 = "resolution"/"decision" (adopted, case 1/2)
-    #   group 4 = adopted symbol (case 1/2)
-    #   group 5 = amendment symbol (case 3)
-    #   group 6 = adopted symbol (case 4)
+    # See _ADOPTION_RE docstring for the full group layout.
     draft_symbol: str = (m.group(2) or m.group(5) or "").rstrip(".,;")
     if not draft_symbol and preceding_text:
         pm = _SYMBOL_FROM_CONTEXT_RE.search(preceding_text)
         if pm:
             draft_symbol = pm.group(1).rstrip(".,;)")
     draft_symbol = draft_symbol or "unknown"
-    adopted_symbol: str | None = m.group(4) or m.group(6)
+    # Groups 4, 7, 9 are the adopted symbol for cases 1/2, 4, 5 respectively.
+    adopted_symbol: str | None = m.group(4) or m.group(7) or m.group(9)
     if adopted_symbol:
         adopted_symbol = adopted_symbol.rstrip(".,;)")
 

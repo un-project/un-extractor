@@ -235,7 +235,7 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             elif _after_vote_signal and re.match(
                 r"^(?:In\s+favour|Against|Abstaining)\s*:",
                 sd.text.strip(),
-                re.IGNORECASE
+                re.IGNORECASE,
             ):
                 # Vote-category headers ("In favour:", "Against:", "Abstaining:")
                 # are italic stage directions; include them in the pending buffer

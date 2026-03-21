@@ -40,7 +40,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   but `import_json_to_db.py` does not populate it yet. Wire up amendment import when the
   extractor starts producing amendment records.
 
-- [ ] **Atomic import per document** — If `import_record` partially inserts rows and then
+- [x] **Atomic import per document** — If `import_record` partially inserts rows and then
   fails (e.g., resolution FK violation), the partial data is committed. Wrap each document
   import in a single transaction with a full rollback on any exception.
 

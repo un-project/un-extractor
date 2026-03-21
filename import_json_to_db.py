@@ -132,114 +132,115 @@ def import_record(
     db_session: Session, record: MeetingRecord, recreate: bool = False
 ) -> None:
     """Import one ``MeetingRecord`` into the database."""
-    # Document
-    doc = db_session.query(Document).filter_by(symbol=record.symbol).first()
-    if doc is not None:
-        if not recreate:
-            log.info("Document %s already in DB — skipping", record.symbol)
-            return
-        log.info("Document %s already in DB — deleting for recreate", record.symbol)
-        _delete_document(db_session, doc)
+    with db_session.begin_nested():
+        # Document
+        doc = db_session.query(Document).filter_by(symbol=record.symbol).first()
+        if doc is not None:
+            if not recreate:
+                log.info("Document %s already in DB — skipping", record.symbol)
+                return
+            log.info("Document %s already in DB — deleting for recreate", record.symbol)
+            _delete_document(db_session, doc)
 
-    doc = Document(
-        symbol=record.symbol,
-        body=record.body,
-        meeting_number=record.meeting_number,
-        session=record.session,
-        date=record.date,
-        location=record.location,
-    )
-    db_session.add(doc)
-    db_session.flush()
-
-    # Iterate items in document order
-    for item_data in record.items:
-        db_item = DocumentItem(
-            document_id=doc.id,
-            position=item_data.position,
-            item_type=item_data.item_type,
-            title=item_data.title,
-            agenda_number=item_data.agenda_number,
-            sub_item=item_data.sub_item,
-            continued=item_data.continued,
+        doc = Document(
+            symbol=record.symbol,
+            body=record.body,
+            meeting_number=record.meeting_number,
+            session=record.session,
+            date=record.date,
+            location=record.location,
         )
-        db_session.add(db_item)
+        db_session.add(doc)
         db_session.flush()
 
-        # Stage directions
-        for sd in item_data.stage_directions:
-            obj = StageDirection(
+        # Iterate items in document order
+        for item_data in record.items:
+            db_item = DocumentItem(
                 document_id=doc.id,
-                item_id=db_item.id,
-                text=sd.text,
-                direction_type=sd.direction_type,
-                position_in_document=sd.position,
-                position_in_item=sd.position_in_item,
+                position=item_data.position,
+                item_type=item_data.item_type,
+                title=item_data.title,
+                agenda_number=item_data.agenda_number,
+                sub_item=item_data.sub_item,
+                continued=item_data.continued,
             )
-            db_session.add(obj)
-
-        # Speeches
-        for speech in item_data.speeches:
-            sp = speech.speaker
-            country: Country | None = None
-            if sp.country:
-                country = _get_or_create_country(db_session, sp.country)
-
-            speaker = _get_or_create_speaker(
-                db_session,
-                name=sp.name,
-                country=country,
-                organization=sp.organization,
-                role=sp.role,
-                title=sp.title,
-            )
-            obj_speech = Speech(
-                document_id=doc.id,
-                item_id=db_item.id,
-                speaker_id=speaker.id,
-                language=sp.language,
-                on_behalf_of=sp.on_behalf_of,
-                text=speech.text,
-                position_in_document=speech.position,
-                position_in_item=speech.position_in_item,
-            )
-            db_session.add(obj_speech)
-
-        # Resolutions and votes
-        for res in item_data.resolutions:
-            resolution = _get_or_create_resolution(
-                db_session, res.draft_symbol, record.body, record.session, res.title
-            )
-            if res.adopted_symbol and not resolution.adopted_symbol:
-                resolution.adopted_symbol = res.adopted_symbol
-                db_session.flush()
-
-            vote = Vote(
-                document_id=doc.id,
-                item_id=db_item.id,
-                resolution_id=resolution.id,
-                vote_type=res.vote_type,
-                vote_scope="whole_resolution",
-                yes_count=res.yes_count,
-                no_count=res.no_count,
-                abstain_count=res.abstain_count,
-                position_in_item=res.position_in_item,
-            )
-            db_session.add(vote)
+            db_session.add(db_item)
             db_session.flush()
 
-            for cv in res.country_votes:
-                country = _get_or_create_country(db_session, cv.country)
-                if country is None:
-                    continue
-                obj_cv = CountryVote(
-                    vote_id=vote.id,
-                    country_id=country.id,
-                    vote_position=cv.vote_position,
+            # Stage directions
+            for sd in item_data.stage_directions:
+                obj = StageDirection(
+                    document_id=doc.id,
+                    item_id=db_item.id,
+                    text=sd.text,
+                    direction_type=sd.direction_type,
+                    position_in_document=sd.position,
+                    position_in_item=sd.position_in_item,
                 )
-                db_session.add(obj_cv)
+                db_session.add(obj)
 
-    db_session.flush()
+            # Speeches
+            for speech in item_data.speeches:
+                sp = speech.speaker
+                country: Country | None = None
+                if sp.country:
+                    country = _get_or_create_country(db_session, sp.country)
+
+                speaker = _get_or_create_speaker(
+                    db_session,
+                    name=sp.name,
+                    country=country,
+                    organization=sp.organization,
+                    role=sp.role,
+                    title=sp.title,
+                )
+                obj_speech = Speech(
+                    document_id=doc.id,
+                    item_id=db_item.id,
+                    speaker_id=speaker.id,
+                    language=sp.language,
+                    on_behalf_of=sp.on_behalf_of,
+                    text=speech.text,
+                    position_in_document=speech.position,
+                    position_in_item=speech.position_in_item,
+                )
+                db_session.add(obj_speech)
+
+            # Resolutions and votes
+            for res in item_data.resolutions:
+                resolution = _get_or_create_resolution(
+                    db_session, res.draft_symbol, record.body, record.session, res.title
+                )
+                if res.adopted_symbol and not resolution.adopted_symbol:
+                    resolution.adopted_symbol = res.adopted_symbol
+                    db_session.flush()
+
+                vote = Vote(
+                    document_id=doc.id,
+                    item_id=db_item.id,
+                    resolution_id=resolution.id,
+                    vote_type=res.vote_type,
+                    vote_scope="whole_resolution",
+                    yes_count=res.yes_count,
+                    no_count=res.no_count,
+                    abstain_count=res.abstain_count,
+                    position_in_item=res.position_in_item,
+                )
+                db_session.add(vote)
+                db_session.flush()
+
+                for cv in res.country_votes:
+                    country = _get_or_create_country(db_session, cv.country)
+                    if country is None:
+                        continue
+                    obj_cv = CountryVote(
+                        vote_id=vote.id,
+                        country_id=country.id,
+                        vote_position=cv.vote_position,
+                    )
+                    db_session.add(obj_cv)
+
+        db_session.flush()
     log.info("Imported %s", record.symbol)
 
 

@@ -61,8 +61,13 @@ class BatchSummary:
 
 
 def find_pdfs(root_dir: Path) -> list[Path]:
-    """Return all PDF files under *root_dir* sorted by path."""
-    return sorted(root_dir.rglob("*.pdf"))
+    """Return all PDF files under *root_dir* sorted by path.
+
+    Folders named ``res`` (UN General Assembly resolutions) are excluded
+    because they are not verbatim meeting records and cannot be processed
+    by this pipeline.
+    """
+    return sorted(p for p in root_dir.rglob("*.pdf") if p.parent.name != "res")
 
 
 # ---------------------------------------------------------------------------

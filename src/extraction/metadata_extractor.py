@@ -23,14 +23,27 @@ from src.models import PresidentInfo, TextBlock
 # e.g. A/64/PV.121  or  S/PV.9453
 _SYMBOL_RE = re.compile(r"\b([AS]/(?:\d+/)?PV\.(\d+))\b")
 
-# e.g. "121st plenary meeting"
+# e.g. "121st plenary meeting" — also matches "10th PLENARY IEmNO" (OCR-garbled MEETING)
 _MEETING_NUM_RE = re.compile(
     r"\b(\d+)(?:st|nd|rd|th)\s+plenary\s+meeting", re.IGNORECASE
+)
+# Looser fallback: requires only "Nth PLENARY" — handles OCR where MEETING is garbled
+_MEETING_NUM_PLENARY_RE = re.compile(
+    r"\b(\d+)(?:st|nd|rd|th)\s+plenary\b", re.IGNORECASE
 )
 
 # Date within cover text
 _DATE_RE = re.compile(
     r"\b(\d{1,2})\s+"
+    r"(January|February|March|April|May|June|July|August|"
+    r"September|October|November|December)"
+    r"\s+(\d{4})\b",
+    re.IGNORECASE,
+)
+# OCR fallback: older scans render the digit "1" as capital "I"
+# e.g. "I November 1993" instead of "1 November 1993"
+_DATE_OCR_RE = re.compile(
+    r"(?<!\w)I\s+"
     r"(January|February|March|April|May|June|July|August|"
     r"September|October|November|December)"
     r"\s+(\d{4})\b",
@@ -85,27 +98,35 @@ def extract_meeting_number(text: str, symbol: str | None = None) -> int | None:
     """Return the meeting number.
 
     Primary source: document symbol (e.g. ``A/64/PV.121`` → 121).
-    Fallback: ordinal text in cover page (e.g. "121st plenary meeting").
+    Fallback 1: ordinal text "121st plenary meeting".
+    Fallback 2: looser "121st PLENARY" (handles OCR-garbled MEETING word).
     """
     if symbol:
         m = re.search(r"PV\.(\d+)$", symbol)
         if m:
             return int(m.group(1))
-    m = _MEETING_NUM_RE.search(text)
+    m = _MEETING_NUM_RE.search(text) or _MEETING_NUM_PLENARY_RE.search(text)
     return int(m.group(1)) if m else None
 
 
 def extract_date(text: str) -> date | None:
     """Return meeting date parsed from *text*, or ``None``."""
     m = _DATE_RE.search(text)
-    if not m:
-        return None
-    day = int(m.group(1))
-    month = _MONTH_MAP[m.group(2).lower()]
-    year = int(m.group(3))
-    if not (1945 <= year <= 2100):
-        return None
-    return date(year, month, day)
+    if m:
+        day = int(m.group(1))
+        month = _MONTH_MAP[m.group(2).lower()]
+        year = int(m.group(3))
+        if 1945 <= year <= 2100:
+            return date(year, month, day)
+    # OCR fallback: some older scans render "1" as capital "I",
+    # e.g. "I November 1993" instead of "1 November 1993".
+    m = _DATE_OCR_RE.search(text)
+    if m:
+        month = _MONTH_MAP[m.group(1).lower()]
+        year = int(m.group(2))
+        if 1945 <= year <= 2100:
+            return date(year, month, 1)
+    return None
 
 
 def extract_location(text: str) -> str | None:

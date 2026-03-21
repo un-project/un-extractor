@@ -38,6 +38,24 @@ from src.validation.json_validator import validate_record
 
 log = logging.getLogger(__name__)
 
+
+def _session_from_path(pdf_path: Path) -> int | None:
+    """Extract the GA/SC session number from the directory structure.
+
+    Expects a path component pattern like ``…/{session}/pv/…`` where
+    ``{session}`` is a plain integer (e.g. 31).  Returns ``None`` if the
+    pattern is not found.
+    """
+    parts = pdf_path.parts
+    for name in ("pv", "res"):
+        if name in parts:
+            idx = parts.index(name)
+            candidate = parts[idx - 1]
+            if candidate.isdigit():
+                return int(candidate)
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Agenda header parsing
 # ---------------------------------------------------------------------------
@@ -432,6 +450,30 @@ def process_pdf(
                 meta["session"] = meta["session"] or extract_session(fallback_symbol)
                 meta["body"] = extract_body(fallback_symbol)
                 log.debug("Symbol recovered from raw page header: %s", fallback_symbol)
+
+        # Second fallback: reconstruct symbol from the folder path + meeting ordinal
+        # in the page text.  Older GA PV documents (sessions ~31–48) were scanned
+        # from printed volumes and do not include the "A/NN/PV.NN" running header.
+        # The session number is reliably encoded in the directory structure:
+        #   …/ga/{session}/pv/document_N.pdf
+        # The meeting number is extracted from "Nth PLENARY" cover text.
+        if not meta.get("symbol"):
+            from src.extraction.metadata_extractor import extract_meeting_number
+
+            session_from_path = _session_from_path(pdf_path)
+            meeting_from_text = extract_meeting_number(raw_first_page_text)
+            if session_from_path and meeting_from_text:
+                body_prefix = (
+                    "S" if "SECURITY COUNCIL" in raw_first_page_text.upper() else "A"
+                )
+                reconstructed = (
+                    f"{body_prefix}/{session_from_path}/PV.{meeting_from_text}"
+                )
+                meta["symbol"] = reconstructed
+                meta["session"] = meta["session"] or session_from_path
+                meta["meeting_number"] = meeting_from_text
+                meta["body"] = "SC" if body_prefix == "S" else "GA"
+                log.debug("Symbol reconstructed from path+text: %s", reconstructed)
 
         # Date and location may be in the right-column header (older PDFs) rather
         # than in the cover section blocks.  Fall back to the raw first-page text.

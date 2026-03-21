@@ -6,28 +6,6 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Extraction accuracy
 
-- [x] **`unknown` draft symbol** — `extract_resolution_from_adoption` now returns `None`
-  when no draft symbol can be resolved (no capture group, no parenthetical, no preceding
-  header), so unresolvable procedural decisions are silently skipped instead of being
-  stored with `draft_symbol = "unknown"`.
-
-- [x] **Resolution symbol leaks across agenda items** — `_last_resolution_header_text` is
-  now cleared inside `_flush_and_start`, preventing a symbol from a prior agenda item's
-  resolution header from being attributed to an adoption line with no symbol in the next item.
-
-- [x] **Country list detection misses indented headers** — Added `\s*` after the
-  `(?:^|\n)` anchor in all three header patterns, matching the existing `_VOTE_SECTION_STOP_RE`
-  which already used `\n\s*`. Test added for blocks with a leading space.
-
-- [x] **Vote totals "votes" keyword** — `_VOTE_TOTALS_RE` already has `(?:votes?\s+)?`
-  as an optional group, so "by 121 to 5" was always matched. Added explicit test cases
-  for the short form with and without abstentions to pin the behavior.
-
-- [x] **Agenda continuation items** — `_AGENDA_RE` already matches "Agenda item 13
-  (continued)" (pattern only anchors the start, not the end) and `_parse_agenda_header`
-  already sets `continued=True` via `"(continued)" in text.lower()`. Added tests to
-  pin detection and parsing for all continued variants including ALL-CAPS scanned forms.
-
 - [ ] **Smart-quote mismatch in title extraction** — `_ENTITLED_RE` defines separate
   `_OPEN_QUOTE` / `_CLOSE_QUOTE` character classes. Mismatched typographic quotes
   (e.g., `\u201c` opened, `'` closed) fail to match. Accept any quote-like character for
@@ -36,19 +14,6 @@ Open tasks and known limitations for the un-extractor pipeline.
 ---
 
 ## Metadata
-
-- [x] **Security Council documents** — Validated against `S/PV.8422`. Cover section
-  detection, president extraction, session=None, SC adoption pattern ("has been adopted
-  as resolution NNNN (YYYY)"), SC vote-total phrasing ("none against", spelled-out words),
-  "show of hands" vote signal, SC draft symbol recovery, and "None" country filtering all
-  implemented. Known limitation: the last entry in a GA-style comma list that uses "and"
-  before the final country (e.g. "…Northern Ireland and United States of America") is
-  split correctly only when the part contains 2+ "and"s; single-"and" names like
-  "Trinidad and Tobago" are preserved.
-
-- [x] **Date year range validation** — `extract_date` now rejects years outside
-  1945–2100, returning `None` for implausible OCR artifacts instead of propagating them
-  to `validate_record`.
 
 - [ ] **Location extraction false positives** — `extract_location` searches all text, so
   delegates mentioning "New York" in speeches can trigger a match outside the cover page.
@@ -66,10 +31,6 @@ Open tasks and known limitations for the un-extractor pipeline.
   exception that escapes `_process_one` (e.g., an unexpected PyMuPDF crash), calling
   `future.result()` re-raises it and halts the entire batch. Wrap `future.result()` in a
   try/except so unexpected crashes are recorded as failures rather than killing the run.
-
-- [x] **Batch failure report deduplication** — Resolved: error filenames are now derived
-  from the PDF's path relative to `root_dir` (e.g., `en_ga_64_pv_document_121_error.json`)
-  so PDFs from different sessions with the same stem no longer overwrite each other.
 
 ---
 
@@ -100,16 +61,6 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 - [ ] **Security Council integration test** — Add a golden fixture for `S/PV.8422`
   covering: session=None, president, SC adoption pattern, vote totals, and country votes.
-
-- [x] **Vote extraction edge cases** — All four cases now tested: vote totals without
-  "votes" keyword (already worked); "In favour:" with leading whitespace (fix + test added
-  earlier); country name duplicated across two vote positions (both entries preserved);
-  amendment with no own country lists (returns recorded vote with counts, empty
-  `country_votes`); and `None` returned when no draft symbol can be resolved.
-
-- [x] **Database import tests** — `tests/test_import_json_to_db.py` added: first import,
-  idempotent re-import, `--recreate`, resolution sharing, country/speaker deduplication,
-  and partial-failure rollback, all using an in-memory SQLite database.
 
 ---
 

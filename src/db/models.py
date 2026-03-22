@@ -292,7 +292,7 @@ class CountryVote(Base):
         Integer, ForeignKey("countries.id"), nullable=False
     )
     vote_position: Mapped[str] = mapped_column(
-        Enum("yes", "no", "abstain", "absent", name="vote_position_enum"),
+        Enum("yes", "no", "abstain", "absent", "non_voting", name="vote_position_enum"),
         nullable=False,
     )
 

@@ -58,8 +58,7 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Testing
 
-- [ ] **Security Council integration test** — Add a golden fixture for `S/PV.8422`
-  covering: session=None, president, SC adoption pattern, vote totals, and country votes.
+*(no open items)*
 
 ---
 

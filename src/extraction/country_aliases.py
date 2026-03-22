@@ -30,7 +30,7 @@ _ALIASES: dict[str, str] = {
     "United Arab gmirates": "United Arab Emirates",
     "United. Arab Emirates": "United Arab Emirates",
     "United Arab": "United Arab Emirates",
-    "Jnitcd Arab Emirates": "United Arab Emirates",   # "(J…" after leading-punct strip
+    "Jnitcd Arab Emirates": "United Arab Emirates",  # "(J…" after leading-punct strip
     "united Arab &nirates": "United Arab Emirates",
     "united Arab ZWirates": "United Arab Emirates",
     # ------------------------------------------------------------------
@@ -221,8 +221,8 @@ _ALIASES: dict[str, str] = {
     # "German DemOcratic Republic" (OCR caps) stole iso3='DDR' — merge into correct form
     "German DemOcratic Republic": "German Democratic Republic",
     # Truncated names that grabbed iso3 codes
-    "German Democratic": "German Democratic Republic",   # truncated
-    "Trinidad and": "Trinidad and Tobago",               # truncated
+    "German Democratic": "German Democratic Republic",  # truncated
+    "Trinidad and": "Trinidad and Tobago",  # truncated
     # "Union of SOviet SOcialist Republics" (OCR caps) stole iso3='SUN'
     "Union of SOviet SOcialist Republics": "Union of Soviet Socialist Republics",
     # "Observer State of Palestine" stole iso3='PSE' from "State of Palestine"
@@ -231,7 +231,7 @@ _ALIASES: dict[str, str] = {
     # ------------------------------------------------------------------
     # OCR typos — additional United States of America variants
     # ------------------------------------------------------------------
-    "Jnited States of America": "United States of America",   # J→U OCR glyph swap
+    "Jnited States of America": "United States of America",  # J→U OCR glyph swap
     "Uni ted Sta tes of America": "United States of America",
     "Uni ted States of America": "United States of America",
     "Untted States of America": "United States of America",
@@ -294,8 +294,7 @@ _TRAILING_PROC_RE = re.compile(
     r"|\s+I\s+now\s+(?:put|invite)\b.*"
     r"|\s+(?:Ab[a-z]?t|Against:|Aga\s+inst:).*"
     # "with N abstentions / votes / …"
-    r"|\s+with\s+\d+\b.*"
-    r")$",
+    r"|\s+with\s+\d+\b.*" r")$",
     re.IGNORECASE | re.DOTALL,
 )
 

@@ -306,12 +306,17 @@ class TestExtractResolutionTitle:
     def test_mismatched_open_double_close_single_curly(self) -> None:
         # \u201c opened, \u2019 closed — OCR often produces mixed typographic quotes
         ctx = "entitled \u201cPeace and Security in Africa\u2019."
-        assert extract_resolution_title(ctx, "unknown") == "Peace and Security in Africa"
+        assert (
+            extract_resolution_title(ctx, "unknown") == "Peace and Security in Africa"
+        )
 
     def test_mismatched_open_double_close_open_double(self) -> None:
         # OCR re-uses the opening character as the closing character
         ctx = "entitled \u201cStrengthening of the United Nations\u201c."
-        assert extract_resolution_title(ctx, "unknown") == "Strengthening of the United Nations"
+        assert (
+            extract_resolution_title(ctx, "unknown")
+            == "Strengthening of the United Nations"
+        )
 
     def test_mismatched_open_curly_single_close_ascii(self) -> None:
         # \u2018 opened, ASCII ' closed

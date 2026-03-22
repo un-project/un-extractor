@@ -39,16 +39,29 @@ _PAGE_NUMBER_RE = re.compile(r"^\s*\d+(?:/\d+)?\s*$")
 
 # Document print codes and page-number combinations:
 #   Standalone code:     "10-53066 (E)", "22-58466"
-#   Code + page:         "07-50429 2", "07-50429 14"
-#   Page + code:         "3 07-50429", "15 07-50429"
+#   Code + page:         "07-50429 2", "07-50429 14", "24-25633 (E) *2425633*"
+#   Page + code:         "3 07-50429", "15 07-50429", "2/9\x08 24-25633"
+#   Code + \x08 + page:  "24-25633\x08 3/9"
 #   Bare job numbers:    "*1070469*"
+# \x08 (backspace) is used as a separator in newer PDF footers.
+_CODE_BODY = (
+    r"\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s*\*\d+\*)?"  # NN-NNNNN opt-(E) opt-*jobnum*
+)
+_PAGE_FRAC = r"\d{1,3}(?:/\d+)?"  # plain number or N/M fraction
+_SEP = r"[\s\x08]+"  # space/tab/newline or backspace
 _DOC_CODE_RE = re.compile(
     r"^\s*(?:"
-    # code (opt letter) (opt page or page/total fraction)
-    r"\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3}(?:/\d+)?)?"
-    r"|\d{1,3}(?:/\d+)?\s+\d{2}-\d{5}"  # page (or fraction) then code
-    r"|\*\d{5,8}\*"  # *jobnum*
-    r")\s*$"
+    + _CODE_BODY
+    + r"(?:"
+    + _SEP
+    + _PAGE_FRAC
+    + r")?"  # code first, optional page
+    + r"|"
+    + _PAGE_FRAC
+    + _SEP
+    + _CODE_BODY  # page first, then code
+    + r"|\*\d{5,8}\*"  # bare *jobnum*
+    + r")\s*$"
 )
 
 # Boilerplate disclaimer / footer phrases and structural noise
@@ -105,11 +118,19 @@ def _in_header_or_footer(
 # Inline doc-code/page-number patterns that can appear embedded within
 # larger blocks when a page break falls inside a paragraph.  These are
 # stripped from block text rather than discarding the whole block.
+# Uses the same _CODE_BODY / _PAGE_FRAC / _SEP helpers as _DOC_CODE_RE.
 _INLINE_CODE_RE = re.compile(
-    r"\n\s*(?:"
-    r"\d{2}-\d{5}(?:\s*\([A-Z]\))?(?:\s+\d{1,3}(?:/\d+)?)?"
-    r"|\d{1,3}(?:/\d+)?\s+\d{2}-\d{5}"
-    r")\s*\n",
+    r"\n[\s\x08]*(?:"
+    + _CODE_BODY
+    + r"(?:"
+    + _SEP
+    + _PAGE_FRAC
+    + r")?"  # code first, optional page
+    + r"|"
+    + _PAGE_FRAC
+    + _SEP
+    + _CODE_BODY  # page first, then code
+    + r")[\s\x08]*\n",
     re.MULTILINE,
 )
 

@@ -143,6 +143,46 @@ python import_json_to_db.py output/ --db postgresql://user:pass@localhost/undb
 
 The importer is idempotent per document: re-importing a JSON file for a symbol already in the database is a no-op.
 
+Use `--recreate` to delete and re-import documents that are already present:
+
+```bash
+python import_json_to_db.py output/ --recreate
+```
+
+### Import UN Digital Library voting data
+
+The Dag Hammarskjöld Library publishes authoritative GA and SC voting CSVs
+(~947k GA rows, ~41k SC rows). `scripts/import_undl_votes.py` downloads them
+and upserts the data into the database, enriching and correcting what was
+extracted from the PDFs.
+
+```bash
+python scripts/import_undl_votes.py --db postgresql://user:pass@localhost/undb
+```
+
+On first run the script:
+- Applies any missing schema migrations (new columns, enum values, column widening)
+- Downloads the CSVs to `data/undl/` (cached for subsequent runs)
+- Creates stub `documents` rows for meetings not yet extracted from PDF
+- Upserts `resolutions`, `votes`, and `country_votes` with authoritative totals
+- Backfills resolution titles, subjects, and committee report symbols
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--ga-csv PATH` | Use a local GA CSV instead of downloading |
+| `--sc-csv PATH` | Use a local SC CSV instead of downloading |
+| `--download` | Force re-download even if cached files exist |
+| `--dry-run` | Parse and log without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
+Running `import_undl_votes.py` after `import_json_to_db.py` gives the most
+complete database: PDF extraction provides speeches, stage directions, and
+document structure; the DHL CSVs provide complete voting records including
+historical meetings not yet extracted.
+
 #### Database schema overview
 
 | Table | Description |
@@ -153,9 +193,9 @@ The importer is idempotent per document: re-importing a JSON file for a symbol a
 | `document_items` | Agenda items and named sections within a meeting |
 | `stage_directions` | Italic procedural text (adoptions, suspensions, …) |
 | `speeches` | One speech segment per speaker turn |
-| `resolutions` | Draft/adopted resolutions; shared across meetings |
-| `votes` | One voting event per resolution per meeting |
-| `country_votes` | Per-country vote position for recorded votes |
+| `resolutions` | Draft/adopted resolutions; title, subjects, agenda title, committee report |
+| `votes` | One voting event per resolution per meeting; yes/no/abstain/non-voting totals, DHL link |
+| `country_votes` | Per-country vote position for recorded votes; P5 flag |
 | `amendments` | (reserved) proposed amendments |
 
 Key relationships:

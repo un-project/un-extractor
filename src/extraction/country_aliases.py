@@ -210,6 +210,32 @@ _ALIASES: dict[str, str] = {
     "ROK": "Republic of Korea",
     "DPRK": "Democratic People's Republic of Korea",
     # ------------------------------------------------------------------
+    # OCR typos that caused iso3 squatting (blocker rows for canonical rows)
+    # ------------------------------------------------------------------
+    # "Arab Republic" stole iso3='EGY' — merge into Egypt
+    "Arab Republic": "Egypt",
+    # "Northern Ireland" stole iso3='GBR' — merge into UK
+    "Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    # "Tobago" stole iso3='TTO' — merge into Trinidad and Tobago
+    "Tobago": "Trinidad and Tobago",
+    # "German DemOcratic Republic" (OCR caps) stole iso3='DDR' — merge into correct form
+    "German DemOcratic Republic": "German Democratic Republic",
+    # Truncated names that grabbed iso3 codes
+    "German Democratic": "German Democratic Republic",   # truncated
+    "Trinidad and": "Trinidad and Tobago",               # truncated
+    # "Union of SOviet SOcialist Republics" (OCR caps) stole iso3='SUN'
+    "Union of SOviet SOcialist Republics": "Union of Soviet Socialist Republics",
+    # "Observer State of Palestine" stole iso3='PSE' from "State of Palestine"
+    "Observer State of Palestine": "State of Palestine",
+    "Observer for Palestine": "State of Palestine",
+    # ------------------------------------------------------------------
+    # OCR typos — additional United States of America variants
+    # ------------------------------------------------------------------
+    "Jnited States of America": "United States of America",   # J→U OCR glyph swap
+    "Uni ted Sta tes of America": "United States of America",
+    "Uni ted States of America": "United States of America",
+    "Untted States of America": "United States of America",
+    # ------------------------------------------------------------------
     # Older/former official names still found in older PV records
     # ------------------------------------------------------------------
     "Yugoslav Republic of Macedonia": "North Macedonia",

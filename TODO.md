@@ -27,11 +27,6 @@ Open tasks and known limitations for the un-extractor pipeline.
   a warning, but does not retry. Add a simple exponential backoff (1–2 retries) for
   transient API errors.
 
-- [ ] **Batch worker crash propagation** — If a thread in `ThreadPoolExecutor` raises an
-  exception that escapes `_process_one` (e.g., an unexpected PyMuPDF crash), calling
-  `future.result()` re-raises it and halts the entire batch. Wrap `future.result()` in a
-  try/except so unexpected crashes are recorded as failures rather than killing the run.
-
 ---
 
 ## Database

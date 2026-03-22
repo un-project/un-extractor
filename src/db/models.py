@@ -230,7 +230,7 @@ class Resolution(Base):
     session: Mapped[Optional[int]] = mapped_column(Integer)
     category: Mapped[Optional[str]] = mapped_column(Text)
     agenda_title: Mapped[Optional[str]] = mapped_column(Text)
-    committee_report: Mapped[Optional[str]] = mapped_column(String(50))
+    committee_report: Mapped[Optional[str]] = mapped_column(Text)
 
     votes: Mapped[list["Vote"]] = relationship(back_populates="resolution")
 

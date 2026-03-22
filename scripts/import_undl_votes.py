@@ -163,7 +163,7 @@ def _ensure_columns(session: Session) -> None:
     migrations: list[tuple[str, str, str]] = [
         # resolutions
         ("resolutions", "agenda_title", "TEXT"),
-        ("resolutions", "committee_report", "VARCHAR(50)"),
+        ("resolutions", "committee_report", "TEXT"),
         # votes
         ("votes", "total_non_voting", "INTEGER"),
         ("votes", "total_ms", "INTEGER"),
@@ -196,6 +196,7 @@ def _ensure_columns(session: Session) -> None:
         ("resolutions", "category"),
         ("resolutions", "draft_symbol"),
         ("resolutions", "adopted_symbol"),
+        ("resolutions", "committee_report"),
     ]:
         _col_info = session.execute(
             text(

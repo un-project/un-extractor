@@ -12,6 +12,7 @@ from src.extraction.metadata_extractor import (
     extract_location,
     extract_meeting_number,
     extract_president,
+    extract_sc_session,
     extract_session,
     extract_symbol,
 )
@@ -50,8 +51,30 @@ class TestExtractSession:
         assert extract_session("A/61/PV.107") == 61
 
     def test_sc_no_session(self) -> None:
-        # SC symbols like S/PV.9453 have no session number
+        # SC symbols like S/PV.9453 have no session number in the symbol itself
         assert extract_session("S/PV.9453") is None
+
+
+class TestExtractScSession:
+    @pytest.mark.parametrize(
+        "text, expected",
+        [
+            ("Seventy-third year", 73),
+            ("Eighty-first year", 81),
+            ("Fifty-second year", 52),
+            ("First year", 1),
+            ("One hundredth year", 100),
+            # space instead of hyphen (OCR variant)
+            ("Seventy third year", 73),
+            # full SC cover excerpt
+            ("Security Council\nSeventy-third year\n8422nd meeting", 73),
+        ],
+    )
+    def test_sc_session_ordinals(self, text: str, expected: int) -> None:
+        assert extract_sc_session(text) == expected
+
+    def test_sc_session_missing(self) -> None:
+        assert extract_sc_session("no year here") is None
 
 
 class TestExtractMeetingNumber:

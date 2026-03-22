@@ -157,6 +157,54 @@ def _ensure_session_nullable(session: Session) -> None:
         log.info("Column updated.")
 
 
+def _ensure_columns(session: Session) -> None:
+    """Add new columns to existing tables if missing (idempotent)."""
+    migrations: list[tuple[str, str, str]] = [
+        # resolutions
+        ("resolutions", "agenda_title", "TEXT"),
+        ("resolutions", "committee_report", "VARCHAR(50)"),
+        # votes
+        ("votes", "total_non_voting", "INTEGER"),
+        ("votes", "total_ms", "INTEGER"),
+        ("votes", "vote_note", "TEXT"),
+        ("votes", "undl_id", "VARCHAR(20)"),
+        ("votes", "undl_link", "VARCHAR(500)"),
+        # country_votes
+        ("country_votes", "permanent_member", "BOOLEAN"),
+    ]
+    changed = False
+    for table, column, col_type in migrations:
+        exists = session.execute(
+            text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name = :t AND column_name = :c"
+            ),
+            {"t": table, "c": column},
+        ).fetchone()
+        if exists is None:
+            log.info("Adding column %s.%s …", table, column)
+            session.execute(
+                text(
+                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS"
+                    f" {column} {col_type}"
+                )
+            )
+            changed = True
+    # Widen resolutions.category from VARCHAR(200) to TEXT if needed
+    cat_type = session.execute(
+        text(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_name = 'resolutions' AND column_name = 'category'"
+        )
+    ).fetchone()
+    if cat_type and cat_type[0].lower() != "text":
+        log.info("Widening resolutions.category to TEXT …")
+        session.execute(text("ALTER TABLE resolutions ALTER COLUMN category TYPE TEXT"))
+        changed = True
+    if changed:
+        session.commit()
+
+
 # ---------------------------------------------------------------------------
 # Download helper
 # ---------------------------------------------------------------------------
@@ -247,6 +295,9 @@ def _get_or_create_resolution(
     body: str,
     session_num: int | None,
     title: str | None,
+    subjects: str | None,
+    agenda_title: str | None,
+    committee_report: str | None,
     _cache: dict[str, Resolution],
 ) -> Resolution:
     key = draft_symbol or adopted_symbol
@@ -267,6 +318,9 @@ def _get_or_create_resolution(
                 body=body,
                 session=session_num,
                 title=title,
+                category=subjects,
+                agenda_title=agenda_title,
+                committee_report=committee_report,
             )
             session.add(res)
             session.flush()
@@ -286,6 +340,15 @@ def _get_or_create_resolution(
     if title and not res.title:
         res.title = title
         changed = True
+    if subjects and not res.category:
+        res.category = subjects
+        changed = True
+    if agenda_title and not res.agenda_title:
+        res.agenda_title = agenda_title
+        changed = True
+    if committee_report and not res.committee_report:
+        res.committee_report = committee_report
+        changed = True
     if changed:
         session.flush()
 
@@ -299,7 +362,12 @@ def _get_or_create_vote(
     yes_count: int | None,
     no_count: int | None,
     abstain_count: int | None,
+    total_non_voting: int | None,
+    total_ms: int | None,
     vote_type: str,
+    vote_note: str | None,
+    undl_id: str | None,
+    undl_link: str | None,
     _cache: dict[tuple[int, int], Vote],
 ) -> Vote:
     cache_key = (doc.id, resolution.id)
@@ -320,16 +388,26 @@ def _get_or_create_vote(
             yes_count=yes_count,
             no_count=no_count,
             abstain_count=abstain_count,
+            total_non_voting=total_non_voting,
+            total_ms=total_ms,
+            vote_note=vote_note,
+            undl_id=undl_id,
+            undl_link=undl_link,
         )
         session.add(vote)
         session.flush()
     else:
-        # Update counts from authoritative DHL data if they differ
+        # Update counts and metadata from authoritative DHL data if they differ
         updated = False
         for attr, val in [
             ("yes_count", yes_count),
             ("no_count", no_count),
             ("abstain_count", abstain_count),
+            ("total_non_voting", total_non_voting),
+            ("total_ms", total_ms),
+            ("vote_note", vote_note),
+            ("undl_id", undl_id),
+            ("undl_link", undl_link),
         ]:
             if val is not None and getattr(vote, attr) != val:
                 setattr(vote, attr, val)
@@ -346,6 +424,7 @@ def _upsert_country_vote(
     vote: Vote,
     country: Country,
     vote_position: str,
+    permanent_member: bool | None,
 ) -> None:
     existing = (
         session.query(CountryVote)
@@ -358,10 +437,17 @@ def _upsert_country_vote(
                 vote_id=vote.id,
                 country_id=country.id,
                 vote_position=vote_position,
+                permanent_member=permanent_member,
             )
         )
-    elif existing.vote_position != vote_position:
-        existing.vote_position = vote_position
+    else:
+        if existing.vote_position != vote_position:
+            existing.vote_position = vote_position
+        if (
+            permanent_member is not None
+            and existing.permanent_member != permanent_member
+        ):  # noqa: E501
+            existing.permanent_member = permanent_member
 
 
 # ---------------------------------------------------------------------------
@@ -404,13 +490,23 @@ def import_csv(
 
         meeting_symbol = first.get("meeting", "").strip()
         adopted_symbol = first.get("resolution", "").strip()
-        draft_symbol = first.get("draft", "").strip()
+        # draft may be pipe-separated (e.g. A/58/L.25|A/58/L.25/Add.1); take first
+        draft_symbol = first.get("draft", "").strip().split("|")[0].strip()
         vote_date = _parse_date(first.get("date", "").strip())
         title = (first.get("title") or first.get("description") or "").strip() or None
+        subjects = first.get("subjects", "").strip() or None
+        agenda_title = (
+            first.get("agenda_title") or first.get("agenda") or ""
+        ).strip() or None
+        committee_report = first.get("committee_report", "").strip() or None
+        vote_note = first.get("vote_note", "").strip() or None
+        undl_link = first.get("undl_link", "").strip() or None
 
         yes_count = _int_or_none(first.get("total_yes", ""))
         no_count = _int_or_none(first.get("total_no", ""))
         abstain_count = _int_or_none(first.get("total_abstentions", ""))
+        total_non_voting = _int_or_none(first.get("total_non_voting", ""))
+        total_ms = _int_or_none(first.get("total_ms", ""))
         session_num = _int_or_none(first.get("session", ""))
 
         # Determine vote type: SC has 'modality', GA is always recorded
@@ -439,6 +535,9 @@ def import_csv(
                     body,
                     session_num,
                     title,
+                    subjects,
+                    agenda_title,
+                    committee_report,
                     res_cache,
                 )
 
@@ -449,7 +548,12 @@ def import_csv(
                     yes_count,
                     no_count,
                     abstain_count,
+                    total_non_voting,
+                    total_ms,
                     vote_type,
+                    vote_note,
+                    undl_id,
+                    undl_link,
                     vote_cache,
                 )
 
@@ -461,12 +565,21 @@ def import_csv(
                     if vote_position is None:
                         log.debug("Unknown vote code %r for %s", ms_vote_raw, ms_code)
                         continue
+                    pm_raw = row.get("permanent_member", "").strip().lower()
+                    if pm_raw == "true":
+                        permanent_member: bool | None = True
+                    elif pm_raw == "false":
+                        permanent_member = False
+                    else:
+                        permanent_member = None
 
                     country = _get_or_create_country_by_code(
                         session, ms_code, ms_name, country_cache
                     )
                     if country:
-                        _upsert_country_vote(session, vote, country, vote_position)
+                        _upsert_country_vote(
+                            session, vote, country, vote_position, permanent_member
+                        )
                     rows_done += 1
 
         resolutions_done += 1
@@ -503,6 +616,7 @@ def run(
     with get_session(engine) as session:
         _ensure_non_voting_enum(session)
         _ensure_session_nullable(session)
+        _ensure_columns(session)
 
     with get_session(engine) as session:
         log.info("=== Importing GA voting data ===")

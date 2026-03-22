@@ -228,7 +228,9 @@ class Resolution(Base):
     title: Mapped[Optional[str]] = mapped_column(Text)
     body: Mapped[str] = mapped_column(String(2), nullable=False)
     session: Mapped[Optional[int]] = mapped_column(Integer)
-    category: Mapped[Optional[str]] = mapped_column(String(200))
+    category: Mapped[Optional[str]] = mapped_column(Text)
+    agenda_title: Mapped[Optional[str]] = mapped_column(Text)
+    committee_report: Mapped[Optional[str]] = mapped_column(String(50))
 
     votes: Mapped[list["Vote"]] = relationship(back_populates="resolution")
 
@@ -268,6 +270,11 @@ class Vote(Base):
     yes_count: Mapped[Optional[int]] = mapped_column(Integer)
     no_count: Mapped[Optional[int]] = mapped_column(Integer)
     abstain_count: Mapped[Optional[int]] = mapped_column(Integer)
+    total_non_voting: Mapped[Optional[int]] = mapped_column(Integer)
+    total_ms: Mapped[Optional[int]] = mapped_column(Integer)
+    vote_note: Mapped[Optional[str]] = mapped_column(Text)
+    undl_id: Mapped[Optional[str]] = mapped_column(String(20))
+    undl_link: Mapped[Optional[str]] = mapped_column(String(500))
     position_in_item: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     document: Mapped[Document] = relationship(back_populates="votes")
@@ -295,6 +302,7 @@ class CountryVote(Base):
         Enum("yes", "no", "abstain", "absent", "non_voting", name="vote_position_enum"),
         nullable=False,
     )
+    permanent_member: Mapped[Optional[bool]] = mapped_column(Boolean)
 
     vote: Mapped[Vote] = relationship(back_populates="country_votes")
     country: Mapped[Country] = relationship(back_populates="country_votes")

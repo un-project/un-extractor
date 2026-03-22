@@ -83,6 +83,10 @@ def _summarise(pdf_path: Path) -> dict:
                         "yes_count": res.yes_count,
                         "no_count": res.no_count,
                         "abstain_count": res.abstain_count,
+                        "country_votes": {
+                            cv.country: cv.vote_position
+                            for cv in sorted(res.country_votes, key=lambda v: v.country)
+                        },
                     }
                     for res in item.resolutions
                 ],

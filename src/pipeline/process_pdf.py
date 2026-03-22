@@ -447,8 +447,15 @@ def process_pdf(
                 )
 
                 meta["symbol"] = fallback_symbol
-                meta["session"] = meta["session"] or extract_session(fallback_symbol)
-                meta["body"] = extract_body(fallback_symbol)
+                body = extract_body(fallback_symbol)
+                meta["body"] = body
+                if not meta["session"]:
+                    if body == "SC":
+                        from src.extraction.metadata_extractor import extract_sc_session
+
+                        meta["session"] = extract_sc_session(raw_first_page_text)
+                    else:
+                        meta["session"] = extract_session(fallback_symbol)
                 log.debug("Symbol recovered from raw page header: %s", fallback_symbol)
 
         # Second fallback: reconstruct symbol from the folder path + meeting ordinal

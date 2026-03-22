@@ -29,7 +29,8 @@
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,
-          "abstain_count": null
+          "abstain_count": null,
+          "country_votes": {}
         }
       ]
     },
@@ -45,7 +46,8 @@
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,
-          "abstain_count": null
+          "abstain_count": null,
+          "country_votes": {}
         }
       ]
     },
@@ -85,7 +87,8 @@
           "vote_type": "recorded",
           "yes_count": 143,
           "no_count": 4,
-          "abstain_count": 11
+          "abstain_count": 11,
+          "country_votes": {}
         }
       ]
     }

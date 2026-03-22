@@ -1,0 +1,62 @@
+{
+  "symbol": "S/PV.8422",
+  "session": 73,
+  "meeting_number": 8422,
+  "date": "2018-12-13",
+  "location": "New York",
+  "president_name": "Mr. Adom",
+  "total_speeches": 12,
+  "total_resolutions": 1,
+  "total_stage_directions": 5,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 2,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 12,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "S/2018/1016",
+          "vote_type": "recorded",
+          "yes_count": 13,
+          "no_count": 0,
+          "abstain_count": 2,
+          "country_votes": {
+            "China": "abstain",
+            "C\u00f4te d\u2019Ivoire": "yes",
+            "Equatorial Guinea": "yes",
+            "Ethiopia": "yes",
+            "France": "yes",
+            "Kazakhstan": "yes",
+            "Kuwait": "yes",
+            "Netherlands": "yes",
+            "Peru": "yes",
+            "Plurinational State of Bolivia": "yes",
+            "Poland": "yes",
+            "Russian Federation": "abstain",
+            "Sweden": "yes",
+            "United Kingdom of Great Britain and Northern Ireland": "yes",
+            "United States of America": "yes"
+          }
+        }
+      ]
+    }
+  ]
+}

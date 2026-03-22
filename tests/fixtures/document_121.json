@@ -37,7 +37,8 @@
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,
-          "abstain_count": null
+          "abstain_count": null,
+          "country_votes": {}
         }
       ]
     },
@@ -61,14 +62,16 @@
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,
-          "abstain_count": null
+          "abstain_count": null,
+          "country_votes": {}
         },
         {
           "draft_symbol": "A/64/L.71",
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,
-          "abstain_count": null
+          "abstain_count": null,
+          "country_votes": {}
         }
       ]
     },
@@ -84,7 +87,8 @@
           "vote_type": "consensus",
           "yes_count": null,
           "no_count": null,
-          "abstain_count": null
+          "abstain_count": null,
+          "country_votes": {}
         }
       ]
     },

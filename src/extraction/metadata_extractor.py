@@ -232,7 +232,10 @@ def extract_session(symbol: str) -> int | None:
 
 
 def extract_sc_session(text: str) -> int | None:
-    """Return the session/year number from SC cover text (e.g. 'Seventy-third year' → 73)."""
+    """Return the session/year number from SC cover text.
+
+    E.g. ``'Seventy-third year'`` → ``73``.
+    """
     m = _SC_YEAR_RE.search(text)
     if not m:
         return None

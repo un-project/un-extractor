@@ -627,11 +627,11 @@ def process_pdf(
             )
         location: str = meta.get("location") or ""
         president: PresidentInfo | None = meta.get("president")
-        body: str = meta.get("body") or "GA"
+        doc_body: str = meta.get("body") or "GA"
 
         record = MeetingRecord(
             symbol=symbol,
-            body=body,
+            body=doc_body,
             session=session_num,
             meeting_number=meeting_num,
             date=doc_date or date(1900, 1, 1),

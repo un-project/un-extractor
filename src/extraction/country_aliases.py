@@ -19,6 +19,8 @@ import re
 # Values are the official UN Member State names.
 # Keep entries grouped by category for easy maintenance.
 
+_UK = "United Kingdom of Great Britain and Northern Ireland"
+
 _ALIASES: dict[str, str] = {
     # ------------------------------------------------------------------
     # OCR typos — United Arab Emirates
@@ -36,21 +38,21 @@ _ALIASES: dict[str, str] = {
     # ------------------------------------------------------------------
     # OCR typos — United Kingdom
     # ------------------------------------------------------------------
-    "United Kmgdom": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Great Britain": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Great Britain and Northern": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdan of Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom cif Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Great Britain and Nortnern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Great Britain and l'brthern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Great Britain and'Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Grea~ Britain and Northern rrelanrl": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Gr.eat Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United ~ingdom of Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United ~ingdom of Great Britain and Northe~n Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdom of Great Britain a~d Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "United Kingdan of Great Britain 2Ild Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
-    "united. Kingdom of Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kmgdom": _UK,
+    "United Kingdom of Great Britain": _UK,
+    "United Kingdom of Great Britain and Northern": _UK,
+    "United Kingdan of Great Britain and Northern Ireland": _UK,
+    "United Kingdom cif Great Britain and Northern Ireland": _UK,
+    "United Kingdom of Great Britain and Nortnern Ireland": _UK,
+    "United Kingdom of Great Britain and l'brthern Ireland": _UK,
+    "United Kingdom of Great Britain and'Northern Ireland": _UK,
+    "United Kingdom of Grea~ Britain and Northern rrelanrl": _UK,
+    "United Kingdom of Gr.eat Britain and Northern Ireland": _UK,
+    "United ~ingdom of Great Britain and Northern Ireland": _UK,
+    "United ~ingdom of Great Britain and Northe~n Ireland": _UK,
+    "United Kingdom of Great Britain a~d Northern Ireland": _UK,
+    "United Kingdan of Great Britain 2Ild Northern Ireland": _UK,
+    "united. Kingdom of Great Britain and Northern Ireland": _UK,
     # ------------------------------------------------------------------
     # OCR typos — United States of America
     # ------------------------------------------------------------------

@@ -142,7 +142,10 @@ class TestExtractLocation:
 
     def test_location_with_following_text(self) -> None:
         # Location followed by other content on the page is still found
-        header = "Security Council\nSeventy-third year\n8422nd meeting\nThursday, 13 December 2018\nNew York\nProvisional"
+        header = (
+            "Security Council\nSeventy-third year\n8422nd meeting\n"
+            "Thursday, 13 December 2018\nNew York\nProvisional"
+        )
         assert extract_location(header) == "New York"
 
 

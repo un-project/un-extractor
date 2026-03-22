@@ -87,7 +87,8 @@ _SC_MEETING_RE = re.compile(r"S/PV\.\d+", re.IGNORECASE)
 
 
 def _parse_meeting_number(symbol: str) -> int | None:
-    m = re.search(r"PV\.(\d+)", symbol, re.IGNORECASE)
+    # Allow optional space: DHL has e.g. 'A/34/PV. 4' for older sessions
+    m = re.search(r"PV\.\s*(\d+)", symbol, re.IGNORECASE)
     return int(m.group(1)) if m else None
 
 
@@ -190,17 +191,23 @@ def _ensure_columns(session: Session) -> None:
                 )
             )
             changed = True
-    # Widen resolutions.category from VARCHAR(200) to TEXT if needed
-    cat_type = session.execute(
-        text(
-            "SELECT data_type FROM information_schema.columns "
-            "WHERE table_name = 'resolutions' AND column_name = 'category'"
-        )
-    ).fetchone()
-    if cat_type and cat_type[0].lower() != "text":
-        log.info("Widening resolutions.category to TEXT …")
-        session.execute(text("ALTER TABLE resolutions ALTER COLUMN category TYPE TEXT"))
-        changed = True
+    # Widen VARCHAR columns to TEXT where data may exceed original limits
+    for _tbl, _col in [
+        ("resolutions", "category"),
+        ("resolutions", "draft_symbol"),
+        ("resolutions", "adopted_symbol"),
+    ]:
+        _col_info = session.execute(
+            text(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_name = :t AND column_name = :c"
+            ),
+            {"t": _tbl, "c": _col},
+        ).fetchone()
+        if _col_info and _col_info[0].lower() != "text":
+            log.info("Widening %s.%s to TEXT …", _tbl, _col)
+            session.execute(text(f"ALTER TABLE {_tbl} ALTER COLUMN {_col} TYPE TEXT"))
+            changed = True
     if changed:
         session.commit()
 

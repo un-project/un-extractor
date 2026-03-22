@@ -6,11 +6,6 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Extraction accuracy
 
-- [ ] **Smart-quote mismatch in title extraction** — `_ENTITLED_RE` defines separate
-  `_OPEN_QUOTE` / `_CLOSE_QUOTE` character classes. Mismatched typographic quotes
-  (e.g., `\u201c` opened, `'` closed) fail to match. Accept any quote-like character for
-  closing if the title is otherwise plausible.
-
 ---
 
 ## Metadata

@@ -37,12 +37,11 @@ Open tasks and known limitations for the un-extractor pipeline.
 ## Database
 
 - [ ] **Amendment table population** — `src/db/models.py` defines the `amendments` table
-  but `import_json_to_db.py` does not populate it yet. Wire up amendment import when the
-  extractor starts producing amendment records.
-
-- [x] **Atomic import per document** — If `import_record` partially inserts rows and then
-  fails (e.g., resolution FK violation), the partial data is committed. Wrap each document
-  import in a single transaction with a full rollback on any exception.
+  but `import_json_to_db.py` does not populate it yet. ~40 % of amendment-related stage
+  directions have no document symbol (oral amendments, context-dependent references), so
+  extraction would silently miss most records. Additionally `resolution_id` is non-nullable,
+  making it impossible to store oral/undocumented amendments. Defer until the schema is
+  relaxed and the extractor handles contextual resolution references.
 
 - [ ] **Concurrent import race condition** — Running two importer processes against the
   same database simultaneously can create duplicate rows (both read "symbol not present"

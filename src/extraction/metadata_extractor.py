@@ -214,7 +214,12 @@ def extract_date(text: str) -> date | None:
 
 
 def extract_location(text: str) -> str | None:
-    """Return the meeting location from *text*."""
+    """Return the meeting location from *text*.
+
+    Callers must pass only cover-page blocks or first-page text — never the
+    full document — so that delegates mentioning "New York" in speeches do not
+    produce false positives.
+    """
     upper = text.upper()
     if "NEW YORK" in upper:
         return "New York"

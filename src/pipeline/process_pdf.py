@@ -494,7 +494,12 @@ def process_pdf(
         if not meta.get("location"):
             from src.extraction.metadata_extractor import extract_location
 
-            meta["location"] = extract_location(raw_first_page_text)
+            # Restrict to the first 20 blocks of page 0: the location line always
+            # appears in the cover header, well before any speech content.
+            # (In older two-column OCR scans the header is spread across ~17 blocks
+            # due to column interleaving, so 10 would be too few.)
+            first_page_header = " ".join(b.text for b in raw_pages[0][:20])
+            meta["location"] = extract_location(first_page_header)
             if meta["location"]:
                 log.debug("Location recovered from raw page: %s", meta["location"])
 

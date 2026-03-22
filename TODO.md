@@ -10,10 +10,6 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Metadata
 
-- [ ] **Location extraction false positives** — `extract_location` searches all text, so
-  delegates mentioning "New York" in speeches can trigger a match outside the cover page.
-  Restrict the search to cover-page blocks (or the first ~10 blocks of the document).
-
 ---
 
 ## Pipeline robustness

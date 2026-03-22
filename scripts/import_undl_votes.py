@@ -92,8 +92,12 @@ def _parse_meeting_number(symbol: str) -> int | None:
 
 
 def _parse_session(symbol: str) -> int | None:
+    # Regular GA session: A/64/PV.121 → 64
     m = re.search(r"[AS]/(\d+)/PV\.", symbol, re.IGNORECASE)
-    return int(m.group(1)) if m else None
+    if m:
+        return int(m.group(1))
+    # Emergency Special Session: A/ES-10/PV.37 → no regular session number
+    return None
 
 
 def _parse_body(symbol: str) -> str:
@@ -130,6 +134,27 @@ def _ensure_non_voting_enum(session: Session) -> None:
         # ALTER TYPE needs to commit before it is visible to subsequent DML.
         session.commit()
         log.info("Enum updated.")
+
+
+def _ensure_session_nullable(session: Session) -> None:
+    """Drop NOT NULL on documents.session if it exists (idempotent).
+
+    Emergency Special Session symbols (A/ES-10/PV.37) have no parseable
+    GA session number, so the column must allow NULL.
+    """
+    result = session.execute(
+        text(
+            "SELECT is_nullable FROM information_schema.columns "
+            "WHERE table_name = 'documents' AND column_name = 'session'"
+        )
+    ).fetchone()
+    if result and result[0] == "NO":
+        log.info("Dropping NOT NULL constraint on documents.session …")
+        session.execute(
+            text("ALTER TABLE documents ALTER COLUMN session DROP NOT NULL")
+        )
+        session.commit()
+        log.info("Column updated.")
 
 
 # ---------------------------------------------------------------------------
@@ -474,9 +499,10 @@ def run(
     engine = get_engine(db_url)
     create_schema(engine)
 
-    # Migrate enum first (needs its own connection/transaction)
+    # Schema migrations (each needs its own commit before DML proceeds)
     with get_session(engine) as session:
         _ensure_non_voting_enum(session)
+        _ensure_session_nullable(session)
 
     with get_session(engine) as session:
         log.info("=== Importing GA voting data ===")

@@ -248,9 +248,21 @@ def _get_or_create_country_by_code(
 
     country = session.query(Country).filter_by(iso3=ms_code).first()
     if country is None:
-        # Fallback: try normalised name
+        # Fallback 1: try normalised name (exact)
         canonical = normalize_country_name(ms_name)
         country = session.query(Country).filter_by(name=canonical).first()
+    if country is None:
+        # Fallback 2: case-insensitive match (handles ALL-CAPS names from DHL CSVs)
+        canonical = normalize_country_name(ms_name) or ms_name
+        from sqlalchemy import func
+        country = session.query(Country).filter(
+            func.lower(Country.name) == canonical.lower()
+        ).first()
+        if country is not None:
+            # Assign the iso3 to the existing row so future lookups hit path 1
+            country.iso3 = ms_code
+            session.flush()
+            log.debug("Matched country %r by ilike, assigned iso3=%s", country.name, ms_code)
     if country is None:
         # Last resort: create a minimal row so no vote data is lost
         canonical = normalize_country_name(ms_name) or ms_name

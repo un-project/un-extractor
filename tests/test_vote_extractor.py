@@ -303,6 +303,21 @@ class TestExtractResolutionTitle:
         ctx = 'draft resolution II, entitled "Trafficking in women and girls".'
         assert extract_resolution_title(ctx, "II") == "Trafficking in women and girls"
 
+    def test_mismatched_open_double_close_single_curly(self) -> None:
+        # \u201c opened, \u2019 closed — OCR often produces mixed typographic quotes
+        ctx = "entitled \u201cPeace and Security in Africa\u2019."
+        assert extract_resolution_title(ctx, "unknown") == "Peace and Security in Africa"
+
+    def test_mismatched_open_double_close_open_double(self) -> None:
+        # OCR re-uses the opening character as the closing character
+        ctx = "entitled \u201cStrengthening of the United Nations\u201c."
+        assert extract_resolution_title(ctx, "unknown") == "Strengthening of the United Nations"
+
+    def test_mismatched_open_curly_single_close_ascii(self) -> None:
+        # \u2018 opened, ASCII ' closed
+        ctx = "entitled \u2018Global health\u0027."
+        assert extract_resolution_title(ctx, "unknown") == "Global health"
+
     def test_no_match_returns_none(self) -> None:
         assert extract_resolution_title("No entitled text here.", "A/64/L.1") is None
 

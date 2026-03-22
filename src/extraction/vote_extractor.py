@@ -139,8 +139,10 @@ _SYMBOL_FROM_CONTEXT_RE = re.compile(r"([AS]/[^)\s,]+)", re.IGNORECASE)
 # Two sub-patterns to handle different orderings:
 #   A: "Draft resolution SYMBOL[,] [is] entitled <QUOTE>Title<QUOTE>"
 #   B: bare "entitled <QUOTE>Title<QUOTE>" (fallback)
+# _CLOSE_QUOTE is intentionally a superset of _OPEN_QUOTE so that mismatched
+# typographic quotes (e.g. \u201c … ' or \u2018 … ") still match.
 _OPEN_QUOTE = r"""["'\u201c\u2018]"""
-_CLOSE_QUOTE = r"""["'\u201d\u2019]"""
+_CLOSE_QUOTE = r"""["'\u201c\u2018\u201d\u2019]"""
 _ENTITLED_ANCHORED_RE = re.compile(
     r"draft\s+(?:resolution|decision)\s+\S+"  # symbol (any)
     r"(?:,\s+|\s+is\s+|\s+)"

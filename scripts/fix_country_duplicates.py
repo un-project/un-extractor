@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.db.database import get_engine, get_session
 from src.db.models import Country, CountryVote, Speaker, Speech
-from src.extraction.country_aliases import _ALIASES
+from src.extraction.country_aliases import _ALIASES, normalize_country_name
 
 log = logging.getLogger(__name__)
 
@@ -143,61 +143,61 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
             session.flush()
 
 
+def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
+    """Apply ``normalize_country_name`` to every country row.
+
+    For each row whose name changes after normalization:
+    - If a row with the canonical name already exists → merge.
+    - Otherwise → rename in-place.
+
+    Returns (renamed, merged).
+    """
+    renamed = 0
+    merged = 0
+
+    # Load all rows up-front; iterate a stable snapshot.
+    all_rows = session.query(Country).order_by(Country.id).all()
+    for row in all_rows:
+        canonical_name = normalize_country_name(row.name)
+        if canonical_name == row.name:
+            continue
+
+        # Re-query to handle rows already renamed in this loop.
+        canonical_row = session.query(Country).filter_by(name=canonical_name).first()
+
+        if canonical_row is None or canonical_row.id == row.id:
+            log.info("RENAME %r → %r", row.name, canonical_name)
+            if not dry_run:
+                row.name = canonical_name
+                session.flush()
+            renamed += 1
+        else:
+            log.info(
+                "MERGE country %r (id=%d) → %r (id=%d)",
+                row.name,
+                row.id,
+                canonical_name,
+                canonical_row.id,
+            )
+            _merge_speakers(session, row.id, canonical_row.id, dry_run)
+            _merge_country_votes(session, row.id, canonical_row.id, dry_run)
+            if not dry_run:
+                session.delete(row)
+                session.flush()
+            merged += 1
+
+    return renamed, merged
+
+
 def fix_duplicates(db_url: str | None = None, dry_run: bool = False) -> None:
     engine = get_engine(db_url)
 
-    countries_merged = 0
-    countries_renamed = 0
-
     with get_session(engine) as session:
         _delete_junk_rows(session, dry_run)
-
-        for alias_name, canonical_name in _ALIASES.items():
-            alias_row = (
-                session.query(Country)
-                .filter(Country.name.ilike(alias_name))
-                .first()
-            )
-            if alias_row is None:
-                continue
-
-            canonical_row = (
-                session.query(Country).filter_by(name=canonical_name).first()
-            )
-
-            if canonical_row is not None and canonical_row.id == alias_row.id:
-                continue
-
-            if canonical_row is not None:
-                # Both exist — merge alias into canonical.
-                log.info(
-                    "MERGE country %r (id=%d) → %r (id=%d)",
-                    alias_row.name,
-                    alias_row.id,
-                    canonical_row.name,
-                    canonical_row.id,
-                )
-                _merge_speakers(session, alias_row.id, canonical_row.id, dry_run)
-                _merge_country_votes(session, alias_row.id, canonical_row.id, dry_run)
-                if not dry_run:
-                    session.delete(alias_row)
-                    session.flush()
-                countries_merged += 1
-            else:
-                # Only alias exists — rename in-place.
-                log.info("RENAME %r → %r", alias_row.name, canonical_name)
-                if not dry_run:
-                    alias_row.name = canonical_name
-                    session.flush()
-                countries_renamed += 1
+        renamed, merged = _normalize_existing_rows(session, dry_run)
 
     action = "Would merge" if dry_run else "Merged"
-    log.info(
-        "%s %d country rows, renamed %d rows.",
-        action,
-        countries_merged,
-        countries_renamed,
-    )
+    log.info("%s %d country rows, renamed %d rows.", action, merged, renamed)
 
 
 def main() -> int:

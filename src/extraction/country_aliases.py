@@ -21,7 +21,64 @@ import re
 
 _ALIASES: dict[str, str] = {
     # ------------------------------------------------------------------
-    # OCR typos
+    # OCR typos — United Arab Emirates
+    # ------------------------------------------------------------------
+    "United Arab EInirates": "United Arab Emirates",
+    "United Arab Fmirates": "United Arab Emirates",
+    "United Arab Rnirates": "United Arab Emirates",
+    "United Arab anirates": "United Arab Emirates",
+    "United Arab gmirates": "United Arab Emirates",
+    "United. Arab Emirates": "United Arab Emirates",
+    "United Arab": "United Arab Emirates",
+    "Jnitcd Arab Emirates": "United Arab Emirates",   # "(J…" after leading-punct strip
+    "united Arab &nirates": "United Arab Emirates",
+    "united Arab ZWirates": "United Arab Emirates",
+    # ------------------------------------------------------------------
+    # OCR typos — United Kingdom
+    # ------------------------------------------------------------------
+    "United Kmgdom": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Great Britain": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Great Britain and Northern": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdan of Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom cif Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Great Britain and Nortnern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Great Britain and l'brthern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Great Britain and'Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Grea~ Britain and Northern rrelanrl": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Gr.eat Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United ~ingdom of Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United ~ingdom of Great Britain and Northe~n Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdom of Great Britain a~d Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "United Kingdan of Great Britain 2Ild Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    "united. Kingdom of Great Britain and Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
+    # ------------------------------------------------------------------
+    # OCR typos — United States of America
+    # ------------------------------------------------------------------
+    "United Sta tes of Mer i ca": "United States of America",
+    "United States of Amenca": "United States of America",
+    "United States of Amer ica": "United States of America",
+    "United States of Amer- ica": "United States of America",
+    "United Sta~es of America": "United States of America",
+    "UnitedStates of America": "United States of America",
+    "United States ofAmerica": "United States of America",
+    "United States of' America": "United States of America",
+    "United States of'America": "United States of America",
+    "united Sta tes of 1Imer ica": "United States of America",
+    "United Sta tes of 1Imer ica": "United States of America",
+    # ------------------------------------------------------------------
+    # OCR typos — United Republic of Tanzania
+    # ------------------------------------------------------------------
+    "United Bepublic of Tanzania": "United Republic of Tanzania",
+    "United Republic cf Tanzania": "United Republic of Tanzania",
+    "United Republic.of Tanzania": "United Republic of Tanzania",
+    "United Repub'4.~ of Tan~ania": "United Republic of Tanzania",
+    "United Republic of Tanli!ania": "United Republic of Tanzania",
+    # ------------------------------------------------------------------
+    # OCR typos — United Republic of Cameroon
+    # ------------------------------------------------------------------
+    "United Republic of CamerQOn": "United Republic of Cameroon",
+    # ------------------------------------------------------------------
+    # OCR typos — other
     # ------------------------------------------------------------------
     "Austalia": "Australia",
     "Austrlia": "Australia",
@@ -168,6 +225,53 @@ _ALIASES: dict[str, str] = {
 
 # Build a lowercase lookup for case-insensitive matching
 _ALIASES_LOWER: dict[str, str] = {k.lower(): v for k, v in _ALIASES.items()}
+
+# Build a lowercase lookup for canonical-name case normalization.
+# Allows "united states of america" → "United States of America" even though
+# the canonical form is not itself an alias key.
+_CANONICAL_NAMES: dict[str, str] = {v.lower(): v for v in _ALIASES.values()}
+
+# ---------------------------------------------------------------------------
+# Pre-processing regexes applied before alias lookup
+# ---------------------------------------------------------------------------
+
+# Strips embedded document/page-reference artifacts that OCR produces when a
+# margin page number is interleaved with the vote-table text.  These always
+# contain a backspace control character (\x08) flanked by digit sequences.
+# Examples:
+#   "United Arab 14-70313\x08 11/24 Emirates"  →  "United Arab Emirates"
+#   "16/21\x08 22-71684 United Arab Emirates"  →  "United Arab Emirates"
+#   "Czech 11-64365\x08 7 Republic"            →  "Czech Republic"
+_DOC_REF_RE = re.compile(r"\s*\d[\d\-/]*\x08[\s\d/\-]+")
+
+# Strips trailing procedural/vote text that OCR appended to a country name.
+# Examples:
+#   "… Northern Ireland The PRESIDENT: Draft resolution…"
+#   "… Northern Ireland. The Acting President: …"
+#   "United States of America (Mr. Guney"
+#   "… Northern Ireland Draft reeolution II …"
+_TRAILING_PROC_RE = re.compile(
+    r"(?:"
+    # "The President", "The Acting President", "The PRESIDENT", "The Assembly"
+    r"\s+[^A-Za-z]*The\s+(?:Acting\s+)?(?:PRESIDENT|President|Assembly)\b.*"
+    # "The third preambular paragraph…", "The following operative paragraph…", etc.
+    # Enumerate specific ordinal/procedure adjectives to avoid false positives
+    # (e.g. IGNORECASE would make [a-z]+ also match "Congo", "Republic", etc.)
+    r"|\s+The\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth"
+    r"|operative|preambular|following|aforementioned|last|next|above|whole|revised"
+    r"|amendment|annex|same)\s+\w+\b.*"
+    r"|\s+Draft\s+re\w{0,3}olution\b.*"
+    r"|\s+A\s+[Rr]ecorded\s+vote\b.*"
+    r"|\s+\(Mr\.\s.*"
+    r"|\s+Operative\s+paragraph\b.*"
+    r"|\s+May\s+I\s+take\s+it\b.*"
+    r"|\s+I\s+now\s+(?:put|invite)\b.*"
+    r"|\s+(?:Ab[a-z]?t|Against:|Aga\s+inst:).*"
+    # "with N abstentions / votes / …"
+    r"|\s+with\s+\d+\b.*"
+    r")$",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -333,9 +437,38 @@ def is_organization(name: str) -> bool:
 def normalize_country_name(name: str) -> str:
     """Return the canonical UN Member State name for *name*.
 
-    If *name* matches a known alias or typo (case-insensitively), the
-    canonical name is returned.  Otherwise *name* is returned unchanged.
+    Applies several cleaning steps before the alias lookup:
+
+    1. Strip embedded document-reference artifacts (backspace-delimited page
+       numbers that OCR interleaves with country names).
+    2. Normalize internal whitespace.
+    3. Strip leading punctuation noise (leading dots, quotes, spaces).
+    4. Strip trailing procedural/vote text appended by OCR.
+    5. Alias lookup (case-insensitive).
+    6. Case-normalize already-canonical names (e.g. "united states of america"
+       → "United States of America").
     """
     stripped = name.strip()
-    canonical = _ALIASES_LOWER.get(stripped.lower())
-    return canonical if canonical is not None else stripped
+    if not stripped:
+        return stripped
+
+    # 1. Remove \x08-based document-reference artifacts
+    cleaned = _DOC_REF_RE.sub(" ", stripped)
+    # 2. Normalize whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    # 3. Strip leading punctuation noise
+    cleaned = re.sub(r'^[.\'"\s]+', "", cleaned)
+    # 4. Strip trailing procedure / vote text
+    cleaned = _TRAILING_PROC_RE.sub("", cleaned).rstrip(".,; ")
+
+    # 5. Alias lookup
+    canonical = _ALIASES_LOWER.get(cleaned.lower())
+    if canonical is not None:
+        return canonical
+
+    # 6. Case-normalize already-canonical names
+    canonical_case = _CANONICAL_NAMES.get(cleaned.lower())
+    if canonical_case is not None:
+        return canonical_case
+
+    return cleaned

@@ -611,10 +611,12 @@ def run(
     sc_csv: Path | None = None,
     download: bool = False,
     dry_run: bool = False,
+    ga_only: bool = False,
+    sc_only: bool = False,
 ) -> None:
-    if ga_csv is None:
+    if not sc_only and ga_csv is None:
         ga_csv = _download(GA_URL, _DATA_DIR / "ga_voting.csv", force=download)
-    if sc_csv is None:
+    if not ga_only and sc_csv is None:
         sc_csv = _download(SC_URL, _DATA_DIR / "sc_voting.csv", force=download)
 
     engine = get_engine(db_url)
@@ -626,14 +628,19 @@ def run(
         _ensure_session_nullable(session)
         _ensure_columns(session)
 
+    ga_res = ga_rows = sc_res = sc_rows = 0
     with get_session(engine) as session:
-        log.info("=== Importing GA voting data ===")
-        ga_res, ga_rows = import_csv(session, ga_csv, "GA", dry_run=dry_run)
-        log.info("GA: %d resolutions, %d country-vote rows", ga_res, ga_rows)
+        if not sc_only:
+            assert ga_csv is not None
+            log.info("=== Importing GA voting data ===")
+            ga_res, ga_rows = import_csv(session, ga_csv, "GA", dry_run=dry_run)
+            log.info("GA: %d resolutions, %d country-vote rows", ga_res, ga_rows)
 
-        log.info("=== Importing SC voting data ===")
-        sc_res, sc_rows = import_csv(session, sc_csv, "SC", dry_run=dry_run)
-        log.info("SC: %d resolutions, %d country-vote rows", sc_res, sc_rows)
+        if not ga_only:
+            assert sc_csv is not None
+            log.info("=== Importing SC voting data ===")
+            sc_res, sc_rows = import_csv(session, sc_csv, "SC", dry_run=dry_run)
+            log.info("SC: %d resolutions, %d country-vote rows", sc_res, sc_rows)
 
     if dry_run:
         log.info("Dry run — no changes committed.")
@@ -673,6 +680,13 @@ def main() -> int:
         action="store_true",
         help="Parse and log without writing to the database",
     )
+    body_group = p.add_mutually_exclusive_group()
+    body_group.add_argument(
+        "--ga-only", action="store_true", help="Import GA data only"
+    )
+    body_group.add_argument(
+        "--sc-only", action="store_true", help="Import SC data only"
+    )
     p.add_argument("--verbose", action="store_true")
     args = p.parse_args()
 
@@ -687,6 +701,8 @@ def main() -> int:
         sc_csv=args.sc_csv,
         download=args.download,
         dry_run=args.dry_run,
+        ga_only=args.ga_only,
+        sc_only=args.sc_only,
     )
     return 0
 

@@ -185,7 +185,17 @@ def process_batch(
             for pdf in pdfs
         }
         for future in as_completed(futures):
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as exc:
+                pdf = futures[future]
+                log.exception("Unexpected crash processing %s", pdf.name)
+                result = ProcessResult(
+                    pdf_path=pdf,
+                    success=False,
+                    error=str(exc),
+                    phase="unknown",
+                )
             summary.results.append(result)
             if result.success:
                 summary.succeeded += 1

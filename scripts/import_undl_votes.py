@@ -87,8 +87,8 @@ _SC_MEETING_RE = re.compile(r"S/PV\.\d+", re.IGNORECASE)
 
 
 def _parse_meeting_number(symbol: str) -> int | None:
-    # Allow optional space: DHL has e.g. 'A/34/PV. 4' for older sessions
-    m = re.search(r"PV\.\s*(\d+)", symbol, re.IGNORECASE)
+    # Allow optional dot and space: DHL has 'A/34/PV. 4' and 'S/PV9261'
+    m = re.search(r"PV\.?\s*(\d+)", symbol, re.IGNORECASE)
     return int(m.group(1)) if m else None
 
 

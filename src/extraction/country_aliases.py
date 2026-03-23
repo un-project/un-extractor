@@ -238,6 +238,47 @@ _ALIASES: dict[str, str] = {
     # Truncated names that grabbed iso3 codes
     "German Democratic": "German Democratic Republic",  # truncated
     "Trinidad and": "Trinidad and Tobago",  # truncated
+    # ------------------------------------------------------------------
+    # OCR space-in-hyphen variants
+    # ------------------------------------------------------------------
+    "Timor- Leste": "Timor-Leste",
+    "Timor -Leste": "Timor-Leste",
+    # ------------------------------------------------------------------
+    # Netherlands parenthetical / comma-inverted forms
+    # ------------------------------------------------------------------
+    "Netherlands (Kingdom of the Netherlands)": "Netherlands",
+    "Netherlands, Kingdom of the": "Netherlands",
+    # ------------------------------------------------------------------
+    # Federal Republic of Germany (West Germany, UN member 1973–1990)
+    # ------------------------------------------------------------------
+    "Federal Republic of Germany": "Germany",
+    # ------------------------------------------------------------------
+    # Côte d'Ivoire — curly/right-single-quote apostrophe variant
+    # ------------------------------------------------------------------
+    "Côte d\u2019Ivoire": "Côte d'Ivoire",
+    # ------------------------------------------------------------------
+    # Saint Kitts and Nevis — French name used in older UN records
+    # ------------------------------------------------------------------
+    "Saint Christophe-et-Niévès": "Saint Kitts and Nevis",
+    "Saint Christophe-et-Nieves": "Saint Kitts and Nevis",
+    "Saint Christophe": "Saint Kitts and Nevis",
+    # ------------------------------------------------------------------
+    # Uruguay — formal/inverted forms
+    # ------------------------------------------------------------------
+    "Oriental Republic of Uruguay": "Uruguay",
+    "Eastern Republic of Uruguay": "Uruguay",
+    "Uruguay, Eastern Republic of": "Uruguay",
+    # ------------------------------------------------------------------
+    # Venezuela — DHL comma-inverted form
+    # ------------------------------------------------------------------
+    "Venezuela, Bolivarian Republic of": "Bolivarian Republic of Venezuela",
+    # ------------------------------------------------------------------
+    # Historical UN member states / spelling variants
+    # ------------------------------------------------------------------
+    "Democratic Kampuchea": "Cambodia",    # 1975–1989
+    "Kampuchea": "Cambodia",
+    "Kazakstan": "Kazakhstan",             # old UN spelling (1992–1995)
+    "Ukrainian Soviet Socialist Republic": "Ukraine",
     # DHL CSV garbled / severely truncated forms
     "samoa": "Samoa",  # lowercase; _CANONICAL_NAMES doesn't cover it
     "vanuatu": "Vanuatu",  # lowercase; same
@@ -508,10 +549,12 @@ def normalize_country_name(name: str) -> str:
     # 4. Strip trailing procedure / vote text
     cleaned = _TRAILING_PROC_RE.sub("", cleaned).rstrip(".,; ")
 
-    # 4a. Title-case all-uppercase names (e.g. DHL CSV exports "ZANZIBAR",
-    #     "TANGANYIKA").  Do this before alias lookup so that abbreviations
-    #     like "USA" still resolve via the case-insensitive table below.
-    if cleaned.isupper():
+    # 4a. Title-case uniformly-cased names (DHL CSVs emit ALL-CAPS or all-lower).
+    #     ALL-CAPS:  "ZANZIBAR" → "Zanzibar"
+    #     all-lower: "oman"     → "Oman"
+    #     Abbreviations (USA, UAE) still resolve via the case-insensitive
+    #     alias lookup in step 5.
+    if cleaned.isupper() or cleaned.islower():
         cleaned = cleaned.title()
 
     # 5. Alias lookup

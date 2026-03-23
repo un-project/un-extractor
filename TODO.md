@@ -146,6 +146,47 @@ structured to consume but that the pipeline does not yet extract.
 
 ---
 
+## Voting analytics & geopolitics
+
+The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
+a complete `(country, resolution, vote_position, date)` record from 1946–2026
+that is sufficient for the following analytical features.
+
+- [ ] **Ideal point estimation** — Implement the Bailey, Strezhnev & Voeten
+  (2017) Bayesian IRT model to place every country on a latent policy dimension
+  (roughly: liberal-Western ↔ non-aligned) per year.  Their replication code is
+  public and uses exactly the same UNDL data.  Output: a new
+  `country_ideal_points (country_id, year, ideal_point, se)` table that the
+  website can use for a richer voting-similarity map and country profiles.
+  Reference: https://doi.org/10.1017/S0022381617000931
+
+- [ ] **Data-driven bloc detection** — Compute a pairwise voting-agreement
+  matrix per year and apply hierarchical or spectral clustering to recover
+  voting blocs automatically, rather than the hardcoded `coalitions.py` list
+  in the website.  Store results in a `voting_blocs (country_id, year, bloc)`
+  table.  Use rolling 5-year windows to detect gradual realignments.
+
+- [ ] **Alignment time series** — For each country pair, compute yearly
+  agreement rate → time series.  Store in a `country_alignment_series
+  (country_id_a, country_id_b, year, agreement_rate)` table.  Enables the
+  website to show a chart of how any two countries' voting alignment has
+  evolved, and to surface inflection points (e.g. post-1991, post-2022
+  Ukraine fractures).
+
+- [ ] **Vote prediction model** — Train a gradient-boosting classifier to
+  predict a country's vote (yes/no/abstain) on a resolution given: the
+  country's recent ideal point, resolution category/subjects, and sponsoring
+  region.  Useful both as a research tool and for flagging anomalous votes
+  (country broke from expected pattern).
+
+- [ ] **P5 veto tracking** — SC vetoed draft resolutions never become
+  resolutions, so they are absent from the UNDL CSV.  They are documented in
+  the UN Journal and the Security Council Report.  A separate scraper/import
+  for veto data would complete the SC picture and enable veto-pattern analysis
+  on the website.
+
+---
+
 ## Documentation
 
 - [ ] **LLM enrichment walkthrough** — Add a section to README.md showing a concrete

@@ -51,6 +51,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import Country, Document, Resolution, Vote, CountryVote  # noqa: E402
 from src.extraction.country_aliases import normalize_country_name  # noqa: E402
+from src.extraction.vote_categories import classify_subjects  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -255,14 +256,19 @@ def _get_or_create_country_by_code(
         # Fallback 2: case-insensitive match (handles ALL-CAPS names from DHL CSVs)
         canonical = normalize_country_name(ms_name) or ms_name
         from sqlalchemy import func
-        country = session.query(Country).filter(
-            func.lower(Country.name) == canonical.lower()
-        ).first()
+
+        country = (
+            session.query(Country)
+            .filter(func.lower(Country.name) == canonical.lower())
+            .first()
+        )
         if country is not None:
             # Assign the iso3 to the existing row so future lookups hit path 1
             country.iso3 = ms_code
             session.flush()
-            log.debug("Matched country %r by ilike, assigned iso3=%s", country.name, ms_code)
+            log.debug(
+                "Matched country %r by ilike, assigned iso3=%s", country.name, ms_code
+            )
     if country is None:
         # Last resort: create a minimal row so no vote data is lost
         canonical = normalize_country_name(ms_name) or ms_name
@@ -315,7 +321,7 @@ def _get_or_create_resolution(
     body: str,
     session_num: int | None,
     title: str | None,
-    subjects: str | None,
+    subjects: str,
     agenda_title: str | None,
     committee_report: str | None,
     _cache: dict[str, Resolution],
@@ -338,7 +344,7 @@ def _get_or_create_resolution(
                 body=body,
                 session=session_num,
                 title=title,
-                category=subjects,
+                category=subjects or None,
                 agenda_title=agenda_title,
                 committee_report=committee_report,
             )
@@ -361,7 +367,7 @@ def _get_or_create_resolution(
         res.title = title
         changed = True
     if subjects and not res.category:
-        res.category = subjects
+        res.category = subjects or None
         changed = True
     if agenda_title and not res.agenda_title:
         res.agenda_title = agenda_title
@@ -514,7 +520,7 @@ def import_csv(
         draft_symbol = first.get("draft", "").strip().split("|")[0].strip()
         vote_date = _parse_date(first.get("date", "").strip())
         title = (first.get("title") or first.get("description") or "").strip() or None
-        subjects = first.get("subjects", "").strip() or None
+        subjects = classify_subjects(first.get("subjects", "").strip())
         agenda_title = (
             first.get("agenda_title") or first.get("agenda") or ""
         ).strip() or None

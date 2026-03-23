@@ -22,6 +22,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
             {lang}/{body}/{session}/pv/document_{N}.pdf
             # Example: en/ga/64/pv/document_121.pdf → A/64/PV.121
         undl/           # cached UNDL voting CSVs (downloaded on first import)
+        crUnsc/         # cached CR-UNSC zips (downloaded on first import)
 
     src/
         pdf/            # Phase 1: text extraction and cleaning
@@ -35,8 +36,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         models.py       # shared Pydantic output models (MeetingRecord, Speech, …)
 
     scripts/
-        import_undl_votes.py       # download & upsert UNDL voting CSVs
-        fix_country_duplicates.py  # merge/clean duplicate country rows in DB
+        import_undl_votes.py          # download & upsert UNDL voting CSVs
+        fix_country_duplicates.py     # merge/clean duplicate country rows in DB
+        import_crUnsc_pdfs.py         # place CR-UNSC SC meeting PDFs into raw_pdfs/
+        import_crUnsc_texts.py        # upsert resolution full texts from CR-UNSC
+        import_crUnsc_citations.py    # import citation network into resolution_citations
 
     tests/
         fixtures/       # 10 golden JSON summaries for integration tests
@@ -67,6 +71,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
 
     # Merge/clean duplicate country rows (run after each import)
     python scripts/fix_country_duplicates.py --db postgresql://user:pass@host/db
+
+    # CR-UNSC integration (run in order after import_undl_votes.py)
+    python scripts/import_crUnsc_pdfs.py            # place SC PDFs into data/raw_pdfs/
+    python scripts/import_crUnsc_texts.py  --db ... # upsert full_text + crUnsc_id
+    python scripts/import_crUnsc_citations.py --db ... # populate resolution_citations
 
     # Run tests
     pytest tests/

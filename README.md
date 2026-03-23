@@ -183,6 +183,42 @@ complete database: PDF extraction provides speeches, stage directions, and
 document structure; the DHL CSVs provide complete voting records including
 historical meetings not yet extracted.
 
+### Import CR-UNSC resolution corpus
+
+The [CR-UNSC dataset](https://doi.org/10.5281/zenodo.7319780) (Fobbe 2025)
+provides SC resolution full texts and a citation network. Three scripts
+integrate it with this pipeline:
+
+**Step 1 — Place SC meeting-record PDFs** (optional; ~2.1 GB download):
+
+```bash
+python scripts/import_crUnsc_pdfs.py
+# then process the PDFs:
+python process_dataset.py data/raw_pdfs/en/sc/ --output output/ --workers 8
+python import_json_to_db.py output/
+```
+
+**Step 2 — Import resolution full texts** (~8.5 MB download):
+
+```bash
+python scripts/import_crUnsc_texts.py --db postgresql://user:pass@localhost/undb
+```
+
+Adds `full_text` and `crUnsc_id` to matching rows in the `resolutions` table.
+Run after `import_undl_votes.py` so the resolution rows already exist.
+
+**Step 3 — Import citation network** (~1.2 MB download):
+
+```bash
+python scripts/import_crUnsc_citations.py --db postgresql://user:pass@localhost/undb
+```
+
+Populates the `resolution_citations` table (directed citing→cited edges).
+Run after Step 2 so `cited_id` FKs can be resolved.
+
+Each script accepts `--dry-run`, `--download` (force re-fetch), and `--verbose`.
+Downloaded files are cached in `data/crUnsc/`.
+
 ### Clean up duplicate country rows
 
 OCR artifacts and DHL CSV name variants can create duplicate or garbled entries in
@@ -217,6 +253,7 @@ discovered, then re-run `fix_country_duplicates.py` to apply them to the databas
 | `resolutions` | Draft/adopted resolutions; title, subjects, agenda title, committee report |
 | `votes` | One voting event per resolution per meeting; yes/no/abstain/non-voting totals, DHL link |
 | `country_votes` | Per-country vote position for recorded votes; P5 flag |
+| `resolution_citations` | Directed citation edges from CR-UNSC (citing → cited) |
 | `amendments` | (reserved) proposed amendments |
 
 Key relationships:

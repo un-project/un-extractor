@@ -79,6 +79,28 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ---
 
+## CR-UNSC integration
+
+- [ ] **Verify CR-UNSC filename conventions** — `import_crUnsc_pdfs.py` and
+  `import_crUnsc_texts.py` assume filenames of the form `S-PV-NNNN_YYYY-MM-DD.pdf`
+  and `S-RES-NNNNX.txt` respectively.  Confirm against the actual zip contents
+  on first run; update the regexes in the scripts if the convention differs.
+
+- [ ] **GraphML node format** — `import_crUnsc_citations.py` assumes node IDs
+  or their `data` child text hold the resolution symbol (e.g. `S/RES/156`).
+  Inspect the actual GraphML structure and adjust `_parse_graphml()` if needed.
+
+- [ ] **Run import pipeline end-to-end** — After downloading the CR-UNSC zips,
+  run the three scripts in order and verify row counts in
+  `resolution_citations` and the `full_text` column.
+
+- [ ] **Back-fill `cited_id` for GA resolutions** — The citation network
+  includes GA resolution citations.  Currently only SC resolutions are
+  indexed in `_build_symbol_index`.  Extend if GA-citation resolution of
+  `cited_id` is needed.
+
+---
+
 ## Documentation
 
 - [ ] **LLM enrichment walkthrough** — Add a section to README.md showing a concrete

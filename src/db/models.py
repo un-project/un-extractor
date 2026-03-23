@@ -2,16 +2,17 @@
 
 Tables
 ------
-countries        – UN Member States (canonical names + ISO codes)
-speakers         – People who spoke; country_id is nullable
-documents        – One row per PDF / meeting
-document_items   – One row per agenda item or named section in a meeting
-stage_directions – Procedural italic text; linked to a document_item
-speeches         – One row per speech segment; linked to a document_item
-resolutions      – Draft / adopted resolutions
-votes            – One voting event per resolution per document_item
-country_votes    – Per-country vote position (for recorded votes)
-amendments       – (optional) proposed amendments
+countries            – UN Member States (canonical names + ISO codes)
+speakers             – People who spoke; country_id is nullable
+documents            – One row per PDF / meeting
+document_items       – One row per agenda item or named section in a meeting
+stage_directions     – Procedural italic text; linked to a document_item
+speeches             – One row per speech segment; linked to a document_item
+resolutions          – Draft / adopted resolutions
+votes                – One voting event per resolution per document_item
+country_votes        – Per-country vote position (for recorded votes)
+resolution_citations – Citation graph from CR-UNSC (citing → cited)
+amendments           – (optional) proposed amendments
 """
 
 from __future__ import annotations
@@ -232,7 +233,18 @@ class Resolution(Base):
     agenda_title: Mapped[Optional[str]] = mapped_column(Text)
     committee_report: Mapped[Optional[str]] = mapped_column(Text)
 
+    full_text: Mapped[Optional[str]] = mapped_column(Text)
+    crunsc_id: Mapped[Optional[str]] = mapped_column(String(30), unique=True)
+
     votes: Mapped[list["Vote"]] = relationship(back_populates="resolution")
+    citations_made: Mapped[list["ResolutionCitation"]] = relationship(
+        back_populates="citing_resolution",
+        foreign_keys="ResolutionCitation.citing_id",
+    )
+    citations_received: Mapped[list["ResolutionCitation"]] = relationship(
+        back_populates="cited_resolution",
+        foreign_keys="ResolutionCitation.cited_id",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +321,46 @@ class CountryVote(Base):
 
     __table_args__ = (
         UniqueConstraint("vote_id", "country_id", name="uq_country_vote"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Resolution citations (CR-UNSC citation network)
+# ---------------------------------------------------------------------------
+
+
+class ResolutionCitation(Base):
+    """One directed citation edge in the SC resolution citation graph.
+
+    ``citing_id``    – the resolution that contains the reference
+    ``cited_symbol`` – the raw symbol text from the GraphML edge (e.g. "S/RES/156")
+    ``cited_id``     – FK to resolutions.id when the cited resolution is in our DB
+    ``weight``       – number of times this edge appears in the source graph
+    """
+
+    __tablename__ = "resolution_citations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    citing_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("resolutions.id", ondelete="CASCADE"), nullable=False
+    )
+    cited_symbol: Mapped[str] = mapped_column(Text, nullable=False)
+    cited_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("resolutions.id", ondelete="SET NULL"), nullable=True
+    )
+    weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    citing_resolution: Mapped[Resolution] = relationship(
+        back_populates="citations_made",
+        foreign_keys=[citing_id],
+    )
+    cited_resolution: Mapped[Optional[Resolution]] = relationship(
+        back_populates="citations_received",
+        foreign_keys=[cited_id],
+    )
+
+    __table_args__ = (
+        UniqueConstraint("citing_id", "cited_symbol", name="uq_citation"),
     )
 
 

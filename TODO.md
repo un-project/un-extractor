@@ -79,20 +79,65 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ---
 
+## Website data enrichment
+
+These items produce data that the un-project.org website is already
+structured to consume but that the pipeline does not yet extract.
+
+- [ ] **Co-sponsorship extraction** — Speeches frequently contain lines like
+  "The following countries are co-sponsors of draft resolution A/64/L.72: …"
+  or "I also speak on behalf of …" followed by a country list.  Extracting
+  these would populate a new `resolution_sponsors (resolution_id, country_id)`
+  table, enabling a co-sponsor list on the resolution detail page and
+  co-sponsorship-based country clustering on the website.
+
+- [ ] **Resolution symbol mentions in speeches** — Speeches routinely cite
+  resolution symbols in their text (e.g. "resolution 64/299", "draft resolution
+  A/64/L.72").  A regex pass over `speeches.text` could populate a
+  `speech_resolution_mentions (speech_id, resolution_id)` table, enabling an
+  "Speeches about this resolution" section on the resolution detail page and a
+  "Resolutions discussed in this speech" annotation on speaker/country profiles.
+
+- [ ] **Explanation-of-vote tagging** — In recorded-vote meetings, delegates
+  often give a short speech immediately before or after the vote to explain their
+  position.  These could be tagged (e.g. a `speech_type` enum: `substantive`,
+  `explanation_of_vote`, `procedural`) and surfaced as a dedicated section on
+  the resolution detail page — the most policy-relevant content about any vote.
+
+- [ ] **GA resolution full text** — CR-UNSC covers only SC resolutions.  GA
+  resolution texts are available via the UN Digital Library OAI-PMH or
+  undocs.org.  Fetching and storing them in `resolutions.full_text` would extend
+  full-text search and the resolution detail page to the full GA dataset (~4,000
+  adopted resolutions).
+
+- [ ] **Extraction coverage report** — The DB contains thousands of stub
+  `documents` rows (created by `import_undl_votes.py`) for meetings not yet
+  extracted from PDF.  A script (or `--report` flag on `import_json_to_db.py`)
+  that prints per-body/session counts of extracted vs. stub-only documents
+  would make it easy to see which sessions are still missing speech content
+  and prioritise PDF processing.
+
+- [ ] **Subject taxonomy normalisation** — `resolutions.category` is populated
+  from the UNDL CSV but contains inconsistent free-text strings.  Building a
+  controlled mapping (similar to `country_aliases.py`) from raw UNDL subject
+  strings to a small canonical set would enable reliable topic-based filtering
+  and browsing on the website.
+
+---
+
 ## CR-UNSC integration
 
-- [ ] **Verify CR-UNSC filename conventions** — `import_crUnsc_pdfs.py` and
-  `import_crUnsc_texts.py` assume filenames of the form `S-PV-NNNN_YYYY-MM-DD.pdf`
-  and `S-RES-NNNNX.txt` respectively.  Confirm against the actual zip contents
-  on first run; update the regexes in the scripts if the convention differs.
+- [ ] **Verify CR-UNSC filename conventions** — `import_crUnsc_pdfs.py`
+  assumes filenames of the form `S-PV-NNNN_YYYY-MM-DD.pdf`.  Confirm against
+  the actual zip contents on first run; update the regex if the convention
+  differs.  (Text and GraphML filenames have been confirmed and are correct.)
 
-- [ ] **GraphML node format** — `import_crUnsc_citations.py` assumes node IDs
-  or their `data` child text hold the resolution symbol (e.g. `S/RES/156`).
-  Inspect the actual GraphML structure and adjust `_parse_graphml()` if needed.
+- [x] **GraphML node format** — Confirmed: nodes carry `<data key="v_symbol">`
+  with the full UNDL symbol; edges carry `<data key="e_weight">`.  Parser
+  updated accordingly.
 
-- [ ] **Run import pipeline end-to-end** — After downloading the CR-UNSC zips,
-  run the three scripts in order and verify row counts in
-  `resolution_citations` and the `full_text` column.
+- [x] **Run import pipeline end-to-end** — Completed: 14,157 citation edges
+  inserted; `full_text` populated for matching SC resolutions.
 
 - [ ] **Back-fill `cited_id` for GA resolutions** — The citation network
   includes GA resolution citations.  Currently only SC resolutions are

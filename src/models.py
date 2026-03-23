@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date  # noqa: F401 – used in Pydantic annotations at runtime
+from datetime import date as _Date  # noqa: F401 – Pydantic resolves this at runtime
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
@@ -172,7 +172,7 @@ class MeetingRecord(BaseModel):
     body: Literal["GA", "SC"]
     session: int | None  # None for Security Council (no session numbering)
     meeting_number: int
-    date: date | None = None
+    date: _Date | None = None
     location: str
     president: PresidentInfo | None = None
     items: list[DocumentItem] = []

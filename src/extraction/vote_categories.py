@@ -10,7 +10,7 @@ The DHL CSVs carry pipe-separated subject strings (438 distinct GA values,
 195 SC values).  ``classify_subjects`` reduces these to one of the canonical
 categories below by scanning each subject tag against priority-ordered keyword
 lists (uppercase substring match).  The first matching category wins.  If no
-keyword matches, ``"Other"`` is returned.
+keyword matches, ``"Uncategorized"`` is returned.
 
 Categories (in priority order)
 -------------------------------
@@ -26,7 +26,7 @@ Categories (in priority order)
   Refugees and humanitarian assistance
   Women's rights
   UN administration
-  Other
+  Uncategorized
 """
 
 from __future__ import annotations
@@ -344,15 +344,15 @@ def classify_subjects(subjects: str) -> str:
     """Return the canonical category for a pipe-separated DHL subjects string.
 
     Scans each subject tag against priority-ordered keyword lists (uppercase
-    substring match).  Returns the first matching category name, or ``"Other"``
+    substring match).  Returns the first matching category name, or ``"Uncategorized"``
     if none match.
     """
     if not subjects:
-        return "Other"
+        return "Uncategorized"
     tags = [t.strip().upper() for t in subjects.split("|") if t.strip()]
     for category, keywords in _CATEGORIES:
         for tag in tags:
             for kw in keywords:
                 if kw in tag:
                     return category
-    return "Other"
+    return "Uncategorized"

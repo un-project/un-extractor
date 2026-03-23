@@ -96,7 +96,10 @@ _ALIASES: dict[str, str] = {
     "United Arab Emiraes": "United Arab Emirates",
     "Mozambigue": "Mozambique",
     "Lichtenstein": "Liechtenstein",
+    "Liechenstein": "Liechtenstein",  # different transposition
     "Guinea Bissau": "Guinea-Bissau",
+    "Guinea- Bissau": "Guinea-Bissau",  # space before dash
+    "United Arab Emirate": "United Arab Emirates",  # truncated trailing s
     # ------------------------------------------------------------------
     # "The X" / article prefix variants
     # ------------------------------------------------------------------
@@ -148,6 +151,7 @@ _ALIASES: dict[str, str] = {
     "Korea": "Republic of Korea",
     "South Korea": "Republic of Korea",
     "North Korea": "Democratic People's Republic of Korea",
+    "Democratic People's": "Democratic People's Republic of Korea",  # truncated
     # curly apostrophe variants
     "Democratic People\u2019s Republic of Korea": (
         "Democratic People's Republic of Korea"
@@ -160,6 +164,7 @@ _ALIASES: dict[str, str] = {
     "Bolivia": "Plurinational State of Bolivia",
     "Venezuela": "Bolivarian Republic of Venezuela",
     "Ivory Coast": "Côte d'Ivoire",
+    "Côte": "Côte d'Ivoire",  # severely truncated form
     "Cote d'Ivoire": "Côte d'Ivoire",
     "Côte dIvoire": "Côte d'Ivoire",
     "Cote d'lvoire": "Côte d'Ivoire",  # OCR: lowercase l for I
@@ -225,6 +230,11 @@ _ALIASES: dict[str, str] = {
     # Truncated names that grabbed iso3 codes
     "German Democratic": "German Democratic Republic",  # truncated
     "Trinidad and": "Trinidad and Tobago",  # truncated
+    # DHL CSV garbled / severely truncated forms
+    "samoa": "Samoa",  # lowercase; _CANONICAL_NAMES doesn't cover it
+    "vanuatu": "Vanuatu",  # lowercase; same
+    "E Gambia": "Gambia",  # OCR artifact prefix
+    "United": "United States of America",  # severely truncated (iso3=USA in DHL data)
     # "Union of SOviet SOcialist Republics" (OCR caps) stole iso3='SUN'
     "Union of SOviet SOcialist Republics": "Union of Soviet Socialist Republics",
     # "Observer State of Palestine" stole iso3='PSE' from "State of Palestine"
@@ -243,6 +253,7 @@ _ALIASES: dict[str, str] = {
     "Yugoslav Republic of Macedonia": "North Macedonia",
     "Former Yugoslav Republic of Macedonia": "North Macedonia",
     "The former Yugoslav Republic of Macedonia": "North Macedonia",
+    "Socialist Republic of Viet Nam": "Viet Nam",
     "Libyan Arab Jamahiriya": "Libya",
     "Byelorussian SSR": "Belarus",
     "Byelorussia": "Belarus",

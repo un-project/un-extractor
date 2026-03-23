@@ -125,10 +125,14 @@ def _merge_country_votes(session, alias_country_id: int, canonical_country_id: i
 
 
 def _delete_junk_rows(session, dry_run: bool) -> None:
-    """Remove country rows with blank or sentinel names (e.g. 'None', '')."""
+    """Remove country rows with blank, sentinel, or hopelessly garbled names."""
     junk = (
         session.query(Country)
-        .filter(Country.name.in_(["", "None", "none", "NULL", "null"]))
+        .filter(
+            Country.name.in_(
+                ["", "None", "none", "NULL", "null", "&", "Aviva", "Coast"]
+            )
+        )
         .all()
     )
     for row in junk:

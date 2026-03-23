@@ -21,25 +21,32 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         raw_pdfs/
             {lang}/{body}/{session}/pv/document_{N}.pdf
             # Example: en/ga/64/pv/document_121.pdf → A/64/PV.121
+        undl/           # cached UNDL voting CSVs (downloaded on first import)
 
     src/
         pdf/            # Phase 1: text extraction and cleaning
         structure/      # Phase 2: document segmentation
         extraction/     # Phase 3: rule-based extractors
+            country_aliases.py   # static alias table + normalize_country_name()
         llm/            # Phase 4: LLM semantic extraction
         validation/     # Phase 5: JSON schema validation
         db/             # Phase 6: PostgreSQL models and import
         pipeline/       # orchestration (single PDF and batch)
+        models.py       # shared Pydantic output models (MeetingRecord, Speech, …)
+
+    scripts/
+        import_undl_votes.py       # download & upsert UNDL voting CSVs
+        fix_country_duplicates.py  # merge/clean duplicate country rows in DB
 
     tests/
+        fixtures/       # 10 golden JSON summaries for integration tests
     configs/
     output/             # generated JSON files (not committed)
 
 ## Development commands
 
-    # Create a virtual environment and install dependencies
-    python -m venv .venv && source .venv/bin/activate
-    pip install -r requirements.txt
+    # Install dependencies (uses uv)
+    uv sync
 
     # Process a single PDF (outputs JSON to output/)
     python src/pipeline/process_pdf.py data/raw_pdfs/en/ga/64/pv/document_121.pdf
@@ -54,6 +61,12 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
 
     # Import JSON to database (set DATABASE_URL first)
     python import_json_to_db.py output/
+
+    # Import authoritative UNDL voting CSVs
+    python scripts/import_undl_votes.py --db postgresql://user:pass@host/db
+
+    # Merge/clean duplicate country rows (run after each import)
+    python scripts/fix_country_duplicates.py --db postgresql://user:pass@host/db
 
     # Run tests
     pytest tests/
@@ -150,10 +163,14 @@ Always use:
     response_format = JSON (or instruct model to return JSON only)
 
 Use LLM only for:
-- normalising country names to UN official form
 - extracting resolution titles from context
 - inferring delegate group affiliations
 - handling edge cases that rule-based extraction cannot cover
+
+**Country name normalisation** is handled entirely by the static alias table in
+`src/extraction/country_aliases.py` via `normalize_country_name()`. This covers OCR
+typos, DHL CSV formats, historical names, and mixed-case artifacts. LLM is not used
+for country names.
 
 Do not use LLM for things extractable by regex (dates, symbols, speaker names, vote counts).
 
@@ -169,12 +186,20 @@ tables — always use `country_id` FK to the `countries` table).
 
 - Unit tests for each extractor (regex patterns, edge cases)
 - Integration tests using the sample PDFs in `data/raw_pdfs/`
-- Fixture files in `tests/fixtures/` for verified extraction outputs
-- Four sample PDFs cover sessions 61, 64, 65, and 76:
+- Fixture files in `tests/fixtures/` — 10 golden JSON summaries, one per sample PDF
+- Sample PDFs span GA sessions 31–79 and SC meetings:
+  - `en/ga/31/pv/document_8.pdf` — A/31/PV.8: scanned 1976 document, OCR text layer, ALL-CAPS names
+  - `en/ga/48/pv/document_46.pdf` — A/48/PV.46: 1993 format, ALL-CAPS names
   - `en/ga/61/pv/document_107.pdf` — A/61/PV.107: recorded votes, country vote lists
   - `en/ga/64/pv/document_121.pdf` — A/64/PV.121: consensus adoptions
-  - `en/ga/65/pv/document_71.pdf` — A/65/PV.71: amendments, many resolutions, Roman-numeral draft labels
-  - `en/ga/76/pv/document_102.pdf` — A/76/PV.102: recent format
+  - `en/ga/65/pv/document_71.pdf` — A/65/PV.71: amendments, Roman-numeral draft labels
+  - `en/ga/76/pv/document_102.pdf` — A/76/PV.102: recent GA format
+  - `en/ga/79/pv/document_29.pdf` — A/79/PV.29: recent GA format with recorded vote
+  - `en/sc/1997/pv/document_3756.pdf` — S/PV.3756: Security Council 1997
+  - `en/sc/2018/pv/document_8422.pdf` — S/PV.8422: Security Council 2018
+  - `en/sc/2026/pv/document_10100.pdf` — S/PV.10100: Security Council 2026
+
+Regenerate fixtures after intentional pipeline changes using the snippet in `tests/test_integration.py`'s docstring.
 
 ## Error handling conventions
 

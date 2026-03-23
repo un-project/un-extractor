@@ -183,6 +183,27 @@ complete database: PDF extraction provides speeches, stage directions, and
 document structure; the DHL CSVs provide complete voting records including
 historical meetings not yet extracted.
 
+### Clean up duplicate country rows
+
+OCR artifacts and DHL CSV name variants can create duplicate or garbled entries in
+the `countries` table. `scripts/fix_country_duplicates.py` merges them into canonical
+rows and removes junk entries:
+
+```bash
+# Preview changes without modifying the database
+python scripts/fix_country_duplicates.py --db postgresql://user:pass@localhost/undb --dry-run
+
+# Apply
+python scripts/fix_country_duplicates.py --db postgresql://user:pass@localhost/undb
+```
+
+Run this after each import cycle. The script is idempotent: re-running it on a clean
+database is a no-op.
+
+Country name normalisation is driven by the static alias table in
+`src/extraction/country_aliases.py`. Add new aliases there when new garbled forms are
+discovered, then re-run `fix_country_duplicates.py` to apply them to the database.
+
 #### Database schema overview
 
 | Table | Description |
@@ -314,16 +335,20 @@ For the full document, order items by `item.position` first, then apply the abov
 
 ## Sample PDFs
 
-Four sample PDFs are included in `data/raw_pdfs/`:
+Ten sample PDFs are included in `data/raw_pdfs/` (GA sessions 31–79, SC 1997–2026):
 
 | File | Symbol | Notes |
 |---|---|---|
-| `en/ga/31/pv/document_8.pdf` | A/31/PV.8 | Scanned (1976): OCR text layer, ALL-CAPS names, inline speaker format |
-| `en/ga/48/pv/document_46.pdf` | A/48/PV.46 | Older format (1993): ALL-CAPS names, no dot-leaders |
+| `en/ga/31/pv/document_8.pdf` | A/31/PV.8 | Scanned (1976): OCR text layer, ALL-CAPS names |
+| `en/ga/48/pv/document_46.pdf` | A/48/PV.46 | Older format (1993): ALL-CAPS names |
 | `en/ga/61/pv/document_107.pdf` | A/61/PV.107 | Recorded votes, country vote lists |
 | `en/ga/64/pv/document_121.pdf` | A/64/PV.121 | Consensus adoptions |
-| `en/ga/65/pv/document_71.pdf` | A/65/PV.71 | Amendments, many resolutions |
-| `en/ga/76/pv/document_102.pdf` | A/76/PV.102 | Recent format |
+| `en/ga/65/pv/document_71.pdf` | A/65/PV.71 | Amendments, Roman-numeral draft labels |
+| `en/ga/76/pv/document_102.pdf` | A/76/PV.102 | Recent GA format |
+| `en/ga/79/pv/document_29.pdf` | A/79/PV.29 | Recent GA format with recorded vote |
+| `en/sc/1997/pv/document_3756.pdf` | S/PV.3756 | Security Council 1997 |
+| `en/sc/2018/pv/document_8422.pdf` | S/PV.8422 | Security Council 2018 |
+| `en/sc/2026/pv/document_10100.pdf` | S/PV.10100 | Security Council 2026 |
 
 ---
 

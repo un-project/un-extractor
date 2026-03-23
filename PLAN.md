@@ -204,7 +204,11 @@ The agent must implement this pipeline:
      ↓
     JSON validation
      ↓
-    database storage
+    database storage (import_json_to_db.py)
+     ↓
+    UNDL voting CSV import (scripts/import_undl_votes.py)   ← authoritative vote records
+     ↓
+    country deduplication (scripts/fix_country_duplicates.py)
 
 Key tools:
 
@@ -540,10 +544,12 @@ Never store country names directly in vote tables.
     ---------
     id (PK)
     name            # exact UN official name
-    short_name
     iso2
-    iso3
-    un_member_since
+    iso3            # UNIQUE; null for historical entities sharing an iso3
+
+Country name normalisation (OCR typos, DHL CSV formats, historical names, mixed-case
+artifacts) is handled by `src/extraction/country_aliases.py`. After each import, run
+`scripts/fix_country_duplicates.py` to merge garbled alias rows into canonical rows.
 
 Example name: "United Kingdom of Great Britain and Northern Ireland"
 
@@ -572,32 +578,50 @@ All speakers are stored, regardless of whether they have a country affiliation.
     location
     pdf_path        # relative path within data/raw_pdfs/
 
+### Document Items Table
+
+Agenda items and named sections within a meeting. Speeches, stage directions, and
+resolutions all belong to a `document_item` and share a common `position_in_item`
+counter so the full meeting flow can be reconstructed in order.
+
+    document_items
+    --------------
+    id (PK)
+    document_id (FK → documents)
+    position        # order of this item within the meeting
+    item_type       # "agenda_item" | "other_item"
+    title
+    agenda_number   # null for non-agenda items
+    sub_item        # e.g. "b" for sub-item (b)
+    continued       # bool — item carried over from a previous meeting
+
 ### Stage Directions Table
 
 Stores all procedural italic text in document order alongside speeches.
 Together with the speeches table, these two tables allow full reconstruction of
-a meeting's proceedings in sequence using `position_in_document`.
+a meeting's proceedings in sequence using `position_in_item`.
 
     stage_directions
     ----------------
     id (PK)
-    document_id (FK → documents)
+    document_item_id (FK → document_items)
     text            # full italic text
     direction_type  # "adoption" | "decision" | "suspension" | "resumption"
                     # | "adjournment" | "silence" | "language_note" | "other"
-    position_in_document
+    position_in_item
 
 ### Speeches Table
 
     speeches
     --------
     id (PK)
-    document_id (FK → documents)
+    document_item_id (FK → document_items)
     speaker_id (FK → speakers)
     language        # language spoken (null = English)
     on_behalf_of    # group name if speaking on behalf of a bloc
     text
-    position_in_document
+    position        # document-wide ordinal
+    position_in_item
 
 ### Resolutions Table
 
@@ -628,7 +652,9 @@ a meeting's proceedings in sequence using `position_in_document`.
 ### Country Votes Table
 
 Stores individual country positions for recorded (non-consensus) votes.
-These are NOT present in PV verbatim records; they come from summary records or annexes.
+These ARE present inline in PV verbatim records (the `In favour:` / `Against:` /
+`Abstaining:` lists). They are also imported from UNDL voting CSVs via
+`scripts/import_undl_votes.py`, which is the authoritative source.
 
     country_votes
     -------------

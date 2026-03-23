@@ -31,31 +31,55 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import sys
 from pathlib import Path
 
 # Allow running from repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import func
+from sqlalchemy import func  # noqa: E402
 
-from src.db.database import get_engine, get_session
-from src.db.models import Country, CountryVote, Speaker, Speech
-from src.extraction.country_aliases import _ALIASES, normalize_country_name
+from src.db.database import get_engine, get_session  # noqa: E402
+from src.db.models import Country, CountryVote, Speaker, Speech  # noqa: E402
+from src.extraction.country_aliases import normalize_country_name  # noqa: E402
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Junk-detection patterns (applied to country rows without iso3 codes)
+# ---------------------------------------------------------------------------
 
-def _merge_speakers(session, alias_country_id: int, canonical_country_id: int, dry_run: bool) -> int:
+# Pattern 1: starts with a non-letter (catches "(C)", "!'K;Ngol", "21", "*Subsequently")
+_JUNK_STARTS_NON_LETTER = re.compile(r"^[^A-Za-zÀ-ÖØ-öø-ÿ]")
+
+# Pattern 2: procedural/assembly text fragments
+_JUNK_PROCEDURAL = re.compile(
+    r"\b(I shall|put to the vote|preambular|recorded vote has been|"
+    r"operative paragraph|draft resolution|budget implications|"
+    r"I would like to inform|I should like to|programme budget|"
+    r"is postponed|noted that action|agenda item \d|"
+    r"recommended by|entitled|shall first|take it that)\b",
+    re.IGNORECASE,
+)
+
+# Pattern 3: concatenated countries — tilde/semicolon followed by uppercase
+_JUNK_CONCAT_TILDE = re.compile(r"[~;]\s+[A-Z]")
+
+# Pattern 4: concatenated countries — period space + Title-case word
+_JUNK_CONCAT_DOT = re.compile(r"\.\s+[A-Z][a-z]")
+
+
+def _merge_speakers(
+    session, alias_country_id: int, canonical_country_id: int, dry_run: bool
+) -> int:
     """Reassign speakers from alias country to canonical country.
 
     When a speaker with (name, canonical_country_id) already exists, their
     speeches are redirected to the canonical speaker and the alias speaker is
     deleted.  Returns the number of speakers processed.
     """
-    alias_speakers = (
-        session.query(Speaker).filter_by(country_id=alias_country_id).all()
-    )
+    alias_speakers = session.query(Speaker).filter_by(country_id=alias_country_id).all()
     for alias_spk in alias_speakers:
         canonical_spk = (
             session.query(Speaker)
@@ -94,7 +118,9 @@ def _merge_speakers(session, alias_country_id: int, canonical_country_id: int, d
     return len(alias_speakers)
 
 
-def _merge_country_votes(session, alias_country_id: int, canonical_country_id: int, dry_run: bool) -> int:
+def _merge_country_votes(
+    session, alias_country_id: int, canonical_country_id: int, dry_run: bool
+) -> int:
     """Reassign country_votes from alias country to canonical country.
 
     When a (vote_id, canonical_country_id) row already exists the duplicate is
@@ -111,7 +137,7 @@ def _merge_country_votes(session, alias_country_id: int, canonical_country_id: i
         )
         if duplicate is not None:
             log.info(
-                "  DROP duplicate country_vote id=%d (vote_id=%d, already has canonical)",
+                "  DROP duplicate country_vote id=%d (vote_id=%d, canonical exists)",
                 cv.id,
                 cv.vote_id,
             )
@@ -158,11 +184,7 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
     )
     # Also delete rows whose name is longer than 100 chars — these are speech
     # fragments or other garbage that got stored as country names.
-    junk += (
-        session.query(Country)
-        .filter(func.length(Country.name) > 100)
-        .all()
-    )
+    junk += session.query(Country).filter(func.length(Country.name) > 100).all()
 
     seen_ids: set[int] = set()
     for row in junk:
@@ -178,6 +200,33 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
             session.query(CountryVote).filter_by(country_id=row.id).delete()
             session.delete(row)
             session.flush()
+
+    # Pattern-based detection
+    pattern_junk = (
+        session.query(Country)
+        .filter(Country.iso3.is_(None))  # never delete a row that has a known iso3
+        .all()
+    )
+    for row in pattern_junk:
+        if row.id in seen_ids:
+            continue
+        name = row.name or ""
+        if (
+            len(name.strip()) < 3
+            or _JUNK_STARTS_NON_LETTER.match(name)
+            or _JUNK_PROCEDURAL.search(name)
+            or _JUNK_CONCAT_TILDE.search(name)
+            or _JUNK_CONCAT_DOT.search(name)
+        ):
+            seen_ids.add(row.id)
+            log.info("DELETE junk country row id=%d name=%r", row.id, name[:80])
+            if not dry_run:
+                session.query(Speaker).filter_by(country_id=row.id).update(
+                    {"country_id": None}
+                )
+                session.query(CountryVote).filter_by(country_id=row.id).delete()
+                session.delete(row)
+                session.flush()
 
 
 def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
@@ -235,9 +284,7 @@ def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
             sp.commit()
         except Exception as exc:
             sp.rollback()
-            log.warning(
-                "SKIP %r → %r: %s", row.name, canonical_name, exc
-            )
+            log.warning("SKIP %r → %r: %s", row.name, canonical_name, exc)
 
     return renamed, merged
 

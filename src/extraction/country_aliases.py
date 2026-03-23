@@ -310,6 +310,110 @@ _ALIASES: dict[str, str] = {
     "Belorussia": "Belarus",
     "Ukrainian SSR": "Ukraine",
     "Zaire": "Democratic Republic of the Congo",
+    # ------------------------------------------------------------------
+    # Côte d'Ivoire — OCR digit/letter substitutions for Ô
+    # ------------------------------------------------------------------
+    "C6te d'Ivoire": "Côte d'Ivoire",
+    "CGte d'Ivoire": "Côte d'Ivoire",
+    "Ccte d'Ivoire": "Côte d'Ivoire",
+    "Cste d'Ivoire": "Côte d'Ivoire",
+    "Cate d'Ivoire": "Côte d'Ivoire",
+    "Gate d'Ivoire": "Côte d'Ivoire",
+    "Cote d=Ivoire": "Côte d'Ivoire",  # = for apostrophe
+    "Côted'Ivoire": "Côte d'Ivoire",  # no space
+    "Republic of Côte D'Ivoire": "Côte d'Ivoire",
+    "Republic of Cote d'Ivoire": "Côte d'Ivoire",
+    "Ivory Coast (Cote d'Ivoire)": "Côte d'Ivoire",
+    "Ivory-Coast": "Côte d'Ivoire",
+    # ------------------------------------------------------------------
+    # Federal Republic of Germany — truncated / garbled variants
+    # (After hyphen fix, "Federal Repub- lic of" → "Federal Republic of"
+    #  which is already aliased.  These cover no-hyphen garbled forms.)
+    # ------------------------------------------------------------------
+    "Federal Republic of Gennany": "Germany",  # nn→m OCR
+    "Federal Republic ofGermany": "Germany",  # missing space
+    "FederalRepublic ofGermany": "Germany",
+    "Federal :Republic of": "Germany",
+    "Federal Repdblic of": "Germany",  # d→u OCR
+    "Federal Repubhc of": "Germany",  # h→l OCR
+    "Federal pepublic of": "Germany",  # p→R OCR
+    "Pederal Republic of": "Germany",  # P→F OCR
+    "German Federal Republic of": "Germany",
+    # ------------------------------------------------------------------
+    # Byelorussian Soviet Socialist Republic — full name + OCR variants
+    # (After hyphen fix "…Re- public" → "…Republic"; still need full name alias)
+    # ------------------------------------------------------------------
+    "Byelorussian Soviet Socialist Republic": "Belarus",
+    "Beylorussian Soviet Socialist Republic": "Belarus",
+    "Bvelorussian Soviet Socialist Republic": "Belarus",
+    "Byalorussian Soviet Socialist Republic": "Belarus",
+    "Byeloruaeian Soviet Socialist Republic": "Belarus",
+    "Byeloruesian Soviet Socialist Republic": "Belarus",
+    "Byelorussian soviet Socialist Republic": "Belarus",
+    "Syelorussian Soviet Socialist Republic": "Belarus",  # S→By OCR + hyphen fix
+    # ------------------------------------------------------------------
+    # "Dnited …" — D→U OCR glyph swap
+    # ------------------------------------------------------------------
+    "Dnited Arab Emirates": "United Arab Emirates",
+    "Dnited Kingdom of Great Britain and Northern Ireland": _UK,
+    "Dnited Republic of Tanzania": "United Republic of Tanzania",
+    "Dnited Republic of Cameroon": "United Republic of Cameroon",
+    # ------------------------------------------------------------------
+    # Historical / former names
+    # ------------------------------------------------------------------
+    "Ceylon": "Sri Lanka",  # pre-1972
+    "Congo, Brazzaville": "Congo",  # pre-1970 name
+    "Congo, Leopoldville": "Democratic Republic of the Congo",  # pre-1966
+    "Central African Empire": "Central African Republic",  # 1976–1979
+    "Somali Republic": "Somalia",  # formal name used in early UN records
+    "The Sudan": "Sudan",
+    "The Russian Federation": "Russian Federation",
+    # ------------------------------------------------------------------
+    # Iran — OCR variants (parenthetical form already aliased above)
+    # ------------------------------------------------------------------
+    "Ir.an (Islamic Republic of)": "Islamic Republic of Iran",
+    "Iran (Islamic Republic 'of)": "Islamic Republic of Iran",
+    "Iran (Islamic Republic ot)": "Islamic Republic of Iran",
+    "Islamic Republic or Iran": "Islamic Republic of Iran",  # or→of OCR
+    "Islamic State of Iran": "Islamic Republic of Iran",
+    # ------------------------------------------------------------------
+    # French-language names that appear in older PV records
+    # ------------------------------------------------------------------
+    "Royaume-Uni": _UK,
+    "H.oyaume-Uni": _UK,
+    "Royau111e-Uni": _UK,
+    "Nouvelle-Z61ande": "New Zealand",  # accented é→6 OCR
+    # ------------------------------------------------------------------
+    # Post-hyphen-fix compact forms (hyphen-space removed, legitimate
+    # hyphen disappeared — add back via alias)
+    # ------------------------------------------------------------------
+    "TimorLeste": "Timor-Leste",
+    "GuineaBissau": "Guinea-Bissau",
+    "PapuaNewGuinea": "Papua New Guinea",
+    "SriLanka": "Sri Lanka",
+    "NewZealand": "New Zealand",
+    # ------------------------------------------------------------------
+    # Plurinational State of Bolivia — OCR variants
+    # ------------------------------------------------------------------
+    "Pluinational State of Bolivia": "Plurinational State of Bolivia",
+    "Plurinatinal State of Bolivia": "Plurinational State of Bolivia",
+    "Plurnational State of Bolivia": "Plurinational State of Bolivia",
+    # ------------------------------------------------------------------
+    # Bolivarian Republic of Venezuela — OCR "Bolivian" typo
+    # ------------------------------------------------------------------
+    "Bolivian Republic of Venezuela": "Bolivarian Republic of Venezuela",
+    # ------------------------------------------------------------------
+    # Saint Kitts — English-form "Christopher" name
+    # ------------------------------------------------------------------
+    "Saint Christopher and Nevis": "Saint Kitts and Nevis",
+    "Saint Christopher an9 Nevis": "Saint Kitts and Nevis",  # 9→d OCR
+    # ------------------------------------------------------------------
+    # Libya — historical names and OCR variants
+    # ------------------------------------------------------------------
+    "Libyan Arab Republic": "Libya",  # pre-1977 name
+    "Libya Arab Jamahiriya": "Libya",  # "Libyan" garbled
+    "Ubyan Arab Republic": "Libya",  # U→L OCR
+    "Ilbyan Arab Jamahiriya": "Libya",  # I prefix OCR artifact
 }
 
 # Build a lowercase lookup for case-insensitive matching
@@ -556,6 +660,11 @@ def normalize_country_name(name: str) -> str:
     #     alias lookup in step 5.
     if cleaned.isupper() or cleaned.islower():
         cleaned = cleaned.title()
+
+    # 4b. Collapse OCR hyphen-space line breaks ("Ar- gentina" → "Argentina",
+    #     "Byelo- russian" → "Byelorussian").  Only joins letters across hyphen-space;
+    #     preserves legitimate intra-word hyphens which never have trailing spaces.
+    cleaned = re.sub(r"(\w)-\s+(\w)", r"\1\2", cleaned)
 
     # 5. Alias lookup
     canonical = _ALIASES_LOWER.get(cleaned.lower())

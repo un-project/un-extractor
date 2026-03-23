@@ -183,6 +183,24 @@ complete database: PDF extraction provides speeches, stage directions, and
 document structure; the DHL CSVs provide complete voting records including
 historical meetings not yet extracted.
 
+### Import supplementary DHL datasets
+
+Three additional DHL datasets enrich the database with membership dates,
+resolution metadata, and representative records:
+
+```bash
+# M49 codes, un_member_since/end for all member states
+python scripts/import_undl_member_states.py --db postgresql://user:pass@localhost/undb
+
+# Title, subjects, agenda items for all 20,761 GA resolutions (incl. consensus)
+python scripts/import_undl_ga_resolutions.py --db postgresql://user:pass@localhost/undb
+
+# Historical UN ambassadors and SC representatives
+python scripts/import_undl_representatives.py --db postgresql://user:pass@localhost/undb
+```
+
+Each script is idempotent and caches its download in `data/undl/`.
+
 ### Import General Debate speeches metadata
 
 The Dag Hammarskjöld Library publishes a dataset of General Assembly General
@@ -271,6 +289,8 @@ discovered, then re-run `fix_country_duplicates.py` to apply them to the databas
 | `country_votes` | Per-country vote position for recorded votes; P5 flag |
 | `resolution_citations` | Directed citation edges from CR-UNSC (citing → cited) |
 | `general_debate_entries` | One row per General Debate speaker per session; links to document, country, speaker |
+| `permanent_representatives` | Historical/current UN ambassadors (DHL dataset) |
+| `sc_representatives` | SC member state reps and SC presidents (DHL dataset) |
 | `amendments` | (reserved) proposed amendments |
 
 Key relationships:

@@ -146,6 +146,41 @@ structured to consume but that the pipeline does not yet extract.
 
 ---
 
+## DHL supplementary datasets
+
+- [x] **UN Member States** — `scripts/import_undl_member_states.py` enriches
+  `countries` with `m49`, `un_member_since`, and `un_member_end` from the DHL
+  Member States CSV.
+
+- [x] **GA Resolution metadata** — `scripts/import_undl_ga_resolutions.py`
+  upserts title, subjects, agenda_title, committee_report, undl_id, and
+  undl_link for all 20,761 GA resolutions (including consensus ones absent
+  from the voting CSV).
+
+- [x] **Permanent Representatives & SC Representatives** —
+  `scripts/import_undl_representatives.py` populates `permanent_representatives`
+  and `sc_representatives` tables with historical ambassador and SC delegate
+  records; best-effort speaker matching by last name.
+
+- [ ] **Speaker matching quality (representatives)** — After running
+  `import_undl_representatives.py`, check how many rows still have
+  `speaker_id = NULL`.  Improve matching by also trying salutation + last name
+  and by expanding the search to alternative names.
+
+- [ ] **UN Thesaurus (UNBIS)** — The UNBIS multilingual thesaurus
+  (https://digitallibrary.un.org/record/4075456) provides a controlled
+  vocabulary for UN document subjects.  Build a mapping from raw
+  `resolutions.category` strings to canonical UNBIS terms to enable
+  structured topic browsing on the website.  This is a prerequisite for
+  the subject taxonomy normalisation TODO item.
+
+- [ ] **Website: Ambassador profiles** — The `permanent_representatives` and
+  `sc_representatives` tables enable an "Ambassador" tab on country profiles
+  showing who represented the country and when, with links to their UNDL
+  record.
+
+---
+
 ## General Debate speeches
 
 - [x] **Import General Debate metadata** — `scripts/import_undl_general_debate.py`

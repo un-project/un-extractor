@@ -50,7 +50,9 @@ class Country(Base):
     short_name: Mapped[Optional[str]] = mapped_column(String(100))
     iso2: Mapped[Optional[str]] = mapped_column(String(2), unique=True)
     iso3: Mapped[Optional[str]] = mapped_column(String(3), unique=True)
+    m49: Mapped[Optional[str]] = mapped_column(String(5))
     un_member_since: Mapped[Optional[date]] = mapped_column(Date)
+    un_member_end: Mapped[Optional[date]] = mapped_column(Date)
 
     speakers: Mapped[list["Speaker"]] = relationship(back_populates="country")
     country_votes: Mapped[list["CountryVote"]] = relationship(back_populates="country")
@@ -235,6 +237,8 @@ class Resolution(Base):
 
     full_text: Mapped[Optional[str]] = mapped_column(Text)
     crunsc_id: Mapped[Optional[str]] = mapped_column(String(30), unique=True)
+    undl_id: Mapped[Optional[str]] = mapped_column(String(30))
+    undl_link: Mapped[Optional[str]] = mapped_column(String(500))
 
     votes: Mapped[list["Vote"]] = relationship(back_populates="resolution")
     citations_made: Mapped[list["ResolutionCitation"]] = relationship(
@@ -322,6 +326,69 @@ class CountryVote(Base):
     __table_args__ = (
         UniqueConstraint("vote_id", "country_id", name="uq_country_vote"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Permanent Representatives (UN Ambassadors)
+# ---------------------------------------------------------------------------
+
+
+class PermanentRepresentative(Base):
+    """Historical and current heads of Permanent Missions to the UN.
+
+    Source: DHL Permanent Representatives dataset.
+    One row per person; a person who served multiple terms or for multiple
+    countries appears multiple times (one row per undl_id).
+    """
+
+    __tablename__ = "permanent_representatives"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    country_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("countries.id", ondelete="SET NULL"), nullable=True
+    )
+    speaker_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("speakers.id", ondelete="SET NULL"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    salutation: Mapped[Optional[str]] = mapped_column(String(20))
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    undl_id: Mapped[Optional[str]] = mapped_column(String(30), unique=True)
+    undl_link: Mapped[Optional[str]] = mapped_column(Text)
+
+    country: Mapped[Optional[Country]] = relationship()
+    speaker: Mapped[Optional[Speaker]] = relationship()
+
+
+# ---------------------------------------------------------------------------
+# Security Council Representatives
+# ---------------------------------------------------------------------------
+
+
+class SCRepresentative(Base):
+    """Security Council member state representatives and SC presidents.
+
+    Source: DHL SC Representatives dataset.
+    """
+
+    __tablename__ = "sc_representatives"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    country_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("countries.id", ondelete="SET NULL"), nullable=True
+    )
+    speaker_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("speakers.id", ondelete="SET NULL"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    salutation: Mapped[Optional[str]] = mapped_column(String(20))
+    sc_president: Mapped[Optional[bool]] = mapped_column(Boolean)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    undl_id: Mapped[Optional[str]] = mapped_column(String(30), unique=True)
+    undl_link: Mapped[Optional[str]] = mapped_column(Text)
+
+    country: Mapped[Optional[Country]] = relationship()
+    speaker: Mapped[Optional[Speaker]] = relationship()
 
 
 # ---------------------------------------------------------------------------

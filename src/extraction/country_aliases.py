@@ -230,6 +230,9 @@ _ALIASES: dict[str, str] = {
     "Northern Ireland": "United Kingdom of Great Britain and Northern Ireland",
     # "Tobago" stole iso3='TTO' — merge into Trinidad and Tobago
     "Tobago": "Trinidad and Tobago",
+    # DHL comma-inverted form for West Germany
+    "Germany, Federal Republic Of": "Germany",
+    "Germany, Federal Republic of": "Germany",
     # "German DemOcratic Republic" (OCR caps) stole iso3='DDR' — merge into correct form
     "German DemOcratic Republic": "German Democratic Republic",
     # Truncated names that grabbed iso3 codes
@@ -504,6 +507,12 @@ def normalize_country_name(name: str) -> str:
     cleaned = re.sub(r'^[.\'"\s]+', "", cleaned)
     # 4. Strip trailing procedure / vote text
     cleaned = _TRAILING_PROC_RE.sub("", cleaned).rstrip(".,; ")
+
+    # 4a. Title-case all-uppercase names (e.g. DHL CSV exports "ZANZIBAR",
+    #     "TANGANYIKA").  Do this before alias lookup so that abbreviations
+    #     like "USA" still resolve via the case-insensitive table below.
+    if cleaned.isupper():
+        cleaned = cleaned.title()
 
     # 5. Alias lookup
     canonical = _ALIASES_LOWER.get(cleaned.lower())

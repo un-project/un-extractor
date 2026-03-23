@@ -154,6 +154,9 @@ def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
     - If a row with the canonical name already exists → merge.
     - Otherwise → rename in-place.
 
+    Each row is wrapped in a savepoint so a single failure doesn't roll back
+    the entire session.
+
     Returns (renamed, merged).
     """
     renamed = 0
@@ -169,26 +172,39 @@ def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
         # Re-query to handle rows already renamed in this loop.
         canonical_row = session.query(Country).filter_by(name=canonical_name).first()
 
-        if canonical_row is None or canonical_row.id == row.id:
-            log.info("RENAME %r → %r", row.name, canonical_name)
-            if not dry_run:
-                row.name = canonical_name
-                session.flush()
-            renamed += 1
-        else:
-            log.info(
-                "MERGE country %r (id=%d) → %r (id=%d)",
-                row.name,
-                row.id,
-                canonical_name,
-                canonical_row.id,
+        try:
+            sp = session.begin_nested()
+            if canonical_row is None or canonical_row.id == row.id:
+                log.info("RENAME %r → %r", row.name, canonical_name)
+                if not dry_run:
+                    row.name = canonical_name
+                    session.flush()
+                renamed += 1
+            else:
+                log.info(
+                    "MERGE country %r (id=%d) → %r (id=%d)",
+                    row.name,
+                    row.id,
+                    canonical_name,
+                    canonical_row.id,
+                )
+                _merge_speakers(session, row.id, canonical_row.id, dry_run)
+                _merge_country_votes(session, row.id, canonical_row.id, dry_run)
+                if not dry_run:
+                    # Transfer iso3 to canonical row if alias owns it
+                    if row.iso3 and not canonical_row.iso3:
+                        canonical_row.iso3 = row.iso3
+                        row.iso3 = None
+                        session.flush()
+                    session.delete(row)
+                    session.flush()
+                merged += 1
+            sp.commit()
+        except Exception as exc:
+            sp.rollback()
+            log.warning(
+                "SKIP %r → %r: %s", row.name, canonical_name, exc
             )
-            _merge_speakers(session, row.id, canonical_row.id, dry_run)
-            _merge_country_votes(session, row.id, canonical_row.id, dry_run)
-            if not dry_run:
-                session.delete(row)
-                session.flush()
-            merged += 1
 
     return renamed, merged
 

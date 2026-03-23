@@ -1,0 +1,54 @@
+{
+  "symbol": "S/PV.10100",
+  "session": 81,
+  "meeting_number": 10100,
+  "date": "2026-01-30",
+  "location": "New York",
+  "president_name": "Mr. Osman",
+  "total_speeches": 2,
+  "total_resolutions": 1,
+  "total_stage_directions": 8,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 2,
+      "resolution_count": 1,
+      "resolutions": [
+        {
+          "draft_symbol": "S/2026/8",
+          "vote_type": "recorded",
+          "yes_count": 13,
+          "no_count": 0,
+          "abstain_count": 2,
+          "country_votes": {
+            "Bahrain": "yes",
+            "China": "yes",
+            "Colombia": "yes",
+            "Democratic Republic of the Congo": "yes",
+            "Denmark": "yes",
+            "France": "yes",
+            "Greece": "yes",
+            "Latvia": "yes",
+            "Liberia": "yes",
+            "Pakistan": "abstain",
+            "Panama": "yes",
+            "Russian Federation": "yes",
+            "Somalia": "abstain",
+            "United Kingdom of Great Britain and Northern Ireland": "yes",
+            "United States of America": "yes"
+          }
+        }
+      ]
+    }
+  ]
+}

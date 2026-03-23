@@ -1,13 +1,13 @@
 {
-  "symbol": "A/48/PV.46",
-  "session": 48,
-  "meeting_number": 46,
-  "date": "1993-11-01",
+  "symbol": "S/PV.3756",
+  "session": 52,
+  "meeting_number": 3756,
+  "date": "1997-03-21",
   "location": "New York",
-  "president_name": "Mr. Insanally",
-  "total_speeches": 33,
+  "president_name": "Mr. Wlosowicz",
+  "total_speeches": 19,
   "total_resolutions": 0,
-  "total_stage_directions": 17,
+  "total_stage_directions": 4,
   "items": [
     {
       "position": 0,
@@ -19,17 +19,17 @@
     },
     {
       "position": 1,
-      "item_type": "agenda_item",
-      "agenda_number": 14,
-      "speech_count": 5,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 0,
       "resolution_count": 0,
       "resolutions": []
     },
     {
       "position": 2,
-      "item_type": "agenda_item",
-      "agenda_number": 14,
-      "speech_count": 28,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 19,
       "resolution_count": 0,
       "resolutions": []
     }

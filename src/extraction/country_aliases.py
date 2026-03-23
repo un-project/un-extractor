@@ -97,6 +97,7 @@ _ALIASES: dict[str, str] = {
     "Mozambigue": "Mozambique",
     "Lichtenstein": "Liechtenstein",
     "Liechenstein": "Liechtenstein",  # different transposition
+    "Liechstenstein": "Liechtenstein",  # extra s
     "Guinea Bissau": "Guinea-Bissau",
     "Guinea- Bissau": "Guinea-Bissau",  # space before dash
     "United Arab Emirate": "United Arab Emirates",  # truncated trailing s
@@ -234,6 +235,7 @@ _ALIASES: dict[str, str] = {
     "samoa": "Samoa",  # lowercase; _CANONICAL_NAMES doesn't cover it
     "vanuatu": "Vanuatu",  # lowercase; same
     "E Gambia": "Gambia",  # OCR artifact prefix
+    "Gamb": "Gambia",  # severely truncated
     "United": "United States of America",  # severely truncated (iso3=USA in DHL data)
     # "Union of SOviet SOcialist Republics" (OCR caps) stole iso3='SUN'
     "Union of SOviet SOcialist Republics": "Union of Soviet Socialist Republics",

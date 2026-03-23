@@ -130,7 +130,7 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
         session.query(Country)
         .filter(
             Country.name.in_(
-                ["", "None", "none", "NULL", "null", "&", "Aviva", "Coast"]
+                ["", "None", "none", "NULL", "null", "&", "Aviva", "Coast", "Pem"]
             )
         )
         .all()

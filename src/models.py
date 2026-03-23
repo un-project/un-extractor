@@ -172,7 +172,7 @@ class MeetingRecord(BaseModel):
     body: Literal["GA", "SC"]
     session: int | None  # None for Security Council (no session numbering)
     meeting_number: int
-    date: date
+    date: date | None = None
     location: str
     president: PresidentInfo | None = None
     items: list[DocumentItem] = []

@@ -622,9 +622,7 @@ def process_pdf(
         meeting_num: int = int(meta.get("meeting_number") or 0)
         doc_date: date | None = meta.get("date")
         if doc_date is None:
-            log.warning(
-                "Date not found in %s — defaulting to 1900-01-01", pdf_path.name
-            )
+            log.warning("Date not found in %s", pdf_path.name)
         location: str = meta.get("location") or ""
         president: PresidentInfo | None = meta.get("president")
         doc_body: str = meta.get("body") or "GA"
@@ -634,7 +632,7 @@ def process_pdf(
             body=doc_body,
             session=session_num,
             meeting_number=meeting_num,
-            date=doc_date or date(1900, 1, 1),
+            date=doc_date,
             location=location,
             president=president,
             items=items,

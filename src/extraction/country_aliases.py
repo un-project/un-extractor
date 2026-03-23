@@ -414,6 +414,58 @@ _ALIASES: dict[str, str] = {
     "Libya Arab Jamahiriya": "Libya",  # "Libyan" garbled
     "Ubyan Arab Republic": "Libya",  # U→L OCR
     "Ilbyan Arab Jamahiriya": "Libya",  # I prefix OCR artifact
+    # ------------------------------------------------------------------
+    # OCR mixed-case artifacts — two capital letters at start of a word
+    # (e.g. "TUnisia", "BUlgaria") or stray capital at end ("ChinA").
+    # The alias lookup is case-insensitive so these keys also cover any
+    # further casing variation (all-lower, all-upper, etc.).
+    # ------------------------------------------------------------------
+    "TUnisia": "Tunisia",
+    "ChinA": "China",
+    "COmoros": "Comoros",
+    "BUlgaria": "Bulgaria",
+    "COsta Rica": "Costa Rica",
+    "DOminican Republic": "Dominican Republic",
+    "ECuador": "Ecuador",
+    "Equatorial GUinea": "Equatorial Guinea",
+    "GUinea": "Guinea",
+    "HOnduras": "Honduras",
+    "NOrway": "Norway",
+    "OMan": "Oman",
+    "POland": "Poland",
+    "RWanda": "Rwanda",
+    "SUdan": "Sudan",
+    "TOgo": "Togo",
+    "Federal RepUblic of": "Germany",  # truncated + OCR mixed-case
+    # ------------------------------------------------------------------
+    # USSR / Soviet Union abbreviations and mixed-case
+    # ------------------------------------------------------------------
+    "USSR": "Union of Soviet Socialist Republics",
+    # ------------------------------------------------------------------
+    # Truncated country names (OCR cut off part of the name)
+    # ------------------------------------------------------------------
+    "Central African": "Central African Republic",
+    "Sierra": "Sierra Leone",
+    "New Guinea": "Papua New Guinea",
+    "Esotho": "Lesotho",  # missing leading "L"
+    "Guatemal": "Guatemala",
+    "Federal Republic of": "Germany",  # truncated "Federal Republic of Germany"
+    # ------------------------------------------------------------------
+    # Historical / territorial names
+    # ------------------------------------------------------------------
+    "Zanzibar": "United Republic of Tanzania",  # pre-1964 union with Tanganyika
+    "Surinam": "Suriname",  # Dutch colonial / historical spelling
+    "Federal Republic of Yugoslavia": "Yugoslavia",  # 1992–2003 successor state
+    # ------------------------------------------------------------------
+    # Severely garbled OCR artifacts (manually identified from DB)
+    # ------------------------------------------------------------------
+    "Chiba": "Japan",  # Chiba is a Japanese prefecture; OCR mis-capture
+    "Iraa": "Somalia",  # unrecognisable OCR fragment; identified from context
+    "Banda": "Uganda",  # unrecognisable OCR fragment; identified from context
+    "Ali": "Indonesia",  # unrecognisable OCR fragment; identified from context
+    "21": "Sweden",  # numeric OCR artifact; identified from context
+    "P": "Slovenia",  # single-character artifact (SVN); identified from context
+    "Re": _UK,  # two-character artifact (GBR); identified from context
 }
 
 # Build a lowercase lookup for case-insensitive matching

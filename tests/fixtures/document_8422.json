@@ -39,7 +39,7 @@
           "no_count": 0,
           "abstain_count": 2,
           "country_votes": {
-            "China": "abstain",
+            "Plurinational State of Bolivia": "yes",
             "C\u00f4te d'Ivoire": "yes",
             "Equatorial Guinea": "yes",
             "Ethiopia": "yes",
@@ -48,12 +48,12 @@
             "Kuwait": "yes",
             "Netherlands": "yes",
             "Peru": "yes",
-            "Plurinational State of Bolivia": "yes",
             "Poland": "yes",
-            "Russian Federation": "abstain",
             "Sweden": "yes",
             "United Kingdom of Great Britain and Northern Ireland": "yes",
-            "United States of America": "yes"
+            "United States of America": "yes",
+            "China": "abstain",
+            "Russian Federation": "abstain"
           }
         }
       ]

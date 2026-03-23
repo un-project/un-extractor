@@ -40,12 +40,12 @@
             "Greece": "yes",
             "Latvia": "yes",
             "Liberia": "yes",
-            "Pakistan": "abstain",
             "Panama": "yes",
             "Russian Federation": "yes",
-            "Somalia": "abstain",
             "United Kingdom of Great Britain and Northern Ireland": "yes",
-            "United States of America": "yes"
+            "United States of America": "yes",
+            "Pakistan": "abstain",
+            "Somalia": "abstain"
           }
         }
       ]

@@ -247,6 +247,7 @@ _ALIASES: dict[str, str] = {
     # Netherlands parenthetical / comma-inverted forms
     # ------------------------------------------------------------------
     "Netherlands (Kingdom of the Netherlands)": "Netherlands",
+    "Netherlands (Kingdom of the)": "Netherlands",  # truncated parenthetical
     "Netherlands, Kingdom of the": "Netherlands",
     # ------------------------------------------------------------------
     # Côte d'Ivoire — curly/right-single-quote apostrophe variant
@@ -462,6 +463,14 @@ _ALIASES: dict[str, str] = {
     "21": "Sweden",  # numeric OCR artifact; identified from context
     "P": "Slovenia",  # single-character artifact (SVN); identified from context
     "Re": _UK,  # two-character artifact (GBR); identified from context
+    # ------------------------------------------------------------------
+    # More OCR mixed-case artifacts
+    # ------------------------------------------------------------------
+    "MalaYSia": "Malaysia",
+    # ------------------------------------------------------------------
+    # Garbled DHL import names (identified via iso3 cross-reference)
+    # ------------------------------------------------------------------
+    "Mati": "Nepal",  # iso3=NPL in DHL data; OCR garble of "Nepal"
 }
 
 # Build a lowercase lookup for case-insensitive matching

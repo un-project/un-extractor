@@ -64,7 +64,7 @@ _JUNK_PROCEDURAL = re.compile(
 )
 
 # Pattern 3: concatenated countries — tilde/semicolon followed by uppercase
-_JUNK_CONCAT_TILDE = re.compile(r"[~;]\s+[A-Z]")
+_JUNK_CONCAT_TILDE = re.compile(r"[~;]\s*[A-Z]")
 
 # Pattern 4: concatenated countries — period space + Title-case word
 _JUNK_CONCAT_DOT = re.compile(r"\.\s+[A-Z][a-z]")
@@ -175,6 +175,14 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
                     "United Republic of Tanzania and United States of America",
                     "United States of America and Venezuela (Bolivarian Republic of)",
                     "United States of America and Uruguay",
+                    "Uruguay and Venezuela (Bolivarian Republic of)",
+                    "Leb Paraguay;Uruguay",
+                    "Lesotho Netherlands",
+                    "Luxembourg 9 Netherlands",
+                    "Unio Uruguay",
+                    "Uruguay Aoainst: Angola",
+                    "Uruguay f Van ua tu",
+                    "Syrian Volunteers in the Netherlands",
                     # Speech fragments stored as country names
                     "None United States of America",
                 ]

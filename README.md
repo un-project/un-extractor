@@ -183,6 +183,22 @@ complete database: PDF extraction provides speeches, stage directions, and
 document structure; the DHL CSVs provide complete voting records including
 historical meetings not yet extracted.
 
+### Import General Debate speeches metadata
+
+The Dag Hammarskjöld Library publishes a dataset of General Assembly General
+Debate speaker records (sessions 1–79, 1946–2024).
+`scripts/import_undl_general_debate.py` downloads it and populates a
+`general_debate_entries` table and flags General Debate meetings in
+`documents.is_general_debate`.
+
+```bash
+python scripts/import_undl_general_debate.py --db postgresql://user:pass@localhost/undb
+```
+
+Each row in `general_debate_entries` records which speaker represented which
+country in the General Debate of a given session, with a direct link to their
+speech document in the UN Digital Library.
+
 ### Import CR-UNSC resolution corpus
 
 The [CR-UNSC dataset](https://doi.org/10.5281/zenodo.7319780) (Fobbe 2025)
@@ -254,6 +270,7 @@ discovered, then re-run `fix_country_duplicates.py` to apply them to the databas
 | `votes` | One voting event per resolution per meeting; yes/no/abstain/non-voting totals, DHL link |
 | `country_votes` | Per-country vote position for recorded votes; P5 flag |
 | `resolution_citations` | Directed citation edges from CR-UNSC (citing → cited) |
+| `general_debate_entries` | One row per General Debate speaker per session; links to document, country, speaker |
 | `amendments` | (reserved) proposed amendments |
 
 Key relationships:

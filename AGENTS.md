@@ -41,6 +41,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_crUnsc_pdfs.py         # place CR-UNSC SC meeting PDFs into raw_pdfs/
         import_crUnsc_texts.py        # upsert resolution full texts from CR-UNSC
         import_crUnsc_citations.py    # import citation network into resolution_citations
+        import_undl_general_debate.py # import General Debate speeches metadata
 
     tests/
         fixtures/       # 10 golden JSON summaries for integration tests
@@ -76,6 +77,9 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_crUnsc_pdfs.py            # place SC PDFs into data/raw_pdfs/
     python scripts/import_crUnsc_texts.py  --db ... # upsert full_text + crUnsc_id
     python scripts/import_crUnsc_citations.py --db ... # populate resolution_citations
+
+    # General Debate speeches metadata (DHL dataset, sessions 1–79)
+    python scripts/import_undl_general_debate.py --db ...
 
     # Run tests
     pytest tests/

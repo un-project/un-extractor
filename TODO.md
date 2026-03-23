@@ -146,6 +146,30 @@ structured to consume but that the pipeline does not yet extract.
 
 ---
 
+## General Debate speeches
+
+- [x] **Import General Debate metadata** — `scripts/import_undl_general_debate.py`
+  downloads the DHL General Debate dataset (sessions 1–79, 1946–2024) and
+  populates `general_debate_entries` + sets `documents.is_general_debate`.
+
+- [ ] **Speaker matching quality** — The script matches speakers by last-name
+  suffix against the `speakers` table.  After a full run, check how many
+  `general_debate_entries` rows still have `speaker_id = NULL` and improve the
+  matching heuristic (e.g. try salutation + last name, or fuzzy match).
+
+- [ ] **General Debate full-text corpus** — The DHL dataset is metadata only.
+  The UN General Debate Corpus (Baturo et al., sessions 1–74) provides full
+  speech text and is freely available on Harvard Dataverse.  Importing it would
+  populate `speeches.text` for General Debate speeches not yet extracted from
+  PDF and enable full-text search over high-level policy statements.
+
+- [ ] **Website: General Debate section** — Add a `/debate/` section to the
+  website that lists each session's General Debate with speakers per country,
+  their salutation, and a link to the UNDL speech document.  Enabled by the
+  `general_debate_entries` table and `documents.is_general_debate` flag.
+
+---
+
 ## Voting analytics & geopolitics
 
 The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide

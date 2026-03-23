@@ -275,9 +275,9 @@ _ALIASES: dict[str, str] = {
     # ------------------------------------------------------------------
     # Historical UN member states / spelling variants
     # ------------------------------------------------------------------
-    "Democratic Kampuchea": "Cambodia",    # 1975–1989
+    "Democratic Kampuchea": "Cambodia",  # 1975–1989
     "Kampuchea": "Cambodia",
-    "Kazakstan": "Kazakhstan",             # old UN spelling (1992–1995)
+    "Kazakstan": "Kazakhstan",  # old UN spelling (1992–1995)
     "Ukrainian Soviet Socialist Republic": "Ukraine",
     # DHL CSV garbled / severely truncated forms
     "samoa": "Samoa",  # lowercase; _CANONICAL_NAMES doesn't cover it

@@ -249,10 +249,6 @@ _ALIASES: dict[str, str] = {
     "Netherlands (Kingdom of the Netherlands)": "Netherlands",
     "Netherlands, Kingdom of the": "Netherlands",
     # ------------------------------------------------------------------
-    # Federal Republic of Germany (West Germany, UN member 1973–1990)
-    # ------------------------------------------------------------------
-    "Federal Republic of Germany": "Germany",
-    # ------------------------------------------------------------------
     # Côte d'Ivoire — curly/right-single-quote apostrophe variant
     # ------------------------------------------------------------------
     "Côte d\u2019Ivoire": "Côte d'Ivoire",

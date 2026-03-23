@@ -67,6 +67,10 @@ _ALIASES: dict[str, str] = {
     "United States of'America": "United States of America",
     "united Sta tes of 1Imer ica": "United States of America",
     "United Sta tes of 1Imer ica": "United States of America",
+    "Unit": "United States of America",  # severely truncated (iso3=USA in DHL data)
+    "United States of Amerit:a": "United States of America",  # OCR : for i
+    "United States of American": "United States of America",  # trailing n
+    "the United States of America": "United States of America",  # leading "the"
     # ------------------------------------------------------------------
     # OCR typos — United Republic of Tanzania
     # ------------------------------------------------------------------

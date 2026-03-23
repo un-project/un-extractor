@@ -37,6 +37,8 @@ from pathlib import Path
 # Allow running from repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sqlalchemy import func
+
 from src.db.database import get_engine, get_session
 from src.db.models import Country, CountryVote, Speaker, Speech
 from src.extraction.country_aliases import _ALIASES, normalize_country_name
@@ -130,13 +132,44 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
         session.query(Country)
         .filter(
             Country.name.in_(
-                ["", "None", "none", "NULL", "null", "&", "Aviva", "Coast", "Pem"]
+                [
+                    "",
+                    "None",
+                    "none",
+                    "NULL",
+                    "null",
+                    "&",
+                    "Aviva",
+                    "Coast",
+                    "Pem",
+                    # Concatenated multi-country OCR artifacts
+                    "United States of America. I'pper Volta",
+                    "United States of America Austria",
+                    "Surinam United Kingdom of Gre United States of America",
+                    "United Republic of Tanzania and United States of America",
+                    "United States of America and Venezuela (Bolivarian Republic of)",
+                    "United States of America and Uruguay",
+                    # Speech fragments stored as country names
+                    "None United States of America",
+                ]
             )
         )
         .all()
     )
+    # Also delete rows whose name is longer than 100 chars — these are speech
+    # fragments or other garbage that got stored as country names.
+    junk += (
+        session.query(Country)
+        .filter(func.length(Country.name) > 100)
+        .all()
+    )
+
+    seen_ids: set[int] = set()
     for row in junk:
-        log.info("DELETE junk country row id=%d name=%r", row.id, row.name)
+        if row.id in seen_ids:
+            continue
+        seen_ids.add(row.id)
+        log.info("DELETE junk country row id=%d name=%r", row.id, row.name[:80])
         if not dry_run:
             # Detach any speakers / country_votes that reference this row
             session.query(Speaker).filter_by(country_id=row.id).update(

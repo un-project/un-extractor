@@ -273,9 +273,19 @@ def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
                 _merge_speakers(session, row.id, canonical_row.id, dry_run)
                 _merge_country_votes(session, row.id, canonical_row.id, dry_run)
                 if not dry_run:
-                    # Transfer iso3 to canonical row if alias owns it
+                    # Transfer iso3 to canonical row if alias owns it.
+                    # Refresh canonical first — it may have been updated by a
+                    # previous iteration in this same session (savepoint commit
+                    # does not expire objects, so the in-memory state can lag
+                    # behind the DB, causing a spurious UniqueViolation).
+                    session.refresh(canonical_row)
                     if row.iso3 and not canonical_row.iso3:
                         canonical_row.iso3 = row.iso3
+                    # Always clear the alias iso3 before deleting; if both
+                    # rows ended up with the same iso3 (e.g. from parallel
+                    # DHL import), clearing it first avoids a UniqueViolation
+                    # during the subsequent DELETE flush.
+                    if row.iso3:
                         row.iso3 = None
                         session.flush()
                     session.delete(row)

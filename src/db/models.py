@@ -72,7 +72,7 @@ class Speaker(Base):
         Integer, ForeignKey("countries.id"), nullable=True
     )
     organization: Mapped[Optional[str]] = mapped_column(String(400), nullable=True)
-    role: Mapped[Optional[str]] = mapped_column(String(100))
+    role: Mapped[Optional[str]] = mapped_column(String(500))
     title: Mapped[Optional[str]] = mapped_column(String(20))
 
     country: Mapped[Optional[Country]] = relationship(back_populates="speakers")

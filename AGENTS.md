@@ -45,6 +45,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_undl_member_states.py     # enrich countries with m49, membership dates
         import_undl_ga_resolutions.py    # upsert GA resolution metadata (all 20k)
         import_undl_representatives.py   # permanent reps + SC reps tables
+        import_sc_debates.py             # 106k SC speeches 1995-2020 (Schönfeld et al.)
 
     tests/
         fixtures/       # 10 golden JSON summaries for integration tests
@@ -88,6 +89,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_undl_member_states.py --db ...       # m49, membership dates
     python scripts/import_undl_ga_resolutions.py --db ...      # GA resolution metadata
     python scripts/import_undl_representatives.py --db ...     # ambassadors + SC reps
+    python scripts/import_sc_debates.py --db ...               # 106k SC speeches 1995-2020 (452 MB tar)
 
     # Run tests
     pytest tests/

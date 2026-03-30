@@ -67,9 +67,11 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Testing
 
-- [ ] **Tests for `fix_country_duplicates.py`** — The migration script has no unit tests.
-  Add tests covering: merge with iso3 transfer, merge where canonical already has iso3,
-  junk row deletion, savepoint rollback on error, and the `--dry-run` flag.
+- [x] **Tests for `fix_country_duplicates.py`** — 20 unit tests in
+  `tests/test_fix_country_duplicates.py` cover: rename in-place, merge with iso3
+  transfer, merge where canonical already has iso3, speaker move/deduplication,
+  country-vote move/deduplication, all junk-deletion cases, savepoint rollback on
+  error, and the `--dry-run` flag.
 
 - [ ] **Tests for `normalize_country_name`** — The alias table has grown significantly.
   Add a parametrised test suite that asserts the expected canonical name for each alias

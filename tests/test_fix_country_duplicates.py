@@ -16,10 +16,8 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import date
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -197,7 +195,7 @@ class TestMergeSpeakers:
             alias_spk = _speaker(session, alias, name="Mr. Jones")
             canonical_spk = _speaker(session, canonical, name="Mr. Jones")
             doc = _document(session)
-            speech = _speech(session, doc, alias_spk)
+            _speech(session, doc, alias_spk)
             _normalize_existing_rows(session, dry_run=False)
 
         with get_session(engine) as session:

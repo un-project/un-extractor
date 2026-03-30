@@ -670,7 +670,7 @@ def run(
             ga_rows + sc_rows,
         )
         log.info("Running fix_country_duplicates …")
-        fix_duplicates(db_url=db_url)
+        fix_duplicates(engine=engine)
 
 
 def main() -> int:

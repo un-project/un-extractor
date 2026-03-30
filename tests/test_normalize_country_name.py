@@ -44,13 +44,13 @@ class TestPreprocessing:
         assert normalize_country_name("Ar- gentina") == "Argentina"
 
     def test_hyphen_space_collapse_multiword(self) -> None:
-        """'United King- dom' → 'United Kingdom of Great Britain and Northern Ireland'."""
+        """'United King- dom' collapses to the full UK canonical name."""
         assert normalize_country_name("United King- dom") == (
             "United Kingdom of Great Britain and Northern Ireland"
         )
 
     def test_all_caps_title_cased_then_resolved(self) -> None:
-        """ALL-CAPS alias keys (e.g. 'USSR') are resolved via case-insensitive lookup."""
+        """ALL-CAPS alias keys (e.g. 'USSR') resolve via case-insensitive lookup."""
         assert normalize_country_name("USSR") == "Union of Soviet Socialist Republics"
 
     def test_all_caps_non_alias_title_cased(self) -> None:

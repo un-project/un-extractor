@@ -273,7 +273,7 @@ def import_directory(
 
     log.info("Import complete: %d ok, %d failed", ok, failed)
     log.info("Running fix_country_duplicates …")
-    fix_duplicates(db_url=db_url)
+    fix_duplicates(engine=engine)
 
 
 # ---------------------------------------------------------------------------

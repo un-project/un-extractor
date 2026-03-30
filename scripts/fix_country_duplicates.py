@@ -39,7 +39,7 @@ from pathlib import Path
 # Allow running from repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import func, select  # noqa: E402
+from sqlalchemy import Engine, func, select  # noqa: E402
 
 from src.db.database import get_engine, get_session  # noqa: E402
 from src.db.models import Country, CountryVote, Speaker, Speech  # noqa: E402
@@ -464,8 +464,13 @@ def _print_report(db_url: str | None = None) -> None:
         print()
 
 
-def fix_duplicates(db_url: str | None = None, dry_run: bool = False) -> None:
-    engine = get_engine(db_url)
+def fix_duplicates(
+    db_url: str | None = None,
+    dry_run: bool = False,
+    engine: Engine | None = None,
+) -> None:
+    if engine is None:
+        engine = get_engine(db_url)
 
     with get_session(engine) as session:
         _delete_junk_rows(session, dry_run)

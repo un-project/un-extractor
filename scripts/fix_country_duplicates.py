@@ -25,6 +25,7 @@ Usage
     python scripts/fix_country_duplicates.py
     python scripts/fix_country_duplicates.py --db postgresql://user:pass@host/db
     python scripts/fix_country_duplicates.py --dry-run
+    python scripts/fix_country_duplicates.py --report
 """
 
 from __future__ import annotations
@@ -38,11 +39,14 @@ from pathlib import Path
 # Allow running from repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import func  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 
 from src.db.database import get_engine, get_session  # noqa: E402
 from src.db.models import Country, CountryVote, Speaker, Speech  # noqa: E402
-from src.extraction.country_aliases import normalize_country_name  # noqa: E402
+from src.extraction.country_aliases import (  # noqa: E402
+    _CANONICAL_NAMES,
+    normalize_country_name,
+)
 
 log = logging.getLogger(__name__)
 
@@ -307,6 +311,116 @@ def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
     return renamed, merged
 
 
+def _print_report(db_url: str | None = None) -> None:
+    """Print a data-quality summary for the countries table.
+
+    Sections
+    --------
+    1. Countries with no iso3, ordered by speech+vote usage (most referenced
+       first).  These are the highest-priority rows to investigate.
+
+    2. Subset of (1) whose name is not a recognised canonical country name —
+       i.e. it does not appear as a value in the alias table.  These are
+       candidates for new entries in ``country_aliases.py``.
+
+    3. Official UN member states (``un_member_since IS NOT NULL``) that are
+       still missing an iso3 code.  These were matched by name during
+       ``import_undl_member_states.py`` but no iso3 could be assigned.
+    """
+    engine = get_engine(db_url)
+
+    with get_session(engine) as session:
+        # ------------------------------------------------------------------
+        # Build usage-count subqueries
+        # ------------------------------------------------------------------
+        speech_sq = (
+            select(Speaker.country_id, func.count(Speech.id).label("n"))
+            .join(Speech, Speech.speaker_id == Speaker.id)
+            .group_by(Speaker.country_id)
+            .subquery()
+        )
+        vote_sq = (
+            select(CountryVote.country_id, func.count(CountryVote.id).label("n"))
+            .group_by(CountryVote.country_id)
+            .subquery()
+        )
+        total = (
+            func.coalesce(speech_sq.c.n, 0) + func.coalesce(vote_sq.c.n, 0)
+        )
+
+        no_iso3 = (
+            session.query(
+                Country.name,
+                func.coalesce(speech_sq.c.n, 0).label("speeches"),
+                func.coalesce(vote_sq.c.n, 0).label("votes"),
+            )
+            .outerjoin(speech_sq, speech_sq.c.country_id == Country.id)
+            .outerjoin(vote_sq, vote_sq.c.country_id == Country.id)
+            .filter(Country.iso3.is_(None))
+            .order_by(total.desc(), Country.name)
+            .all()
+        )
+
+        # ------------------------------------------------------------------
+        # Section 1 — all countries with no iso3
+        # ------------------------------------------------------------------
+        print(f"\n=== 1. Countries with no iso3 ({len(no_iso3)} rows) ===")
+        if no_iso3:
+            print(f"  {'Name':<60} {'Speeches':>9} {'Votes':>7}")
+            print(f"  {'-'*60} {'-'*9} {'-'*7}")
+            for name, speeches, votes in no_iso3:
+                print(f"  {name:<60} {speeches:>9} {votes:>7}")
+        else:
+            print("  (none)")
+
+        # ------------------------------------------------------------------
+        # Section 2 — unrecognised names (no iso3 + not a known canonical)
+        # ------------------------------------------------------------------
+        unrecognised = [
+            (name, sp, vt)
+            for name, sp, vt in no_iso3
+            if name.lower() not in _CANONICAL_NAMES
+        ]
+        print(
+            f"\n=== 2. Unrecognised names — no iso3 and not a known canonical"
+            f" ({len(unrecognised)} rows) ==="
+        )
+        print("  Add matching entries to src/extraction/country_aliases.py")
+        if unrecognised:
+            print(f"  {'Name':<60} {'Speeches':>9} {'Votes':>7}")
+            print(f"  {'-'*60} {'-'*9} {'-'*7}")
+            for name, speeches, votes in unrecognised:
+                print(f"  {name:<60} {speeches:>9} {votes:>7}")
+        else:
+            print("  (none)")
+
+        # ------------------------------------------------------------------
+        # Section 3 — member states missing iso3
+        # ------------------------------------------------------------------
+        member_no_iso3 = (
+            session.query(Country)
+            .filter(
+                Country.un_member_since.isnot(None),
+                Country.iso3.is_(None),
+            )
+            .order_by(Country.un_member_since, Country.name)
+            .all()
+        )
+        print(
+            f"\n=== 3. Member states missing iso3"
+            f" ({len(member_no_iso3)} rows) ==="
+        )
+        if member_no_iso3:
+            print(f"  {'Name':<60} {'Member since':>13}")
+            print(f"  {'-'*60} {'-'*13}")
+            for row in member_no_iso3:
+                print(f"  {row.name:<60} {str(row.un_member_since):>13}")
+        else:
+            print("  (none)")
+
+        print()
+
+
 def fix_duplicates(db_url: str | None = None, dry_run: bool = False) -> None:
     engine = get_engine(db_url)
 
@@ -329,6 +443,14 @@ def main() -> int:
         action="store_true",
         help="Print what would change without modifying the database",
     )
+    p.add_argument(
+        "--report",
+        action="store_true",
+        help=(
+            "Print a data-quality summary (no-iso3 rows, unrecognised names, "
+            "member states missing iso3) without making any changes"
+        ),
+    )
     p.add_argument("--verbose", action="store_true")
     args = p.parse_args()
 
@@ -336,6 +458,10 @@ def main() -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s: %(message)s",
     )
+
+    if args.report:
+        _print_report(db_url=args.db)
+        return 0
 
     fix_duplicates(db_url=args.db, dry_run=args.dry_run)
     return 0

@@ -53,11 +53,10 @@ Open tasks and known limitations for the un-extractor pipeline.
 - [x] **Automate post-import cleanup** — `fix_country_duplicates.py` is now called
   automatically at the end of `import_json_to_db.py` and `import_undl_votes.py`.
 
-- [ ] **Data quality report** — Add a script (or a `--report` flag to `fix_country_duplicates.py`)
-  that prints a summary of remaining issues: countries with no iso3, countries whose name
-  does not match any known alias pattern, and iso3 codes missing from the `countries` table.
-  This would make it easier to discover new garbled forms after each pipeline rerun without
-  browsing the full country list in the web UI.
+- [x] **Data quality report** — `fix_country_duplicates.py --report` prints a
+  three-section summary: countries with no iso3 (sorted by speech+vote usage),
+  unrecognised names that are candidates for new alias entries, and official member
+  states missing an iso3 code.
 
 - [ ] **Detect new garbled names automatically** — After a full pipeline rerun the database
   typically accumulates hundreds of new country rows with no iso3. A heuristic scan

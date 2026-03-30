@@ -145,10 +145,11 @@ structured to consume but that the pipeline does not yet extract.
 
 ## CR-UNSC integration
 
-- [ ] **Verify CR-UNSC filename conventions** — `import_crUnsc_pdfs.py`
-  assumes filenames of the form `S-PV-NNNN_YYYY-MM-DD.pdf`.  Confirm against
-  the actual zip contents on first run; update the regex if the convention
-  differs.  (Text and GraphML filenames have been confirmed and are correct.)
+- [x] **Verify CR-UNSC filename conventions** — Confirmed via zip central
+  directory (HTTP range request, no full download): all 2742 files follow
+  `S_RES_NNNN_YYYY_MeetingRec_EN.pdf` (resolution-indexed, not PV-indexed).
+  Regex and dest path updated accordingly; files land at
+  `sc/{year}/pv/document_rNNNN.pdf`.
 
 - [x] **GraphML node format** — Confirmed: nodes carry `<data key="v_symbol">`
   with the full UNDL symbol; edges carry `<data key="e_weight">`.  Parser

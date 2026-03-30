@@ -7,7 +7,19 @@ release and moves each PDF to its canonical location under
 ``process_dataset.py`` can pick them up.
 
 Meeting record filenames in the zip follow the pattern:
-    S-PV-NNNN_YEAR-MM-DD.pdf   →   data/raw_pdfs/en/sc/{YEAR}/pv/document_{NNNN}.pdf
+    S_RES_NNNN_YYYY_MeetingRec_EN.pdf
+
+Each PDF is the verbatim SC meeting record (procès-verbal) for the meeting
+at which resolution NNNN was adopted.  Because the zip indexes by resolution
+number rather than PV meeting number, destination files are named by resolution
+number:
+    S_RES_0001_1946_MeetingRec_EN.pdf  →  data/raw_pdfs/en/sc/1946/pv/document_r0001.pdf
+
+The pipeline (``process_dataset.py``) extracts the PV symbol (S/PV.XXXX)
+directly from the PDF content, so the filename is not used for symbol
+identification.  When multiple resolutions are adopted in the same meeting,
+the same verbatim record appears under several resolution numbers; the
+importer (``import_json_to_db.py``) deduplicates automatically by symbol.
 
 Files that already exist at the destination are not overwritten unless
 ``--overwrite`` is specified.  The script is safe to re-run.
@@ -56,18 +68,18 @@ _OUTPUT_ROOT = _REPO_ROOT / "data" / "raw_pdfs" / "en" / "sc"
 # Filename pattern
 # ---------------------------------------------------------------------------
 
-# CR-UNSC naming convention examples:
-#   S-PV-3756_1997-01-15.pdf
-#   S-PV-10100_2026-01-12.pdf
-# We capture: meeting_number (N) and year from the date field.
+# CR-UNSC naming convention (confirmed from zip central directory, 2742 entries):
+#   S_RES_0001_1946_MeetingRec_EN.pdf
+#   S_RES_2798_2025_MeetingRec_EN.pdf
+# We capture: resolution_number (N) and year.
 _FNAME_RE = re.compile(
-    r"S-PV-(\d+)[_-](\d{4})-\d{2}-\d{2}\.pdf$",
+    r"S_RES_(\d+)_(\d{4})_MeetingRec_EN\.pdf$",
     re.IGNORECASE,
 )
 
 
-def _dest_path(meeting_number: int, year: int) -> Path:
-    return _OUTPUT_ROOT / str(year) / "pv" / f"document_{meeting_number}.pdf"
+def _dest_path(res_number: int, year: int) -> Path:
+    return _OUTPUT_ROOT / str(year) / "pv" / f"document_r{res_number:04d}.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -123,9 +135,9 @@ def _place_pdfs(
                 unrecognised += 1
                 continue
 
-            meeting_number = int(m.group(1))
+            res_number = int(m.group(1))
             year = int(m.group(2))
-            dest = _dest_path(meeting_number, year)
+            dest = _dest_path(res_number, year)
 
             if dest.exists() and not overwrite:
                 log.debug("Already exists, skipping: %s", dest)

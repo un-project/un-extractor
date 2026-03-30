@@ -223,7 +223,12 @@ The [CR-UNSC dataset](https://doi.org/10.5281/zenodo.7319780) (Fobbe 2025)
 provides SC resolution full texts and a citation network. Three scripts
 integrate it with this pipeline:
 
-**Step 1 — Place SC meeting-record PDFs** (optional; ~2.1 GB download):
+**Step 1 — Place SC meeting-record PDFs** (optional; ~2.1 GB download)
+
+The zip contains 2742 verbatim-record PDFs named `S_RES_NNNN_YYYY_MeetingRec_EN.pdf`
+(indexed by resolution number).  They are placed at
+`data/raw_pdfs/en/sc/{year}/pv/document_rNNNN.pdf`; the PV symbol is extracted
+from the PDF content by the pipeline, not from the filename:
 
 ```bash
 python scripts/import_crUnsc_pdfs.py

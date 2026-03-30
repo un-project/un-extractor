@@ -58,10 +58,10 @@ Open tasks and known limitations for the un-extractor pipeline.
   unrecognised names that are candidates for new alias entries, and official member
   states missing an iso3 code.
 
-- [ ] **Detect new garbled names automatically** — After a full pipeline rerun the database
-  typically accumulates hundreds of new country rows with no iso3. A heuristic scan
-  (short names, non-letter start, names containing digits, names >40 chars) could flag
-  candidates for review and alias addition without needing manual inspection of the full list.
+- [x] **Detect new garbled names automatically** — `fix_country_duplicates.py --report`
+  section 4 applies four heuristics (short ≤5 chars, starts-non-letter, has-digit, long
+  >40 chars) to no-iso3 rows and prints each row with its triggered flags, so new OCR
+  artifacts are visible without scanning the full list.
 
 ---
 

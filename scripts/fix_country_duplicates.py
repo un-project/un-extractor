@@ -326,6 +326,11 @@ def _print_report(db_url: str | None = None) -> None:
     3. Official UN member states (``un_member_since IS NOT NULL``) that are
        still missing an iso3 code.  These were matched by name during
        ``import_undl_member_states.py`` but no iso3 could be assigned.
+
+    4. Heuristically suspicious names — no iso3 rows that match one or more
+       garbled-name heuristics (short, starts with non-letter, contains a
+       digit, or very long).  Useful for spotting new OCR artifacts after a
+       pipeline rerun without scanning the full no-iso3 list.
     """
     engine = get_engine(db_url)
 
@@ -415,6 +420,43 @@ def _print_report(db_url: str | None = None) -> None:
             print(f"  {'-'*60} {'-'*13}")
             for row in member_no_iso3:
                 print(f"  {row.name:<60} {str(row.un_member_since):>13}")
+        else:
+            print("  (none)")
+
+        # ------------------------------------------------------------------
+        # Section 4 — heuristically suspicious names
+        # ------------------------------------------------------------------
+        _DIGIT_RE = re.compile(r"\d")
+
+        def _heuristic_flags(name: str) -> list[str]:
+            flags = []
+            if len(name) <= 5:
+                flags.append("short")
+            if _JUNK_STARTS_NON_LETTER.match(name):
+                flags.append("starts-non-letter")
+            if _DIGIT_RE.search(name):
+                flags.append("has-digit")
+            if len(name) > 40:
+                flags.append("long")
+            return flags
+
+        suspicious = [
+            (name, sp, vt, _heuristic_flags(name))
+            for name, sp, vt in no_iso3
+            if _heuristic_flags(name)
+        ]
+        print(
+            f"\n=== 4. Heuristically suspicious names — no iso3"
+            f" ({len(suspicious)} rows) ==="
+        )
+        print("  Flags: short (≤5 chars) | starts-non-letter | has-digit | long (>40 chars)")
+        if suspicious:
+            print(f"  {'Name':<60} {'Speeches':>9} {'Votes':>7}  Flags")
+            print(f"  {'-'*60} {'-'*9} {'-'*7}  -----")
+            for name, speeches, votes, flags in suspicious:
+                print(
+                    f"  {name:<60} {speeches:>9} {votes:>7}  {', '.join(flags)}"
+                )
         else:
             print("  (none)")
 

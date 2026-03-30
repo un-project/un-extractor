@@ -73,9 +73,10 @@ Open tasks and known limitations for the un-extractor pipeline.
   country-vote move/deduplication, all junk-deletion cases, savepoint rollback on
   error, and the `--dry-run` flag.
 
-- [ ] **Tests for `normalize_country_name`** — The alias table has grown significantly.
-  Add a parametrised test suite that asserts the expected canonical name for each alias
-  key, so regressions are caught immediately when aliases are added or removed.
+- [x] **Tests for `normalize_country_name`** — `tests/test_normalize_country_name.py`
+  parametrises over every `_ALIASES` entry (295 cases auto-derived from the table) plus
+  20 tests for preprocessing (hyphen-space collapse, ALL-CAPS, \x08 artefacts, leading
+  punctuation, trailing procedural text) and edge cases.
 
 ---
 

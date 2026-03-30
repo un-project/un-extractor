@@ -189,26 +189,38 @@ def _parse_graphml(zip_path: Path) -> list[tuple[str, str, int]]:
 
 
 def _build_symbol_index(session: Session) -> dict[str, int]:
-    """Return a mapping from adopted_symbol → resolution.id for all SC resolutions.
+    """Return a mapping from adopted_symbol → resolution.id for all resolutions.
 
-    We also index the plain ``S/RES/N`` prefix (without the year parenthetical)
-    so that CR-UNSC symbols like ``S/RES/156`` match ``S/RES/156(1980)``  in
-    the DB.
+    Covers both SC and GA resolutions.  For each stored symbol we also add:
+
+    - **SC**: the plain ``S/RES/N`` form stripped of its year parenthetical so
+      that CR-UNSC symbols like ``S/RES/156`` match ``S/RES/156(1980)`` in
+      the DB.
+    - **GA**: the ``A/RES/``-prefixed form if the stored symbol lacks the prefix
+      (e.g. ``"64/293"`` → ``"A/RES/64/293"``), matching the CR-UNSC GraphML
+      notation ``A/RES/N/M``.
     """
     rows = (
-        session.query(Resolution.id, Resolution.adopted_symbol)
-        .filter(Resolution.body == "SC")
+        session.query(Resolution.id, Resolution.adopted_symbol, Resolution.body)
         .filter(Resolution.adopted_symbol.isnot(None))
         .all()
     )
     idx: dict[str, int] = {}
-    for res_id, sym in rows:
-        if sym:
-            idx[sym] = res_id
+    for res_id, sym, body in rows:
+        if not sym:
+            continue
+        idx[sym] = res_id
+        if body == "SC":
             # Strip year parenthetical: "S/RES/156(1980)" → "S/RES/156"
             plain = sym.split("(")[0].strip()
             if plain not in idx:
                 idx[plain] = res_id
+        elif body == "GA":
+            # Index as A/RES/{sym} when the prefix is absent ("64/293" → "A/RES/64/293")
+            if not sym.upper().startswith("A/"):
+                full = f"A/RES/{sym}"
+                if full not in idx:
+                    idx[full] = res_id
     return idx
 
 
@@ -238,7 +250,7 @@ def _import_citations(
     inserted = updated = skipped = 0
 
     symbol_idx = _build_symbol_index(session)
-    log.info("Symbol index built: %d SC resolutions.", len(symbol_idx))
+    log.info("Symbol index built: %d SC + GA resolutions.", len(symbol_idx))
 
     for citing_symbol, cited_symbol, weight in edges:
         citing_id = _lookup_resolution(session, citing_symbol, symbol_idx)

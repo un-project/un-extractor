@@ -158,10 +158,10 @@ structured to consume but that the pipeline does not yet extract.
 - [x] **Run import pipeline end-to-end** — Completed: 14,157 citation edges
   inserted; `full_text` populated for matching SC resolutions.
 
-- [ ] **Back-fill `cited_id` for GA resolutions** — The citation network
-  includes GA resolution citations.  Currently only SC resolutions are
-  indexed in `_build_symbol_index`.  Extend if GA-citation resolution of
-  `cited_id` is needed.
+- [x] **Back-fill `cited_id` for GA resolutions** — `_build_symbol_index`
+  now indexes all resolutions (SC + GA).  For GA rows stored without the
+  `A/RES/` prefix (e.g. `"64/293"`), a prefixed alias (`"A/RES/64/293"`)
+  is added so CR-UNSC GraphML symbols resolve correctly.
 
 ---
 

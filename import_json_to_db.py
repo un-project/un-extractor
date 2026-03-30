@@ -17,6 +17,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from scripts.fix_country_duplicates import fix_duplicates
 from src.db.database import create_schema, get_engine, get_session
 from src.extraction.country_aliases import normalize_country_name
 from src.db.models import (
@@ -271,6 +272,8 @@ def import_directory(
             failed += 1
 
     log.info("Import complete: %d ok, %d failed", ok, failed)
+    log.info("Running fix_country_duplicates …")
+    fix_duplicates(db_url=db_url)
 
 
 # ---------------------------------------------------------------------------

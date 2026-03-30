@@ -48,6 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from scripts.fix_country_duplicates import fix_duplicates  # noqa: E402
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import Country, Document, Resolution, Vote, CountryVote  # noqa: E402
 from src.extraction.country_aliases import normalize_country_name  # noqa: E402
@@ -668,6 +669,8 @@ def run(
             ga_res + sc_res,
             ga_rows + sc_rows,
         )
+        log.info("Running fix_country_duplicates …")
+        fix_duplicates(db_url=db_url)
 
 
 def main() -> int:

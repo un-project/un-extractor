@@ -50,9 +50,8 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Country data quality
 
-- [ ] **Automate post-import cleanup** — `fix_country_duplicates.py` should be called
-  automatically at the end of `import_json_to_db.py` and `import_undl_votes.py` rather than
-  as a separate manual step.
+- [x] **Automate post-import cleanup** — `fix_country_duplicates.py` is now called
+  automatically at the end of `import_json_to_db.py` and `import_undl_votes.py`.
 
 - [ ] **Data quality report** — Add a script (or a `--report` flag to `fix_country_duplicates.py`)
   that prints a summary of remaining issues: countries with no iso3, countries whose name

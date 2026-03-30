@@ -257,18 +257,17 @@ Downloaded files are cached in `data/crUnsc/`.
 
 OCR artifacts and DHL CSV name variants can create duplicate or garbled entries in
 the `countries` table. `scripts/fix_country_duplicates.py` merges them into canonical
-rows and removes junk entries:
+rows and removes junk entries. It runs automatically at the end of
+`import_json_to_db.py` and `import_undl_votes.py`, so no manual step is needed in
+the normal import workflow.
+
+To preview what it would change without modifying the database:
 
 ```bash
-# Preview changes without modifying the database
 python scripts/fix_country_duplicates.py --db postgresql://user:pass@localhost/undb --dry-run
-
-# Apply
-python scripts/fix_country_duplicates.py --db postgresql://user:pass@localhost/undb
 ```
 
-Run this after each import cycle. The script is idempotent: re-running it on a clean
-database is a no-op.
+The script is idempotent: re-running it on a clean database is a no-op.
 
 Country name normalisation is driven by the static alias table in
 `src/extraction/country_aliases.py`. Add new aliases there when new garbled forms are

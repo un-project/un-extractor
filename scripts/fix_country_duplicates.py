@@ -441,9 +441,10 @@ def _print_report(db_url: str | None = None) -> None:
             return flags
 
         suspicious = [
-            (name, sp, vt, _heuristic_flags(name))
+            (name, sp, vt, flags)
             for name, sp, vt in no_iso3
-            if _heuristic_flags(name)
+            for flags in (_heuristic_flags(name),)
+            if flags
         ]
         print(
             f"\n=== 4. Heuristically suspicious names — no iso3"

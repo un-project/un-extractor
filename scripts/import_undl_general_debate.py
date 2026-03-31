@@ -47,8 +47,12 @@ from sqlalchemy import text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
-from src.db.models import Country, Document, Speaker  # noqa: E402
+from src.db.models import Country, Document  # noqa: E402
 from src.extraction.country_aliases import normalize_country_name  # noqa: E402
+from src.extraction.speaker_matching import (  # noqa: E402
+    find_speaker_id,
+    normalise_name,
+)
 
 log = logging.getLogger(__name__)
 
@@ -144,16 +148,8 @@ def _download(url: str, dest: Path, force: bool = False) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Name normalisation
+# Date parsing
 # ---------------------------------------------------------------------------
-
-
-def _normalise_name(raw: str) -> str:
-    """Convert 'Last, First' → 'First Last' for speaker lookup."""
-    if "," in raw:
-        last, _, first = raw.partition(",")
-        return f"{first.strip()} {last.strip()}"
-    return raw.strip()
 
 
 def _parse_date(s: str) -> date | None:
@@ -180,37 +176,6 @@ def _build_country_index(session: Session) -> dict[str, int]:
     for cid, name in rows:
         idx[normalize_country_name(name)] = cid
     return idx
-
-
-def _find_speaker(
-    session: Session,
-    display_name: str,
-    country_id: int | None,
-) -> int | None:
-    """Return speaker.id by partial name + country match, or None."""
-    if country_id is None:
-        return None
-    # Try exact match first
-    spk = (
-        session.query(Speaker)
-        .filter_by(country_id=country_id)
-        .filter(Speaker.name == display_name)
-        .first()
-    )
-    if spk:
-        return spk.id
-    # Try last-name suffix match (our speakers are stored as "Mr. LastName")
-    last = display_name.split()[-1] if display_name else ""
-    if last:
-        spk = (
-            session.query(Speaker)
-            .filter_by(country_id=country_id)
-            .filter(Speaker.name.ilike(f"%{last}%"))
-            .first()
-        )
-        if spk:
-            return spk.id
-    return None
 
 
 def _import_csv(
@@ -263,8 +228,10 @@ def _import_csv(
             document_id = doc_idx.get(meeting_symbol)
 
             # Resolve speaker (best-effort)
-            display_name = _normalise_name(raw_name)
-            speaker_id = _find_speaker(session, display_name, country_id)
+            display_name = normalise_name(raw_name)
+            speaker_id = find_speaker_id(
+                session, raw_name, "", salutation, country_id
+            )
 
             meeting_date = _parse_date(meeting_date_str)
 

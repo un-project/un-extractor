@@ -47,9 +47,12 @@ from src.db.models import (  # noqa: E402
     Country,
     PermanentRepresentative,
     SCRepresentative,
-    Speaker,
 )
 from src.extraction.country_aliases import normalize_country_name  # noqa: E402
+from src.extraction.speaker_matching import (  # noqa: E402
+    find_speaker_id,
+    normalise_name,
+)
 
 log = logging.getLogger(__name__)
 
@@ -80,32 +83,9 @@ def _download(url: str, dest: Path, force: bool = False) -> Path:
     return dest
 
 
-def _normalise_name(raw: str) -> str:
-    """'Last, First' → 'First Last'."""
-    if "," in raw:
-        last, _, first = raw.partition(",")
-        return f"{first.strip()} {last.strip()}"
-    return raw.strip()
-
-
 def _build_country_index(session) -> dict[str, int]:
     rows = session.query(Country.id, Country.name).all()
     return {normalize_country_name(name): cid for cid, name in rows}
-
-
-def _find_speaker(session, display_name: str, country_id: int | None) -> int | None:
-    if not country_id:
-        return None
-    last = display_name.split()[-1] if display_name else ""
-    if not last:
-        return None
-    spk = (
-        session.query(Speaker)
-        .filter_by(country_id=country_id)
-        .filter(Speaker.name.ilike(f"%{last}%"))
-        .first()
-    )
-    return spk.id if spk else None
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +105,7 @@ def _import_perm_reps(
             raw_name = (row.get("name") or "").strip()
             member_state = (row.get("member_state") or "").strip()
             salutation = (row.get("salutation") or "").strip() or None
+            alt_raw = (row.get("alternative names") or "").strip()
             notes = (row.get("notes") or "").strip() or None
             undl_link = (row.get("undl_link") or "").strip() or None
 
@@ -132,9 +113,11 @@ def _import_perm_reps(
                 skipped += 1
                 continue
 
-            display_name = _normalise_name(raw_name)
+            display_name = normalise_name(raw_name)
             country_id = country_idx.get(normalize_country_name(member_state))
-            speaker_id = _find_speaker(session, display_name, country_id)
+            speaker_id = find_speaker_id(
+                session, raw_name, alt_raw, salutation, country_id
+            )
 
             # Skip if already imported
             if undl_id:
@@ -183,6 +166,7 @@ def _import_sc_reps(
             # SC CSV uses "states" (may list multiple, semicolon-separated)
             states_raw = (row.get("states") or "").strip()
             salutation = (row.get("salutations") or "").strip() or None
+            alt_raw = (row.get("alternative_names") or "").strip()
             sc_pres_raw = (row.get("sc_president") or "").strip().upper()
             sc_president = True if sc_pres_raw == "TRUE" else (
                 False if sc_pres_raw == "FALSE" else None
@@ -194,12 +178,14 @@ def _import_sc_reps(
                 skipped += 1
                 continue
 
-            display_name = _normalise_name(raw_name)
+            display_name = normalise_name(raw_name)
 
             # Use first listed state for country matching
             primary_state = states_raw.split(";")[0].strip()
             country_id = country_idx.get(normalize_country_name(primary_state))
-            speaker_id = _find_speaker(session, display_name, country_id)
+            speaker_id = find_speaker_id(
+                session, raw_name, alt_raw, salutation, country_id
+            )
 
             if undl_id:
                 exists = (

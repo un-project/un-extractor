@@ -186,10 +186,13 @@ structured to consume but that the pipeline does not yet extract.
   and `sc_representatives` tables with historical ambassador and SC delegate
   records; best-effort speaker matching by last name.
 
-- [ ] **Speaker matching quality (representatives)** — After running
-  `import_undl_representatives.py`, check how many rows still have
-  `speaker_id = NULL`.  Improve matching by also trying salutation + last name
-  and by expanding the search to alternative names.
+- [x] **Speaker matching quality (representatives)** — `src/extraction/
+  speaker_matching.py` provides `find_speaker_id()` with three layers:
+  (1) exact match on display name, (2) salutation + last word
+  (e.g. `"Mr. Smith"`), (3) last-word ilike substring.  All layers are tried
+  for each alternative name (pipe-separated from CSV) before moving on.
+  Both `import_undl_representatives.py` and `import_undl_general_debate.py`
+  now use this shared matcher.
 
 - [x] **UN Thesaurus (UNBIS)** — `src/extraction/unbis_subjects.py` provides
   `classify_unbis(subjects)` mapping raw pipe-separated DHL subject strings

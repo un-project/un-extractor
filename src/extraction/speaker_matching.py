@@ -40,7 +40,9 @@ def _last_word(name: str) -> str:
     return parts[-1].upper() if parts else ""
 
 
-def _candidates(primary_raw: str, alt_raw: str, salutation: str | None) -> list[str]:
+def _candidates(
+    primary_raw: str, alt_raw: str, salutation: str | None
+) -> list[tuple[str, str | None]]:
     """Return ordered list of (display_name, salutation_prefix) pairs to try.
 
     Each element is a ``(display_name, sal)`` tuple where ``sal`` is the

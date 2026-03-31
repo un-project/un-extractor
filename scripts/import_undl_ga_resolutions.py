@@ -43,7 +43,7 @@ from sqlalchemy import text  # noqa: E402
 
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import Resolution  # noqa: E402
-from src.extraction.vote_categories import classify_subjects  # noqa: E402
+from src.extraction.subject_aliases import normalize_subject  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ def _import(session, csv_path: Path, dry_run: bool) -> tuple[int, int, int]:
             non_voting = _int_or_none(row.get("total_non_voting", ""))
             total_ms = _int_or_none(row.get("total_ms", ""))
 
-            category = classify_subjects(subjects) if subjects else None
+            category = normalize_subject(subjects) if subjects else None
 
             res_id = sym_idx.get(resolution_sym)
             if res_id is None:
@@ -154,8 +154,8 @@ def _import(session, csv_path: Path, dry_run: bool) -> tuple[int, int, int]:
             if not dry_run:
                 if title and not res.title:
                     res.title = title
-                if subjects and not res.category:
-                    res.category = category or subjects[:200]
+                if category and not res.category:
+                    res.category = category
                 if agenda_title and not res.agenda_title:
                     res.agenda_title = agenda_title
                 if committee_report and not res.committee_report:

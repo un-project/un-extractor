@@ -135,11 +135,16 @@ structured to consume but that the pipeline does not yet extract.
   would make it easy to see which sessions are still missing speech content
   and prioritise PDF processing.
 
-- [ ] **Subject taxonomy normalisation** — `resolutions.category` is populated
-  from the UNDL CSV but contains inconsistent free-text strings.  Building a
-  controlled mapping (similar to `country_aliases.py`) from raw UNDL subject
-  strings to a small canonical set would enable reliable topic-based filtering
-  and browsing on the website.
+- [x] **Subject taxonomy normalisation** — `src/extraction/subject_aliases.py`
+  provides `normalize_subject(subjects)`, which maps raw pipe-separated DHL
+  subject strings to one of the 18 canonical UNBIS scheme names.  Lookup
+  layers: (1) `classify_unbis()` against 7,245 UNBIS labels, (2) `_ALIASES`
+  dict of curated DHL-specific entries (acronyms, UN operations, inter-org
+  names), (3) prefix/suffix rules for systematic patterns.  Coverage: 99.8 %
+  of tag occurrences; both `import_undl_votes.py` and
+  `import_undl_ga_resolutions.py` now use `normalize_subject()`.  Existing
+  `resolutions.category` rows from the old hand-coded 12-category scheme will
+  need a one-time migration to UNBIS scheme names.
 
 ---
 

@@ -52,7 +52,7 @@ from scripts.fix_country_duplicates import fix_duplicates  # noqa: E402
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import Country, Document, Resolution, Vote, CountryVote  # noqa: E402
 from src.extraction.country_aliases import normalize_country_name  # noqa: E402
-from src.extraction.vote_categories import classify_subjects  # noqa: E402
+from src.extraction.subject_aliases import normalize_subject  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -322,7 +322,7 @@ def _get_or_create_resolution(
     body: str,
     session_num: int | None,
     title: str | None,
-    subjects: str,
+    subjects: str | None,
     agenda_title: str | None,
     committee_report: str | None,
     _cache: dict[str, Resolution],
@@ -521,7 +521,7 @@ def import_csv(
         draft_symbol = first.get("draft", "").strip().split("|")[0].strip()
         vote_date = _parse_date(first.get("date", "").strip())
         title = (first.get("title") or first.get("description") or "").strip() or None
-        subjects = classify_subjects(first.get("subjects", "").strip())
+        subjects = normalize_subject(first.get("subjects", "").strip())
         agenda_title = (
             first.get("agenda_title") or first.get("agenda") or ""
         ).strip() or None

@@ -11,6 +11,10 @@ psycopg2-binary>=2.9.0
 # Data / thesaurus (rdflib only needed to regenerate unbis_subjects.py)
 rdflib>=6.0.0
 
+# Ideal point estimation (compute_ideal_points.py)
+numpy>=1.26.0
+scipy>=1.12.0
+
 # Dev / quality
 black>=24.0.0
 flake8>=7.0.0

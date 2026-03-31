@@ -252,13 +252,14 @@ The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
 a complete `(country, resolution, vote_position, date)` record from 1946–2026
 that is sufficient for the following analytical features.
 
-- [ ] **Ideal point estimation** — Implement the Bailey, Strezhnev & Voeten
-  (2017) Bayesian IRT model to place every country on a latent policy dimension
-  (roughly: liberal-Western ↔ non-aligned) per year.  Their replication code is
-  public and uses exactly the same UNDL data.  Output: a new
-  `country_ideal_points (country_id, year, ideal_point, se)` table that the
-  website can use for a richer voting-similarity map and country profiles.
-  Reference: https://doi.org/10.1017/S0022381617000931
+- [x] **Ideal point estimation** — `scripts/compute_ideal_points.py`
+  implements a cross-sectional 2PL probit IRT model (Bailey, Strezhnev &
+  Voeten 2017) estimated per year via L-BFGS-B with analytical gradients.
+  θ_USA = 0 in all years; positive = more aligned with USA.  Abstentions
+  treated as missing; L2 regularisation (λ=0.1) stabilises estimation.
+  Standard errors from the diagonal Fisher information.  Output stored in
+  `country_ideal_points (country_id, iso3, year, ideal_point, se)`.
+  Runtime: ~3 minutes for all 80 sessions (1946–2025).
 
 - [ ] **Data-driven bloc detection** — Compute a pairwise voting-agreement
   matrix per year and apply hierarchical or spectral clustering to recover

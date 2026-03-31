@@ -218,11 +218,12 @@ structured to consume but that the pipeline does not yet extract.
   `general_debate_entries` rows still have `speaker_id = NULL` and improve the
   matching heuristic (e.g. try salutation + last name, or fuzzy match).
 
-- [ ] **General Debate full-text corpus** — The DHL dataset is metadata only.
-  The UN General Debate Corpus (Baturo et al., sessions 1–74) provides full
-  speech text and is freely available on Harvard Dataverse.  Importing it would
-  populate `speeches.text` for General Debate speeches not yet extracted from
-  PDF and enable full-text search over high-level policy statements.
+- [x] **General Debate full-text corpus** — `scripts/import_gdebate_corpus.py`.
+  Harvard Dataverse, doi:10.7910/DVN/0TJX8Y (v14, March 2026).  11,141
+  speeches, sessions 1–80 (1946–2025), one `.txt` per speech named
+  `{ISO3}_{session}_{year}.txt`.  Adds `text TEXT` column to
+  `general_debate_entries` and populates it by matching on
+  `(ga_session, country.iso3)`.  Run after `import_undl_general_debate.py`.
 
 - [x] **SC Debates corpus (Schönfeld et al.)** — `scripts/import_sc_debates.py`.
   Harvard Dataverse, CC0,

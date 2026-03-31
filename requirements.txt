@@ -8,6 +8,9 @@ python-dotenv>=1.0.0
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 
+# Data / thesaurus (rdflib only needed to regenerate unbis_subjects.py)
+rdflib>=6.0.0
+
 # Dev / quality
 black>=24.0.0
 flake8>=7.0.0

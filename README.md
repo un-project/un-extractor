@@ -30,6 +30,10 @@ src/
     pdf/            # Phase 1 – column-aware text extraction and cleaning
     structure/      # Phase 2 – document segmentation into typed sections
     extraction/     # Phase 3 – rule-based extractors (metadata, speakers, votes)
+                    #   country_aliases.py   – country name normalisation
+                    #   subject_aliases.py   – DHL subject tag → canonical category
+                    #   unbis_subjects.py    – UNBIS thesaurus label → scheme mapping (auto-generated)
+                    #   speaker_matching.py  – multi-layer speaker name matching
     llm/            # Phase 4 – Claude API semantic extraction
     validation/     # Phase 5 – JSON schema validation
     db/             # Phase 6 – SQLAlchemy ORM models and database importer
@@ -217,6 +221,45 @@ Each row in `general_debate_entries` records which speaker represented which
 country in the General Debate of a given session, with a direct link to their
 speech document in the UN Digital Library.
 
+### Import General Debate full-text corpus
+
+The UN General Debate Corpus (Baturo et al., sessions 1–80, 1946–2025) provides
+full speech texts for all General Debate speeches. `scripts/import_gdebate_corpus.py`
+downloads the corpus from Harvard Dataverse and populates `general_debate_entries.text`.
+
+```bash
+python scripts/import_gdebate_corpus.py --db postgresql://user:pass@localhost/undb
+```
+
+Run after `import_undl_general_debate.py`. The script is idempotent (rows that
+already have text are skipped) and supports `--session N` to import a single
+GA session. The ~68 MB tarball is cached in `data/undl/`.
+
+### Import GA resolution full texts
+
+GA resolution PDFs are fetched from the UN Documents API and stored in
+`resolutions.full_text`. `scripts/import_ga_resolution_texts.py` processes
+every GA resolution that has an `adopted_symbol` but no `full_text`.
+
+```bash
+python scripts/import_ga_resolution_texts.py --db postgresql://user:pass@localhost/undb
+```
+
+Run after `import_undl_ga_resolutions.py`. Progress is committed every 50
+resolutions so the script is safe to interrupt and resume.
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--limit N` | Stop after N resolutions (useful for testing) |
+| `--delay SECS` | Pause between HTTP requests (default: 1.0 s) |
+| `--batch N` | Commit every N successful fetches (default: 50) |
+| `--timeout SECS` | HTTP request timeout (default: 30 s) |
+| `--dry-run` | Fetch and extract without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
 ### Import CR-UNSC resolution corpus
 
 The [CR-UNSC dataset](https://doi.org/10.5281/zenodo.7319780) (Fobbe 2025)
@@ -258,6 +301,22 @@ Run after Step 2 so `cited_id` FKs can be resolved.
 Each script accepts `--dry-run`, `--download` (force re-fetch), and `--verbose`.
 Downloaded files are cached in `data/crUnsc/`.
 
+### Compute country ideal points
+
+`scripts/compute_ideal_points.py` implements the Bailey, Strezhnev & Voeten (2017)
+two-parameter probit IRT model. For each year it estimates a latent policy position
+(ideal point) for every country from GA recorded votes, anchored at θ_USA = 0
+(positive = more aligned with the USA).
+
+```bash
+python scripts/compute_ideal_points.py --db postgresql://user:pass@localhost/undb
+# or limit to a single year:
+python scripts/compute_ideal_points.py --year 2015
+```
+
+Results are written to `country_ideal_points (country_id, iso3, year, ideal_point, se)`.
+Run after `import_undl_votes.py`. Requires `numpy` and `scipy`.
+
 ### Clean up duplicate country rows
 
 OCR artifacts and DHL CSV name variants can create duplicate or garbled entries in
@@ -295,6 +354,7 @@ discovered, then re-run `fix_country_duplicates.py` to apply them to the databas
 | `general_debate_entries` | One row per General Debate speaker per session; links to document, country, speaker |
 | `permanent_representatives` | Historical/current UN ambassadors (DHL dataset) |
 | `sc_representatives` | SC member state reps and SC presidents (DHL dataset) |
+| `country_ideal_points` | Per-country per-year IRT ideal points (Bailey-Strezhnev-Voeten 2PL) |
 | `amendments` | (reserved) proposed amendments |
 
 Key relationships:

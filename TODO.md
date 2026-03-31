@@ -204,9 +204,11 @@ structured to consume but that the pipeline does not yet extract.
   `vote_categories.py` once alias coverage is sufficient.
 
 - [ ] **Website: Ambassador profiles** — The `permanent_representatives` and
-  `sc_representatives` tables enable an "Ambassador" tab on country profiles
-  showing who represented the country and when, with links to their UNDL
-  record.
+  `sc_representatives` tables are populated.  The website needs a
+  "Representatives" tab on country profiles showing who represented the country
+  and when, with links to their UNDL record.  The tab header already appears
+  in country profiles (e.g. un-project.org/country/USA/) but the content is
+  not yet rendered.
 
 ---
 
@@ -216,10 +218,9 @@ structured to consume but that the pipeline does not yet extract.
   downloads the DHL General Debate dataset (sessions 1–79, 1946–2024) and
   populates `general_debate_entries` + sets `documents.is_general_debate`.
 
-- [ ] **Speaker matching quality** — The script matches speakers by last-name
-  suffix against the `speakers` table.  After a full run, check how many
-  `general_debate_entries` rows still have `speaker_id = NULL` and improve the
-  matching heuristic (e.g. try salutation + last name, or fuzzy match).
+- [x] **Speaker matching quality** — Resolved by `src/extraction/speaker_matching.py`
+  (shared with representatives importer).  Three lookup layers per candidate name
+  (primary + all pipe-separated alternatives).
 
 - [x] **General Debate full-text corpus** — `scripts/import_gdebate_corpus.py`.
   Harvard Dataverse, doi:10.7910/DVN/0TJX8Y (v14, March 2026).  11,141
@@ -239,10 +240,14 @@ structured to consume but that the pipeline does not yet extract.
   Strictly preferable to `import_crUnsc_pdfs.py` for the 1995–2020 window.
   Reference: https://arxiv.org/abs/1906.10969
 
-- [ ] **Website: General Debate section** — Add a `/debate/` section to the
-  website that lists each session's General Debate with speakers per country,
-  their salutation, and a link to the UNDL speech document.  Enabled by the
-  `general_debate_entries` table and `documents.is_general_debate` flag.
+- [x] **Website: General Debate section** — Live at un-project.org/debate/.
+  The index page lists all 79 sessions with address counts and a country
+  filter.  Each session page (e.g. /debate/79/) lists all speakers with date,
+  country, name, salutation, and UNDL source link.  Country profiles
+  (e.g. /country/USA/) include a "General Debate" tab showing every session
+  the country participated in.  Remaining gap: speech full-text is not yet
+  displayed on the site (corpus text is stored in `general_debate_entries.text`
+  but no detail/speech page exists yet).
 
 ---
 

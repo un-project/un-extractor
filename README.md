@@ -301,6 +301,34 @@ Run after Step 2 so `cited_id` FKs can be resolved.
 Each script accepts `--dry-run`, `--download` (force re-fetch), and `--verbose`.
 Downloaded files are cached in `data/crUnsc/`.
 
+### Import SC Debates corpus
+
+The [UN Security Council Debates corpus](https://doi.org/10.7910/DVN/KGVSYH)
+(Schönfeld et al. 2019/2025) provides full speech texts for 106,302 speeches
+across 6,233 SC meetings (1995–2020). `scripts/import_sc_debates.py` downloads
+three files from Harvard Dataverse (~452 MB total) and populates the `speeches`
+table. Meetings that already have speech content extracted from PDF are skipped
+to avoid duplication.
+
+```bash
+python scripts/import_sc_debates.py --db postgresql://user:pass@localhost/undb
+```
+
+Run after `import_undl_votes.py` so that document stub rows already exist.
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--download` | Force re-download even if cached files exist |
+| `--dry-run` | Parse and log without writing to the database |
+| `--limit N` | Stop after N speeches (useful for testing) |
+| `--skip-existing` | Skip documents that already have speeches |
+| `--verbose` | Enable DEBUG logging |
+
+Downloaded files are cached in `data/sc_debates/`.
+
 ### Compute country ideal points
 
 `scripts/compute_ideal_points.py` implements the Bailey, Strezhnev & Voeten (2017)

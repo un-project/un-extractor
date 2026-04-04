@@ -23,6 +23,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
             # Example: en/ga/64/pv/document_121.pdf → A/64/PV.121
         undl/           # cached UNDL voting CSVs (downloaded on first import)
         crUnsc/         # cached CR-UNSC zips (downloaded on first import)
+        sc_debates/     # cached SC Debates corpus files (downloaded on first import)
 
     src/
         pdf/            # Phase 1: text extraction and cleaning
@@ -46,6 +47,10 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_undl_ga_resolutions.py    # upsert GA resolution metadata (all 20k)
         import_undl_representatives.py   # permanent reps + SC reps tables
         import_sc_debates.py             # 106k SC speeches 1995-2020 (Schönfeld et al.)
+        import_gdebate_corpus.py         # General Debate full-text corpus (sessions 1–80)
+        import_ga_resolution_texts.py    # fetch GA resolution full texts from UN Documents API
+        compute_ideal_points.py          # per-country per-year IRT ideal points (BSV 2017)
+        generate_unbis_mapping.py        # dev tool: regenerate src/extraction/unbis_subjects.py
 
     tests/
         fixtures/       # 10 golden JSON summaries for integration tests
@@ -74,8 +79,9 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     # Import authoritative UNDL voting CSVs
     python scripts/import_undl_votes.py --db postgresql://user:pass@host/db
 
-    # Merge/clean duplicate country rows (run after each import)
-    python scripts/fix_country_duplicates.py --db postgresql://user:pass@host/db
+    # Merge/clean duplicate country rows (runs automatically after import_json_to_db and import_undl_votes)
+    # Run manually only to preview changes without writing:
+    python scripts/fix_country_duplicates.py --db postgresql://user:pass@host/db --dry-run
 
     # CR-UNSC integration (run in order after import_undl_votes.py)
     python scripts/import_crUnsc_pdfs.py            # place SC PDFs into data/raw_pdfs/
@@ -90,6 +96,15 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_undl_ga_resolutions.py --db ...      # GA resolution metadata
     python scripts/import_undl_representatives.py --db ...     # ambassadors + SC reps
     python scripts/import_sc_debates.py --db ...               # 106k SC speeches 1995-2020 (452 MB tar)
+    python scripts/import_gdebate_corpus.py --db ...           # General Debate full texts (run after import_undl_general_debate)
+    python scripts/import_ga_resolution_texts.py --db ...      # GA resolution full texts (run after import_undl_ga_resolutions)
+
+    # Compute ideal points (requires numpy + scipy; run after import_undl_votes)
+    python scripts/compute_ideal_points.py --db postgresql://user:pass@host/db
+
+    # Dev tool: regenerate UNBIS thesaurus mapping (only needed after a new thesaurus release)
+    # pip install rdflib
+    # python scripts/generate_unbis_mapping.py
 
     # Run tests
     pytest tests/

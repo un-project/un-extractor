@@ -230,6 +230,15 @@ def _get_or_create_item(
     if doc_id in item_cache:
         return item_cache[doc_id]
 
+    existing = (
+        session.query(DocumentItem)
+        .filter_by(document_id=doc_id, position=0)
+        .first()
+    )
+    if existing:
+        item_cache[doc_id] = existing.id
+        return existing.id
+
     item = DocumentItem(
         document_id=doc_id,
         position=0,

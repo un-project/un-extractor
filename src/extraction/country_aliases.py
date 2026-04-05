@@ -323,10 +323,9 @@ _ALIASES: dict[str, str] = {
     "Ivory Coast (Cote d'Ivoire)": "Côte d'Ivoire",
     "Ivory-Coast": "Côte d'Ivoire",
     # ------------------------------------------------------------------
-    # Federal Republic of Germany — truncated / garbled variants
-    # (After hyphen fix, "Federal Repub- lic of" → "Federal Republic of"
-    #  which is already aliased.  These cover no-hyphen garbled forms.)
+    # Federal Republic of Germany — official long-form name and variants
     # ------------------------------------------------------------------
+    "Federal Republic of Germany": "Germany",  # official UN long-form name
     "Federal Republic of Gennany": "Germany",  # nn→m OCR
     "Federal Republic ofGermany": "Germany",  # missing space
     "FederalRepublic ofGermany": "Germany",

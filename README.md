@@ -329,6 +329,31 @@ Options:
 
 Downloaded files are cached in `data/sc_debates/`.
 
+### Backfill GA vote tally counts
+
+The UNDL voting CSV only populates yes/no/abstain tally counts for recent
+sessions (788 of 10,263 GA votes). `scripts/import_harvard_ga_votes.py`
+reads the already-cached `data/undl/ga_voting.csv` (Voeten et al. Harvard
+Dataverse, doi:10.7910/DVN/LEJUQZ) and backfills `yes_count`, `no_count`,
+`abstain_count`, `total_non_voting`, and `total_ms` for all matched GA votes.
+
+```bash
+python scripts/import_harvard_ga_votes.py --db postgresql://user:pass@localhost/undb
+```
+
+Run after `import_undl_votes.py` (which downloads `ga_voting.csv`). No
+additional download is required. Coverage improves from ~8% to ~62%; the
+remaining gap is older resolutions absent from the Voeten dataset.
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--csv PATH` | Path to ga_voting.csv (default: data/undl/ga_voting.csv) |
+| `--dry-run` | Match and log without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
 ### Compute country ideal points
 
 `scripts/compute_ideal_points.py` implements the Bailey, Strezhnev & Voeten (2017)

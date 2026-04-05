@@ -39,6 +39,7 @@ _ALIASES: dict[str, str] = {
     # OCR typos — United Kingdom
     # ------------------------------------------------------------------
     "United Kmgdom": _UK,
+    "United Kingdom of Great": _UK,  # truncated form
     "United Kingdom of Great Britain": _UK,
     "United Kingdom of Great Britain and Northern": _UK,
     "United Kingdan of Great Britain and Northern Ireland": _UK,

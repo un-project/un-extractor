@@ -70,8 +70,11 @@ def _fetch_pdf(symbol: str, timeout: int = 30) -> bytes | None:
 
 def _extract_text(pdf_bytes: bytes) -> str:
     """Extract plain text from PDF bytes using PyMuPDF."""
-    with fitz.open(stream=io.BytesIO(pdf_bytes), filetype="pdf") as doc:
-        parts = [page.get_text() for page in doc]
+    try:
+        with fitz.open(stream=io.BytesIO(pdf_bytes), filetype="pdf") as doc:
+            parts = [page.get_text() for page in doc]
+    except Exception:  # noqa: BLE001 — e.g. non-PDF response body
+        return ""
     return "\n".join(parts).strip()
 
 

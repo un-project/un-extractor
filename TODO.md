@@ -257,15 +257,13 @@ The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
 a complete `(country, resolution, vote_position, date)` record from 1946–2026
 that is sufficient for the following analytical features.
 
-- [ ] **Backfill vote tally counts from Voeten et al. Harvard Dataverse** —
-  Only 788 of 10,263 GA votes (7.7%) currently have `yes_count`/`no_count`/
-  `abstain_count` populated (UNDL CSV only covers recent recorded votes).
-  The Voeten et al. UN GA Voting Data (doi:10.7910/DVN/LEJUQZ) covers all
-  GA recorded votes from 1946–present with per-resolution tally counts.
-  Write `scripts/import_harvard_ga_votes.py` to download the dataset,
-  match rows to existing `votes` via `resolutions.adopted_symbol`, and
-  backfill NULL tally columns.  Matching logic mirrors what
-  `compute_ideal_points.py` already does for the same dataset.
+- [x] **Backfill vote tally counts from Voeten et al. Harvard Dataverse** —
+  `scripts/import_harvard_ga_votes.py` reads the cached `ga_voting.csv`
+  (Voeten et al., doi:10.7910/DVN/LEJUQZ) and backfills `yes_count`,
+  `no_count`, `abstain_count`, `total_non_voting`, `total_ms` for GA votes.
+  Coverage improved from 788/10,263 (7.7%) to 6,310/10,263 (61.5%).
+  Remaining 3,953 are older resolutions absent from the Voeten dataset.
+  Matching: votes.undl_id → resolutions.undl_id → adopted_symbol.
 
 - [x] **Ideal point estimation** — `scripts/compute_ideal_points.py`
   implements a cross-sectional 2PL probit IRT model (Bailey, Strezhnev &

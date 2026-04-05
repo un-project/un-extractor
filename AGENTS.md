@@ -49,6 +49,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_sc_debates.py             # 106k SC speeches 1995-2020 (Schönfeld et al.)
         import_gdebate_corpus.py         # General Debate full-text corpus (sessions 1–80)
         import_ga_resolution_texts.py    # fetch GA resolution full texts from UN Documents API
+        import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset
         compute_ideal_points.py          # per-country per-year IRT ideal points (BSV 2017)
         generate_unbis_mapping.py        # dev tool: regenerate src/extraction/unbis_subjects.py
 
@@ -98,6 +99,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_sc_debates.py --db ...               # 106k SC speeches 1995-2020 (452 MB tar)
     python scripts/import_gdebate_corpus.py --db ...           # General Debate full texts (run after import_undl_general_debate)
     python scripts/import_ga_resolution_texts.py --db ...      # GA resolution full texts (run after import_undl_ga_resolutions)
+    python scripts/import_harvard_ga_votes.py --db ...         # backfill GA vote tally counts (run after import_undl_votes)
 
     # Compute ideal points (requires numpy + scipy; run after import_undl_votes)
     python scripts/compute_ideal_points.py --db postgresql://user:pass@host/db

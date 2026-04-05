@@ -265,6 +265,28 @@ that is sufficient for the following analytical features.
   Remaining 3,953 are older resolutions absent from the Voeten dataset.
   Matching: votes.undl_id → resolutions.undl_id → adopted_symbol.
 
+- [ ] **Import Voeten resolution-level metadata (importantvote + issue codes)** —
+  The Voeten et al. dataset (doi:10.7910/DVN/LEJUQZ) includes two resolution-level
+  variables not in the UNDL CSV that would meaningfully enrich the DB:
+
+  - `importantvote` (0/1): high-salience votes, widely used in IR research to
+    filter out procedural/routine resolutions.  Add `resolutions.important_vote
+    BOOLEAN` and populate it.  Enables the website to highlight significant votes
+    and lets researchers exclude routine votes from analysis.
+
+  - Issue area flags (6 binary columns per resolution):
+    `me` (Palestine/Israel), `nu` (nuclear weapons), `co` (colonialism),
+    `hr` (human rights), `ec` (economic development), `di` (arms control).
+    Add `resolutions.issue_me`, `issue_nu`, `issue_co`, `issue_hr`, `issue_ec`,
+    `issue_di` BOOLEAN columns.  Enables issue-specific ideal point estimation
+    (e.g. ideal points on human rights votes only) and issue-based filtering on
+    the website.
+
+  Requires downloading the Voeten dataset separately (different file from the
+  UNDL CSV) and a new `scripts/import_voeten_resolution_meta.py` script.
+  Matching key: join via `rcid` + `session` or via `adopted_symbol`.
+  Run after `import_undl_votes.py`.
+
 - [x] **Ideal point estimation** — `scripts/compute_ideal_points.py`
   implements a cross-sectional 2PL probit IRT model (Bailey, Strezhnev &
   Voeten 2017) estimated per year via L-BFGS-B with analytical gradients.

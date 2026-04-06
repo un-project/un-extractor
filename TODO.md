@@ -14,10 +14,6 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ---
 
-## Metadata
-
----
-
 ## Pipeline robustness
 
 - [ ] **Retry on LLM failure** — The LLM enrichment phase catches all exceptions and logs
@@ -45,38 +41,6 @@ Open tasks and known limitations for the un-extractor pipeline.
   speaker, which is correct; but two different delegates with the same name from the same
   country are silently merged. Consider adding a secondary check on first-seen meeting date
   or exposing duplicates as a data-quality report.
-
----
-
-## Country data quality
-
-- [x] **Automate post-import cleanup** — `fix_country_duplicates.py` is now called
-  automatically at the end of `import_json_to_db.py` and `import_undl_votes.py`.
-
-- [x] **Data quality report** — `fix_country_duplicates.py --report` prints a
-  three-section summary: countries with no iso3 (sorted by speech+vote usage),
-  unrecognised names that are candidates for new alias entries, and official member
-  states missing an iso3 code.
-
-- [x] **Detect new garbled names automatically** — `fix_country_duplicates.py --report`
-  section 4 applies four heuristics (short ≤5 chars, starts-non-letter, has-digit, long
-  >40 chars) to no-iso3 rows and prints each row with its triggered flags, so new OCR
-  artifacts are visible without scanning the full list.
-
----
-
-## Testing
-
-- [x] **Tests for `fix_country_duplicates.py`** — 20 unit tests in
-  `tests/test_fix_country_duplicates.py` cover: rename in-place, merge with iso3
-  transfer, merge where canonical already has iso3, speaker move/deduplication,
-  country-vote move/deduplication, all junk-deletion cases, savepoint rollback on
-  error, and the `--dry-run` flag.
-
-- [x] **Tests for `normalize_country_name`** — `tests/test_normalize_country_name.py`
-  parametrises over every `_ALIASES` entry (295 cases auto-derived from the table) plus
-  20 tests for preprocessing (hyphen-space collapse, ALL-CAPS, \x08 artefacts, leading
-  punctuation, trailing procedural text) and edge cases.
 
 ---
 
@@ -135,74 +99,6 @@ structured to consume but that the pipeline does not yet extract.
   would make it easy to see which sessions are still missing speech content
   and prioritise PDF processing.
 
-- [x] **Subject taxonomy normalisation** — `src/extraction/subject_aliases.py`
-  provides `normalize_subject(subjects)`, which maps raw pipe-separated DHL
-  subject strings to one of the 18 canonical UNBIS scheme names.  Lookup
-  layers: (1) `classify_unbis()` against 7,245 UNBIS labels, (2) `_ALIASES`
-  dict of curated DHL-specific entries (acronyms, UN operations, inter-org
-  names), (3) prefix/suffix rules for systematic patterns.  Coverage: 99.8 %
-  of tag occurrences; both `import_undl_votes.py` and
-  `import_undl_ga_resolutions.py` now use `normalize_subject()`.  Existing
-  `resolutions.category` rows from the old hand-coded 12-category scheme will
-  need a one-time migration to UNBIS scheme names.
-
----
-
-## CR-UNSC integration
-
-- [x] **Verify CR-UNSC filename conventions** — Confirmed via zip central
-  directory (HTTP range request, no full download): all 2742 files follow
-  `S_RES_NNNN_YYYY_MeetingRec_EN.pdf` (resolution-indexed, not PV-indexed).
-  Regex and dest path updated accordingly; files land at
-  `sc/{year}/pv/document_rNNNN.pdf`.
-
-- [x] **GraphML node format** — Confirmed: nodes carry `<data key="v_symbol">`
-  with the full UNDL symbol; edges carry `<data key="e_weight">`.  Parser
-  updated accordingly.
-
-- [x] **Run import pipeline end-to-end** — Completed: 14,157 citation edges
-  inserted; `full_text` populated for matching SC resolutions.
-
-- [x] **Back-fill `cited_id` for GA resolutions** — `_build_symbol_index`
-  now indexes all resolutions (SC + GA).  For GA rows stored without the
-  `A/RES/` prefix (e.g. `"64/293"`), a prefixed alias (`"A/RES/64/293"`)
-  is added so CR-UNSC GraphML symbols resolve correctly.
-
----
-
-## DHL supplementary datasets
-
-- [x] **UN Member States** — `scripts/import_undl_member_states.py` enriches
-  `countries` with `m49`, `un_member_since`, and `un_member_end` from the DHL
-  Member States CSV.
-
-- [x] **GA Resolution metadata** — `scripts/import_undl_ga_resolutions.py`
-  upserts title, subjects, agenda_title, committee_report, undl_id, and
-  undl_link for all 20,761 GA resolutions (including consensus ones absent
-  from the voting CSV).
-
-- [x] **Permanent Representatives & SC Representatives** —
-  `scripts/import_undl_representatives.py` populates `permanent_representatives`
-  and `sc_representatives` tables with historical ambassador and SC delegate
-  records; best-effort speaker matching by last name.
-
-- [x] **Speaker matching quality (representatives)** — `src/extraction/
-  speaker_matching.py` provides `find_speaker_id()` with three layers:
-  (1) exact match on display name, (2) salutation + last word
-  (e.g. `"Mr. Smith"`), (3) last-word ilike substring.  All layers are tried
-  for each alternative name (pipe-separated from CSV) before moving on.
-  Both `import_undl_representatives.py` and `import_undl_general_debate.py`
-  now use this shared matcher.
-
-- [x] **UN Thesaurus (UNBIS)** — `src/extraction/unbis_subjects.py` provides
-  `classify_unbis(subjects)` mapping raw pipe-separated DHL subject strings
-  to one of 18 canonical UNBIS scheme names (e.g. "POLITICAL AND LEGAL
-  QUESTIONS").  Generated by `scripts/generate_unbis_mapping.py` from the
-  UNBIS SKOS/Turtle file (7,245 English label mappings, 18 schemes).
-  Prerequisite for the subject taxonomy normalisation TODO item: the
-  `classify_unbis()` function replaces the hand-coded keyword rules in
-  `vote_categories.py` once alias coverage is sufficient.
-
 - [ ] **Website: Ambassador profiles** — The `permanent_representatives` and
   `sc_representatives` tables are populated.  The website needs a
   "Representatives" tab on country profiles showing who represented the country
@@ -212,58 +108,11 @@ structured to consume but that the pipeline does not yet extract.
 
 ---
 
-## General Debate speeches
-
-- [x] **Import General Debate metadata** — `scripts/import_undl_general_debate.py`
-  downloads the DHL General Debate dataset (sessions 1–79, 1946–2024) and
-  populates `general_debate_entries` + sets `documents.is_general_debate`.
-
-- [x] **Speaker matching quality** — Resolved by `src/extraction/speaker_matching.py`
-  (shared with representatives importer).  Three lookup layers per candidate name
-  (primary + all pipe-separated alternatives).
-
-- [x] **General Debate full-text corpus** — `scripts/import_gdebate_corpus.py`.
-  Harvard Dataverse, doi:10.7910/DVN/0TJX8Y (v14, March 2026).  11,141
-  speeches, sessions 1–80 (1946–2025), one `.txt` per speech named
-  `{ISO3}_{session}_{year}.txt`.  Adds `text TEXT` column to
-  `general_debate_entries` and populates it by matching on
-  `(ga_session, country.iso3)`.  Run after `import_undl_general_debate.py`.
-
-- [x] **SC Debates corpus (Schönfeld et al.)** — `scripts/import_sc_debates.py`.
-  Harvard Dataverse, CC0,
-  doi:10.7910/DVN/KGVSYH (v6.1, Feb 2025).  106,302 SC speeches from
-  6,233 meetings, 1995–2020.  Files: `meta.tsv` (meeting metadata),
-  `speaker.tsv` (speech-level metadata), `speeches.tar` (one .txt per
-  speech).  Meeting symbols (`S/PV.XXXX`) map directly to `documents.symbol`;
-  importing would bulk-populate `speeches.text` for SC meetings not yet
-  processed from PDF — covering 25 years without the 2.1 GB PDF download.
-  Strictly preferable to `import_crUnsc_pdfs.py` for the 1995–2020 window.
-  Reference: https://arxiv.org/abs/1906.10969
-
-- [x] **Website: General Debate section** — Live at un-project.org/debate/.
-  The index page lists all 79 sessions with address counts and a country
-  filter.  Each session page (e.g. /debate/79/) lists all speakers with date,
-  country, name, salutation, and UNDL source link.  Country profiles
-  (e.g. /country/USA/) include a "General Debate" tab showing every session
-  the country participated in.  Remaining gap: speech full-text is not yet
-  displayed on the site (corpus text is stored in `general_debate_entries.text`
-  but no detail/speech page exists yet).
-
----
-
 ## Voting analytics & geopolitics
 
 The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
 a complete `(country, resolution, vote_position, date)` record from 1946–2026
 that is sufficient for the following analytical features.
-
-- [x] **Backfill vote tally counts from Voeten et al. Harvard Dataverse** —
-  `scripts/import_harvard_ga_votes.py` reads the cached `ga_voting.csv`
-  (Voeten et al., doi:10.7910/DVN/LEJUQZ) and backfills `yes_count`,
-  `no_count`, `abstain_count`, `total_non_voting`, `total_ms` for GA votes.
-  Coverage improved from 788/10,263 (7.7%) to 6,310/10,263 (61.5%).
-  Remaining 3,953 are older resolutions absent from the Voeten dataset.
-  Matching: votes.undl_id → resolutions.undl_id → adopted_symbol.
 
 - [ ] **Import Voeten resolution-level metadata (importantvote + issue codes)** —
   The Voeten et al. dataset (doi:10.7910/DVN/LEJUQZ) includes two resolution-level
@@ -287,41 +136,17 @@ that is sufficient for the following analytical features.
   Matching key: join via `rcid` + `session` or via `adopted_symbol`.
   Run after `import_undl_votes.py`.
 
-- [x] **Ideal point estimation** — `scripts/compute_ideal_points.py`
-  implements a cross-sectional 2PL probit IRT model (Bailey, Strezhnev &
-  Voeten 2017) estimated per year via L-BFGS-B with analytical gradients.
-  θ_USA = 0 in all years; positive = more aligned with USA.  Abstentions
-  treated as missing; L2 regularisation (λ=0.1) stabilises estimation.
-  Standard errors from the diagonal Fisher information.  Output stored in
-  `country_ideal_points (country_id, iso3, year, ideal_point, se)`.
-  Runtime: ~3 minutes for all 80 sessions (1946–2025).
-
 - [ ] **Data-driven bloc detection** — Compute a pairwise voting-agreement
   matrix per year and apply hierarchical or spectral clustering to recover
   voting blocs automatically, rather than the hardcoded `coalitions.py` list
   in the website.  Store results in a `voting_blocs (country_id, year, bloc)`
   table.  Use rolling 5-year windows to detect gradual realignments.
 
-- [x] **Alignment time series** — `scripts/compute_alignment_series.py`
-  computes pairwise yearly agreement rates from GA recorded votes and stores
-  them in `country_alignment_series (country_id_a, country_id_b, year,
-  agreement_rate, n_votes)`.  Non-voting ballots excluded; pairs with fewer
-  than 10 co-votes in a year are dropped.  Enables the website to chart how
-  any two countries' voting alignment has evolved (e.g. post-1991, post-2022
-  Ukraine fractures).  Run after `import_undl_votes.py`.
-
 - [ ] **Vote prediction model** — Train a gradient-boosting classifier to
   predict a country's vote (yes/no/abstain) on a resolution given: the
   country's recent ideal point, resolution category/subjects, and sponsoring
   region.  Useful both as a research tool and for flagging anomalous votes
   (country broke from expected pattern).
-
-- [x] **P5 veto tracking** — `scripts/import_sc_vetoes.py` downloads the
-  DPPA-SCVETOES dataset (UN Peace & Security Data Hub, HDX) and populates two
-  new tables: ``vetoes`` (one row per vetoed draft, linked to ``documents`` where
-  available) and ``veto_countries`` (one row per vetoing P5 country).  Coverage:
-  271 vetoes, 1946–2025.  Breakdown: RUS 161, USA 95, GBR 32, CHN 21, FRA 18.
-  Cached in ``data/dppa/``.
 
 ---
 

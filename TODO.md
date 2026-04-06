@@ -302,12 +302,13 @@ that is sufficient for the following analytical features.
   in the website.  Store results in a `voting_blocs (country_id, year, bloc)`
   table.  Use rolling 5-year windows to detect gradual realignments.
 
-- [ ] **Alignment time series** — For each country pair, compute yearly
-  agreement rate → time series.  Store in a `country_alignment_series
-  (country_id_a, country_id_b, year, agreement_rate)` table.  Enables the
-  website to show a chart of how any two countries' voting alignment has
-  evolved, and to surface inflection points (e.g. post-1991, post-2022
-  Ukraine fractures).
+- [x] **Alignment time series** — `scripts/compute_alignment_series.py`
+  computes pairwise yearly agreement rates from GA recorded votes and stores
+  them in `country_alignment_series (country_id_a, country_id_b, year,
+  agreement_rate, n_votes)`.  Non-voting ballots excluded; pairs with fewer
+  than 10 co-votes in a year are dropped.  Enables the website to chart how
+  any two countries' voting alignment has evolved (e.g. post-1991, post-2022
+  Ukraine fractures).  Run after `import_undl_votes.py`.
 
 - [ ] **Vote prediction model** — Train a gradient-boosting classifier to
   predict a country's vote (yes/no/abstain) on a resolution given: the

@@ -385,6 +385,32 @@ Options:
 | `--dry-run` | Match and log without writing to the database |
 | `--verbose` | Enable DEBUG logging |
 
+### Compute voting-alignment time series
+
+`scripts/compute_alignment_series.py` computes pairwise yearly voting-alignment
+rates between every country pair from GA recorded votes and stores them in
+`country_alignment_series`. For each (country A, country B, year) triple it
+computes the fraction of resolutions where both countries cast the same vote
+(yes/no/abstain). Non-voting ballots are excluded; pairs with fewer than 10
+co-votes in a year are dropped.
+
+```bash
+python scripts/compute_alignment_series.py --db postgresql://user:pass@localhost/undb
+```
+
+Run after `import_undl_votes.py`. The table is populated incrementally —
+re-running is safe (`ON CONFLICT DO UPDATE`).
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--year YYYY` | Recompute a single year |
+| `--min-votes N` | Minimum co-votes to store a pair (default: 10) |
+| `--dry-run` | Compute counts without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
 ### Compute country ideal points
 
 `scripts/compute_ideal_points.py` implements the Bailey, Strezhnev & Voeten (2017)

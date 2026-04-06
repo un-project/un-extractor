@@ -329,6 +329,37 @@ Options:
 
 Downloaded files are cached in `data/sc_debates/`.
 
+### Import SC veto data
+
+`scripts/import_sc_vetoes.py` downloads the DPPA-SCVETOES dataset from the
+UN Peace & Security Data Hub (via Humanitarian Data Exchange) and populates
+two new tables:
+
+- `vetoes` — one row per vetoed SC draft resolution (draft symbol, date,
+  meeting symbol, agenda, link to `documents` where available)
+- `veto_countries` — one row per vetoing P5 country per veto event
+
+Coverage: 271 vetoes, 1946–present. Vetoed drafts never appear in the UNDL
+voting CSV (they were never adopted), so this dataset is the only source for
+this data.
+
+```bash
+python scripts/import_sc_vetoes.py --db postgresql://user:pass@localhost/undb
+```
+
+Run after `import_undl_votes.py` so that `documents` stub rows already exist
+for linking. Downloaded file is cached in `data/dppa/`.
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--csv PATH` | Use a local CSV instead of downloading |
+| `--download` | Force re-download even if cached file exists |
+| `--dry-run` | Parse and log without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
 ### Backfill GA vote tally counts
 
 The UNDL voting CSV only populates yes/no/abstain tally counts for recent

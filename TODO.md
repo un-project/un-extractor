@@ -315,11 +315,12 @@ that is sufficient for the following analytical features.
   region.  Useful both as a research tool and for flagging anomalous votes
   (country broke from expected pattern).
 
-- [ ] **P5 veto tracking** — SC vetoed draft resolutions never become
-  resolutions, so they are absent from the UNDL CSV.  They are documented in
-  the UN Journal and the Security Council Report.  A separate scraper/import
-  for veto data would complete the SC picture and enable veto-pattern analysis
-  on the website.
+- [x] **P5 veto tracking** — `scripts/import_sc_vetoes.py` downloads the
+  DPPA-SCVETOES dataset (UN Peace & Security Data Hub, HDX) and populates two
+  new tables: ``vetoes`` (one row per vetoed draft, linked to ``documents`` where
+  available) and ``veto_countries`` (one row per vetoing P5 country).  Coverage:
+  271 vetoes, 1946–2025.  Breakdown: RUS 161, USA 95, GBR 32, CHN 21, FRA 18.
+  Cached in ``data/dppa/``.
 
 ---
 

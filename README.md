@@ -329,6 +329,39 @@ Options:
 
 Downloaded files are cached in `data/sc_debates/`.
 
+### Import Voeten resolution metadata
+
+`scripts/import_voeten_resolution_meta.py` downloads `roll_calls.csv` and
+`issues.csv` from the TidyTuesday / unvotes package (Voeten, Strezhnev &
+Bailey, CC0) and populates seven new BOOLEAN columns on the `resolutions`
+table:
+
+| Column | Meaning |
+|---|---|
+| `important_vote` | High-salience vote (Voeten coding) |
+| `issue_me` | Palestinian conflict |
+| `issue_nu` | Nuclear weapons / material |
+| `issue_co` | Colonialism |
+| `issue_hr` | Human rights |
+| `issue_ec` | Economic development |
+| `issue_di` | Arms control / disarmament |
+
+```bash
+python scripts/import_voeten_resolution_meta.py --db postgresql://user:pass@localhost/undb
+```
+
+Coverage: 4,149 resolutions (1946–2019). Columns default to NULL for
+resolutions outside this range. Downloaded files are cached in `data/voeten/`.
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--download` | Force re-download even if cached files exist |
+| `--dry-run` | Match and log without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
 ### Import SC veto data
 
 `scripts/import_sc_vetoes.py` downloads the DPPA-SCVETOES dataset from the

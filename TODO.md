@@ -114,27 +114,13 @@ The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
 a complete `(country, resolution, vote_position, date)` record from 1946–2026
 that is sufficient for the following analytical features.
 
-- [ ] **Import Voeten resolution-level metadata (importantvote + issue codes)** —
-  The Voeten et al. dataset (doi:10.7910/DVN/LEJUQZ) includes two resolution-level
-  variables not in the UNDL CSV that would meaningfully enrich the DB:
-
-  - `importantvote` (0/1): high-salience votes, widely used in IR research to
-    filter out procedural/routine resolutions.  Add `resolutions.important_vote
-    BOOLEAN` and populate it.  Enables the website to highlight significant votes
-    and lets researchers exclude routine votes from analysis.
-
-  - Issue area flags (6 binary columns per resolution):
-    `me` (Palestine/Israel), `nu` (nuclear weapons), `co` (colonialism),
-    `hr` (human rights), `ec` (economic development), `di` (arms control).
-    Add `resolutions.issue_me`, `issue_nu`, `issue_co`, `issue_hr`, `issue_ec`,
-    `issue_di` BOOLEAN columns.  Enables issue-specific ideal point estimation
-    (e.g. ideal points on human rights votes only) and issue-based filtering on
-    the website.
-
-  Requires downloading the Voeten dataset separately (different file from the
-  UNDL CSV) and a new `scripts/import_voeten_resolution_meta.py` script.
-  Matching key: join via `rcid` + `session` or via `adopted_symbol`.
-  Run after `import_undl_votes.py`.
+- [x] **Import Voeten resolution-level metadata (importantvote + issue codes)** —
+  `scripts/import_voeten_resolution_meta.py` downloads `roll_calls.csv` and
+  `issues.csv` from the TidyTuesday / unvotes package (Voeten et al., CC0)
+  and populates 7 new BOOLEAN columns on `resolutions`: `important_vote` and
+  `issue_me/nu/co/hr/ec/di`.  Coverage: 4,149 of 6,202 roll calls matched
+  (1946–2019); 347 important votes; issue counts: me=896, nu=580, co=564,
+  hr=773, ec=492, di=779.  Cached in `data/voeten/`.
 
 - [ ] **Data-driven bloc detection** — Compute a pairwise voting-agreement
   matrix per year and apply hierarchical or spectral clustering to recover

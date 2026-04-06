@@ -25,6 +25,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         crUnsc/         # cached CR-UNSC zips (downloaded on first import)
         sc_debates/     # cached SC Debates corpus files (downloaded on first import)
         dppa/           # cached DPPA-SCVETOES CSV (downloaded on first import)
+        voeten/         # cached Voeten roll_calls.csv and issues.csv
 
     src/
         pdf/            # Phase 1: text extraction and cleaning
@@ -50,6 +51,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_sc_debates.py             # 106k SC speeches 1995-2020 (Schönfeld et al.)
         import_gdebate_corpus.py         # General Debate full-text corpus (sessions 1–80)
         import_ga_resolution_texts.py    # fetch GA resolution full texts from UN Documents API
+        import_voeten_resolution_meta.py # importantvote flag + issue area codes (Voeten et al.)
         import_sc_vetoes.py              # SC veto data 1946–present (DPPA-SCVETOES, HDX)
         import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset
         compute_alignment_series.py      # pairwise country voting-alignment time series
@@ -102,6 +104,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_sc_debates.py --db ...               # 106k SC speeches 1995-2020 (452 MB tar)
     python scripts/import_gdebate_corpus.py --db ...           # General Debate full texts (run after import_undl_general_debate)
     python scripts/import_ga_resolution_texts.py --db ...      # GA resolution full texts (run after import_undl_ga_resolutions)
+    python scripts/import_voeten_resolution_meta.py --db ...   # importantvote + issue codes (run after import_undl_votes)
     python scripts/import_sc_vetoes.py --db ...                # SC veto data 1946–present (run after import_undl_votes)
     python scripts/compute_alignment_series.py --db ...        # pairwise alignment time series (run after import_undl_votes)
     python scripts/import_harvard_ga_votes.py --db ...         # backfill GA vote tally counts (run after import_undl_votes)

@@ -79,11 +79,6 @@ structured to consume but that the pipeline does not yet extract.
   ``--sample`` to run against the 30-file GitHub subset without downloading.
   Tested: 30 drafts, 308 sponsor rows (300/308 country_id matched).
 
-- [ ] **GA resolution full text** — CR-UNSC covers only SC resolutions.  GA
-  resolution texts are available via the UN Digital Library OAI-PMH or
-  undocs.org.  Fetching and storing them in `resolutions.full_text` would extend
-  full-text search and the resolution detail page to the full GA dataset (~4,000
-  adopted resolutions).
 
 - [ ] **Extraction coverage report** — The DB contains thousands of stub
   `documents` rows (created by `import_undl_votes.py`) for meetings not yet

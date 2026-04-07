@@ -51,6 +51,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_sc_debates.py             # 106k SC speeches 1995-2020 (Schönfeld et al.)
         import_gdebate_corpus.py         # General Debate full-text corpus (sessions 1–80)
         import_ga_resolution_texts.py    # fetch GA resolution full texts from UN Documents API
+        import_unbench_sc_drafts.py      # SC draft texts + co-sponsorship (UNBench, MIT)
         import_voeten_resolution_meta.py # importantvote flag + issue area codes (Voeten et al.)
         import_sc_vetoes.py              # SC veto data 1946–present (DPPA-SCVETOES, HDX)
         import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset

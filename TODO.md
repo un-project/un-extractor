@@ -69,22 +69,15 @@ structured to consume but that the pipeline does not yet extract.
   `explanation_of_vote`, `procedural`) and surfaced as a dedicated section on
   the resolution detail page — the most policy-relevant content about any vote.
 
-- [ ] **SC draft resolution texts (UNBench)** — The UNBench dataset
-  (https://github.com/yueqingliang1/UNBench, MIT license) includes full texts
-  of SC draft resolutions (1994–2024) in JSON format, including *rejected*
-  drafts that never became resolutions and are therefore absent from the UNDL
-  voting CSV.  The JSON `ID` field maps to `resolutions.draft_symbol`
-  (e.g. `S/2023/970`).  The full dataset is on Google Drive (linked in the
-  README); the 30-sample repo subset confirms the schema.  If the full dataset
-  is accessible, import draft texts into a new `resolutions.draft_text TEXT`
-  column.  This also enables the co-sponsorship item below since the JSON
-  includes an `Authors` list per draft.
-
-- [ ] **Co-sponsorship from UNBench drafts** — Each UNBench draft JSON has an
-  `Authors` list of sponsoring countries.  Once draft texts are imported,
-  extract these into a `resolution_sponsors (resolution_id, country_id)` table.
-  This is complementary to the speech-based co-sponsorship extraction (which
-  covers GA and older SC sessions not in UNBench).
+- [x] **SC draft resolution texts + co-sponsorship (UNBench)** —
+  `scripts/import_unbench_sc_drafts.py` processes UNBench JSON files and
+  populates `resolutions.draft_text` (new column) and the new
+  `resolution_sponsors (resolution_id, country_id, country_name)` table.
+  Creates stub `resolutions` rows for rejected/vetoed drafts not in the DB.
+  Full dataset (~3,000 drafts, 1994–2024) requires manual download from
+  Google Drive (see https://github.com/yueqingliang1/UNBench).  Use
+  ``--sample`` to run against the 30-file GitHub subset without downloading.
+  Tested: 30 drafts, 308 sponsor rows (300/308 country_id matched).
 
 - [ ] **GA resolution full text** — CR-UNSC covers only SC resolutions.  GA
   resolution texts are available via the UN Digital Library OAI-PMH or

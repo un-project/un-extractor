@@ -329,6 +329,42 @@ Options:
 
 Downloaded files are cached in `data/sc_debates/`.
 
+### Import SC draft resolution texts (UNBench)
+
+`scripts/import_unbench_sc_drafts.py` processes JSON files from the UNBench
+dataset (Liang et al., MIT license) and populates:
+
+- `resolutions.draft_text` — full draft resolution text (new column)
+- `resolution_sponsors` — co-sponsoring countries per resolution (new table)
+
+For rejected/vetoed drafts not yet in the DB, a stub `resolutions` row is
+created automatically.
+
+**Full dataset** (~3,000 SC drafts, 1994–2024) must be downloaded manually
+from Google Drive — see https://github.com/yueqingliang1/UNBench for the link.
+Once downloaded and extracted, point the script at the directory:
+
+```bash
+python scripts/import_unbench_sc_drafts.py --data-dir /path/to/unbench/ --db postgresql://user:pass@localhost/undb
+```
+
+**30-file sample** (no manual download needed, for testing):
+
+```bash
+python scripts/import_unbench_sc_drafts.py --sample --db postgresql://user:pass@localhost/undb
+```
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--db URL` | Database URL (overrides `DATABASE_URL`) |
+| `--data-dir PATH` | Directory of UNBench JSON files (full dataset) |
+| `--sample` | Download and use the 30-file GitHub subset |
+| `--download` | Force re-download of sample files (with `--sample`) |
+| `--dry-run` | Parse and log without writing to the database |
+| `--verbose` | Enable DEBUG logging |
+
 ### Import Voeten resolution metadata
 
 `scripts/import_voeten_resolution_meta.py` downloads `roll_calls.csv` and

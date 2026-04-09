@@ -85,12 +85,10 @@ structured to consume but that the pipeline does not yet extract.
   `--body GA/SC`, `--csv FILE`, `--db URL`.  A document is counted as
   *extracted* when it has at least one row in `speeches`.
 
-- [ ] **Website: Ambassador profiles** — The `permanent_representatives` and
-  `sc_representatives` tables are populated.  The website needs a
-  "Representatives" tab on country profiles showing who represented the country
-  and when, with links to their UNDL record.  The tab header already appears
-  in country profiles (e.g. un-project.org/country/USA/) but the content is
-  not yet rendered.
+- [x] **Website: Ambassador profiles** — The "Representatives" tab is live on
+  country profiles (e.g. un-project.org/country/USA/), backed by the
+  `/api/countries/{iso}/representatives/` endpoint.  467 reps for USA with
+  names, speaker links, and tenure years.
 
 ---
 

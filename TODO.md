@@ -69,27 +69,6 @@ structured to consume but that the pipeline does not yet extract.
   `explanation_of_vote`, `procedural`) and surfaced as a dedicated section on
   the resolution detail page — the most policy-relevant content about any vote.
 
-- [x] **SC draft resolution texts + co-sponsorship (UNBench)** —
-  `scripts/import_unbench_sc_drafts.py` processes UNBench JSON files and
-  populates `resolutions.draft_text` (new column) and the new
-  `resolution_sponsors (resolution_id, country_id, country_name)` table.
-  Creates stub `resolutions` rows for rejected/vetoed drafts not in the DB.
-  Full dataset (~3,000 drafts, 1994–2024) requires manual download from
-  Google Drive (see https://github.com/yueqingliang1/UNBench).  Use
-  ``--sample`` to run against the 30-file GitHub subset without downloading.
-  Tested: 30 drafts, 308 sponsor rows (300/308 country_id matched).
-
-
-- [x] **Extraction coverage report** — `scripts/coverage_report.py` prints
-  per-body/session counts of extracted vs. stub-only documents.  Supports
-  `--body GA/SC`, `--csv FILE`, `--db URL`.  A document is counted as
-  *extracted* when it has at least one row in `speeches`.
-
-- [x] **Website: Ambassador profiles** — The "Representatives" tab is live on
-  country profiles (e.g. un-project.org/country/USA/), backed by the
-  `/api/countries/{iso}/representatives/` endpoint.  467 reps for USA with
-  names, speaker links, and tenure years.
-
 ---
 
 ## Voting analytics & geopolitics
@@ -97,14 +76,6 @@ structured to consume but that the pipeline does not yet extract.
 The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
 a complete `(country, resolution, vote_position, date)` record from 1946–2026
 that is sufficient for the following analytical features.
-
-- [x] **Import Voeten resolution-level metadata (importantvote + issue codes)** —
-  `scripts/import_voeten_resolution_meta.py` downloads `roll_calls.csv` and
-  `issues.csv` from the TidyTuesday / unvotes package (Voeten et al., CC0)
-  and populates 7 new BOOLEAN columns on `resolutions`: `important_vote` and
-  `issue_me/nu/co/hr/ec/di`.  Coverage: 4,149 of 6,202 roll calls matched
-  (1946–2019); 347 important votes; issue counts: me=896, nu=580, co=564,
-  hr=773, ec=492, di=779.  Cached in `data/voeten/`.
 
 - [ ] **Data-driven bloc detection** — Compute a pairwise voting-agreement
   matrix per year and apply hierarchical or spectral clustering to recover

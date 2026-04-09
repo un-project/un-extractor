@@ -12,6 +12,52 @@ Open tasks and known limitations for the un-extractor pipeline.
   but multi-word names split mid-word (e.g. `"United King- dom"`) may still fail. Audit the
   oldest sessions after a full pipeline rerun.
 
+- [ ] **OCR quality detector** — Add a heuristic score (ratio of alpha tokens that look
+  like real words) to classify whether the embedded text layer in a PDF is usable.
+  A score below ~0.4 signals a stale/garbage OCR layer and should trigger re-OCR.
+  Gate the re-OCR fallback (see below) on this score so it only runs where needed.
+
+- [ ] **Re-OCR with `ocrmypdf` / Tesseract 5** — For PDFs whose quality score is low,
+  bypass the embedded text layer entirely: render each page to a 300 DPI image and
+  re-OCR with `ocrmypdf` (which runs Tesseract 5 + deskew + denoising automatically).
+  `ocrmypdf` can be invoked as a subprocess and produces a new PDF with a clean text
+  layer that feeds the existing PyMuPDF pipeline unchanged.  This is expected to
+  recover most pre-1990 GA and SC sessions.
+
+- [ ] **Vision model fallback for worst-quality pages** — For pages where re-OCR quality
+  is still low (very poor scan, unusual typefaces), fall back to rendering the page as
+  an image and calling Claude Vision to extract text directly.  Claude handles
+  two-column layout natively.  Trigger only as a last resort (expensive: ~$0.01/page).
+
+- [ ] **Image pre-processing before OCR** — Run `opencv` deskew, adaptive binarization
+  (`cv2.adaptiveThreshold`), and denoising (`cv2.fastNlMeansDenoising`) on page images
+  before Tesseract to handle uneven illumination, scanner speckle, and rotated scans.
+  Also strip punch-hole shadows and margin borders that confuse column detection.
+
+- [ ] **ALL-CAPS speaker attribution patterns** — Pre-1985 documents print attributions
+  as `MR. MOLOTOV (Union of Soviet Socialist Republics):`.  The current `_SPEAKER_RE`
+  and `_TITULAR_RE` patterns in `src/structure/detect_sections.py` require mixed-case
+  titles (`Mr.`, `The President`).  Add uppercase-aware variants or make the patterns
+  case-insensitive to recover speaker turns in early GA/SC sessions.
+
+- [ ] **Single-column layout detection** — `src/pdf/extract_text.py` hardcodes a
+  midpoint split assuming two columns.  Very early GA meetings (sessions 1–10, late
+  1940s) used single-column layouts; the split creates two half-empty pseudo-columns
+  and scrambles reading order.  If fewer than ~20 % of blocks have x0 > midpoint,
+  treat the page as single-column and skip the split.
+
+- [ ] **Hyphenation repair across column and page breaks** — Pre-1990 documents typeset
+  running text with end-of-line hyphenation; column and page breaks split words
+  mid-hyphen (e.g. `"recom-\nmendation"`).  A post-OCR pass joining `word-\ncontinuation`
+  tokens (with a dictionary check) would clean up many malformed tokens and improve
+  downstream regex matching.
+
+- [ ] **UN ODS HTML as alternative text source** — The UN Official Document System
+  (`documents.un.org`) sometimes has an HTML or Word-derived rendition of the same
+  verbatim record that is cleaner than the scanned PDF.  A script could fetch the
+  HTML version using the document symbol as the lookup key, score its quality against
+  the PDF-extracted text, and prefer whichever source is better.
+
 ---
 
 ## Pipeline robustness

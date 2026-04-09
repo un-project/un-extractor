@@ -6,7 +6,7 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Extraction accuracy
 
-- [ ] **Scanned-document country vote lists** — Older OCR documents (1970s–1980s) sometimes
+- [x] **Scanned-document country vote lists** — Older OCR documents (1970s–1980s) sometimes
   have country names in vote lists split across lines with hyphen-space breaks (e.g.
   `"Ar- gentina"`). The hyphen-space collapse in `normalize_country_name` handles most cases,
   but multi-word names split mid-word (e.g. `"United King- dom"`) may still fail. Audit the

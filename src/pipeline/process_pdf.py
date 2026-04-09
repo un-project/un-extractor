@@ -178,7 +178,11 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
             current_item_symbols.add(res.draft_symbol)
             elem_pos += 1
 
-    for section in sections:
+    _VOTE_HEADER_RE = re.compile(
+        r"(?:In\s+favour|Against|Abstaining)\s*:", re.IGNORECASE
+    )
+
+    for sec_idx, section in enumerate(sections):
         if section.section_type == "cover":
             continue
 
@@ -255,9 +259,25 @@ def _group_into_items(sections: list[Section]) -> list[DocumentItem]:
                         _last_resolution_header_text,
                     )
                 else:
-                    _try_add_resolution(
-                        section, _following(section), _last_resolution_header_text
-                    )
+                    # Look back: some GA PDFs embed the vote signal and country
+                    # lists inside the preceding speaker_turn section (the
+                    # President's bold name pulls all adjacent italic blocks into
+                    # one section).  If the previous section contains vote headers,
+                    # use its blocks as context rather than the following blocks so
+                    # that country lists from subsequent resolutions don't leak in.
+                    preceding_blocks: list[TextBlock] = []
+                    if sec_idx > 0:
+                        prev = sections[sec_idx - 1]
+                        if any(_VOTE_HEADER_RE.search(b.text) for b in prev.blocks):
+                            preceding_blocks = list(prev.blocks)
+                    if preceding_blocks:
+                        _try_add_resolution(
+                            section, preceding_blocks, _last_resolution_header_text
+                        )
+                    else:
+                        _try_add_resolution(
+                            section, _following(section), _last_resolution_header_text
+                        )
                 _after_vote_signal = False
                 _pending_vote_blocks = []
             elif re.search(

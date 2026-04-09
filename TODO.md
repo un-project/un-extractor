@@ -80,12 +80,10 @@ structured to consume but that the pipeline does not yet extract.
   Tested: 30 drafts, 308 sponsor rows (300/308 country_id matched).
 
 
-- [ ] **Extraction coverage report** — The DB contains thousands of stub
-  `documents` rows (created by `import_undl_votes.py`) for meetings not yet
-  extracted from PDF.  A script (or `--report` flag on `import_json_to_db.py`)
-  that prints per-body/session counts of extracted vs. stub-only documents
-  would make it easy to see which sessions are still missing speech content
-  and prioritise PDF processing.
+- [x] **Extraction coverage report** — `scripts/coverage_report.py` prints
+  per-body/session counts of extracted vs. stub-only documents.  Supports
+  `--body GA/SC`, `--csv FILE`, `--db URL`.  A document is counted as
+  *extracted* when it has at least one row in `speeches`.
 
 - [ ] **Website: Ambassador profiles** — The `permanent_representatives` and
   `sc_representatives` tables are populated.  The website needs a

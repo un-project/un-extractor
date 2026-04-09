@@ -57,6 +57,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset
         compute_alignment_series.py      # pairwise country voting-alignment time series
         compute_ideal_points.py          # per-country per-year IRT ideal points (BSV 2017)
+        coverage_report.py               # extracted vs. stub-only documents per body/session
         generate_unbis_mapping.py        # dev tool: regenerate src/extraction/unbis_subjects.py
 
     tests/

@@ -17,7 +17,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   A score below ~0.4 signals a stale/garbage OCR layer and should trigger re-OCR.
   Gate the re-OCR fallback (see below) on this score so it only runs where needed.
 
-- [ ] **Re-OCR with `ocrmypdf` / Tesseract 5** — For PDFs whose quality score is low,
+- [x] **Re-OCR with `ocrmypdf` / Tesseract 5** — For PDFs whose quality score is low,
   bypass the embedded text layer entirely: render each page to a 300 DPI image and
   re-OCR with `ocrmypdf` (which runs Tesseract 5 + deskew + denoising automatically).
   `ocrmypdf` can be invoked as a subprocess and produces a new PDF with a clean text

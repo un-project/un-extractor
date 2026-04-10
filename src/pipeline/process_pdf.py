@@ -33,7 +33,8 @@ from src.extraction.vote_extractor import (
 from src.models import DocumentItem, MeetingRecord, PresidentInfo, TextBlock
 from src.pdf.clean_text import clean_pages, flatten_blocks, normalize_allcaps
 from src.pdf.extract_text import extract_pages
-from src.pdf.ocr_quality import score_text_quality
+from src.pdf.ocr_quality import POOR_THRESHOLD, score_text_quality
+from src.pdf.reocr import ReocrUnavailable, reocr_context
 from src.structure.detect_sections import Section, detect_sections
 from src.validation.json_validator import validate_record
 
@@ -365,6 +366,7 @@ def process_pdf(
     use_llm: bool = False,
     llm_api_key: str | None = None,
     debug_dir: Path | None = None,
+    use_reocr: bool = True,
 ) -> MeetingRecord:
     """Process one PDF through the full pipeline.
 
@@ -383,6 +385,11 @@ def process_pdf(
     debug_dir:
         If given, intermediate artifacts are written to
         ``debug_dir/<pdf_stem>/`` for post-mortem inspection.
+    use_reocr:
+        When ``True`` (default), automatically re-OCR PDFs whose embedded
+        text quality is below the ``POOR_THRESHOLD``.  Requires ocrmypdf
+        and tesseract to be installed; if they are absent a warning is logged
+        and the original (possibly poor-quality) text is used unchanged.
 
     Returns
     -------
@@ -421,18 +428,67 @@ def process_pdf(
         raw_blocks = flatten_blocks(raw_pages)  # kept for quality scoring
         ocr_result = score_text_quality(raw_blocks)
         log.debug(
-            "OCR quality %s (score=%.3f, alpha_tokens=%d)",
+            "OCR quality %s for %s (score=%.3f, alpha_tokens=%d)",
+            ocr_result.label,
             pdf_path.name,
             ocr_result.score,
             ocr_result.alpha_tokens,
         )
-        if ocr_result.label != "good":
+
+        # Re-OCR if the embedded text layer is poor/unusable and the caller
+        # has not disabled the fallback.
+        if use_reocr and ocr_result.score < POOR_THRESHOLD:
             log.warning(
-                "OCR quality %s for %s (score=%.3f) — re-OCR recommended",
+                "OCR quality %s for %s (score=%.3f) — attempting re-OCR with ocrmypdf",
                 ocr_result.label,
                 pdf_path.name,
                 ocr_result.score,
             )
+            try:
+                with reocr_context(pdf_path) as reocr_path:
+                    reocr_pages = extract_pages(reocr_path)
+                    reocr_blocks = flatten_blocks(reocr_pages)
+                    reocr_result = score_text_quality(reocr_blocks)
+                    log.info(
+                        "Re-OCR quality %s (score %.3f → %.3f) for %s",
+                        reocr_result.label,
+                        ocr_result.score,
+                        reocr_result.score,
+                        pdf_path.name,
+                    )
+                    if reocr_result.score >= ocr_result.score:
+                        # Accept re-OCR'd text if it is at least as good.
+                        raw_pages = reocr_pages
+                        ocr_result = reocr_result
+                        log.debug("Using re-OCR text for %s", pdf_path.name)
+                    else:
+                        log.warning(
+                            "Re-OCR did not improve quality for %s (%.3f → %.3f); "
+                            "keeping original text",
+                            pdf_path.name,
+                            ocr_result.score,
+                            reocr_result.score,
+                        )
+            except ReocrUnavailable as exc:
+                log.warning(
+                    "Re-OCR unavailable for %s: %s — install ocrmypdf and tesseract-ocr",
+                    pdf_path.name,
+                    exc,
+                )
+            except Exception as exc:
+                log.warning(
+                    "Re-OCR failed for %s: %s — falling back to original text",
+                    pdf_path.name,
+                    exc,
+                )
+        elif ocr_result.label != "good":
+            log.warning(
+                "OCR quality %s for %s (score=%.3f)",
+                ocr_result.label,
+                pdf_path.name,
+                ocr_result.score,
+            )
+
         clean = clean_pages(raw_pages)
         blocks = flatten_blocks(clean)
     except Exception as exc:

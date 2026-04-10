@@ -155,6 +155,13 @@ _ADJOURNMENT_RE = re.compile(r"meeting\s+rose", re.IGNORECASE)
 _SILENCE_RE = re.compile(r"minute\s+of\s+silence", re.IGNORECASE)
 _LANGUAGE_NOTE_RE = re.compile(r"^\(spoke\s+in\s+\w+\)\s*$", re.IGNORECASE)
 
+# Document-status labels printed in italic in the page margin of UN documents
+# (e.g. "Provisional", "Advance Copy").  These look like italic text but are
+# NOT stage directions and must not trigger a cover-section boundary.
+_DOC_STATUS_LABEL_RE = re.compile(
+    r"^(Provisional|Advance\s+Copy|Draft)\s*$", re.IGNORECASE
+)
+
 
 # ---------------------------------------------------------------------------
 # Block classification helpers
@@ -246,13 +253,17 @@ def _is_content_boundary(block: TextBlock) -> bool:
         return True
     # Italic text on the cover page (e.g. "The meeting was called to order")
     # should be emitted as a stage_direction, not buried in the cover section.
-    # Exception: SC cover pages use italic for the President and Members roster.
+    # Exception 1: SC cover pages use italic for the President and Members roster.
+    # Exception 2: document-status labels ("Provisional", "Advance Copy") are
+    #   italic margin annotations, not stage directions.
     if block.all_italic or (
         block.italic_start and bool(_ADOPTION_RE.search(block.text.strip()))
     ):
         text = block.text.strip()
         if re.match(r"(?:President|Members)\s*:", text, re.IGNORECASE):
             return False  # cover metadata even if italic (SC cover page)
+        if _DOC_STATUS_LABEL_RE.match(text):
+            return False  # margin label, not a stage direction
         return True
     # Bold heading that doesn't match any known metadata pattern
     if block.bold_start:

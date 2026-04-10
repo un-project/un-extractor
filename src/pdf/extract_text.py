@@ -28,6 +28,14 @@ from src.models import FormattedSegment, TextBlock
 _BOLD_FLAG: int = 0x10
 _ITALIC_FLAG: int = 0x02
 
+# Minimum fraction of text blocks whose left edge (x0) must fall to the
+# right of the page midpoint for the page to be treated as two-column.
+# Very early GA sessions (1–10, late 1940s) used single-column layouts;
+# their blocks are almost all in the left half, so the fraction is near 0.
+# Typical two-column pages have roughly equal numbers of left/right blocks,
+# producing a fraction near 0.5.
+_TWO_COLUMN_MIN_RIGHT_FRACTION: float = 0.20
+
 
 def _is_bold(span: dict[str, Any]) -> bool:
     flags: int = span.get("flags", 0)
@@ -83,31 +91,45 @@ def _block_to_textblock(
 
 
 def _extract_page_blocks(page: Any, page_num: int) -> list[TextBlock]:
-    """Extract ``TextBlock`` objects from one page in two-column reading order."""
+    """Extract ``TextBlock`` objects from one page in correct reading order.
+
+    For two-column pages (the standard UN format) blocks are partitioned at
+    the horizontal midpoint and sorted left-column-first.  For single-column
+    pages (very early GA sessions) all blocks are sorted top-to-bottom without
+    splitting, avoiding the half-empty pseudo-columns that would scramble
+    reading order.
+
+    A page is classified as single-column when fewer than
+    ``_TWO_COLUMN_MIN_RIGHT_FRACTION`` of its text blocks have their left edge
+    (``x0``) to the right of the page midpoint.
+    """
     mid_x: float = page.rect.width / 2.0
     height: float = page.rect.height
 
     raw: dict[str, Any] = page.get_text("dict")
-    all_blocks: list[dict[str, Any]] = raw.get("blocks", [])
+    all_blocks: list[dict[str, Any]] = [
+        b for b in raw.get("blocks", []) if b.get("type") == 0
+    ]
 
-    left_blocks: list[dict[str, Any]] = []
-    right_blocks: list[dict[str, Any]] = []
+    if not all_blocks:
+        return []
 
-    for block in all_blocks:
-        if block.get("type") != 0:
-            continue
-        x0: float = block["bbox"][0]
-        if x0 < mid_x:
-            left_blocks.append(block)
-        else:
-            right_blocks.append(block)
+    right_count: int = sum(1 for b in all_blocks if b["bbox"][0] >= mid_x)
+    right_fraction: float = right_count / len(all_blocks)
 
-    # Sort each column strictly top-to-bottom.
-    left_blocks.sort(key=lambda b: b["bbox"][1])
-    right_blocks.sort(key=lambda b: b["bbox"][1])
+    if right_fraction < _TWO_COLUMN_MIN_RIGHT_FRACTION:
+        # Single-column layout: sort all blocks strictly top-to-bottom.
+        ordered = sorted(all_blocks, key=lambda b: b["bbox"][1])
+    else:
+        # Two-column layout: left column first, then right column.
+        left_blocks = [b for b in all_blocks if b["bbox"][0] < mid_x]
+        right_blocks = [b for b in all_blocks if b["bbox"][0] >= mid_x]
+        left_blocks.sort(key=lambda b: b["bbox"][1])
+        right_blocks.sort(key=lambda b: b["bbox"][1])
+        ordered = left_blocks + right_blocks
 
     result: list[TextBlock] = []
-    for block in left_blocks + right_blocks:
+    for block in ordered:
         tb = _block_to_textblock(block, page_num, height)
         if tb is not None:
             result.append(tb)

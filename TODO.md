@@ -40,7 +40,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   titles (`Mr.`, `The President`).  Add uppercase-aware variants or make the patterns
   case-insensitive to recover speaker turns in early GA/SC sessions.
 
-- [ ] **Single-column layout detection** — `src/pdf/extract_text.py` hardcodes a
+- [x] **Single-column layout detection** — `src/pdf/extract_text.py` hardcodes a
   midpoint split assuming two columns.  Very early GA meetings (sessions 1–10, late
   1940s) used single-column layouts; the split creates two half-empty pseudo-columns
   and scrambles reading order.  If fewer than ~20 % of blocks have x0 > midpoint,

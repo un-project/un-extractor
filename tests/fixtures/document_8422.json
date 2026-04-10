@@ -7,7 +7,7 @@
   "president_name": "Mr. Adom",
   "total_speeches": 12,
   "total_resolutions": 1,
-  "total_stage_directions": 5,
+  "total_stage_directions": 4,
   "items": [
     {
       "position": 0,
@@ -39,8 +39,8 @@
           "no_count": 0,
           "abstain_count": 2,
           "country_votes": {
-            "Plurinational State of Bolivia": "yes",
-            "C\u00f4te d'Ivoire": "yes",
+            "China": "abstain",
+            "Côte d'Ivoire": "yes",
             "Equatorial Guinea": "yes",
             "Ethiopia": "yes",
             "France": "yes",
@@ -48,12 +48,12 @@
             "Kuwait": "yes",
             "Netherlands": "yes",
             "Peru": "yes",
+            "Plurinational State of Bolivia": "yes",
             "Poland": "yes",
+            "Russian Federation": "abstain",
             "Sweden": "yes",
             "United Kingdom of Great Britain and Northern Ireland": "yes",
-            "United States of America": "yes",
-            "China": "abstain",
-            "Russian Federation": "abstain"
+            "United States of America": "yes"
           }
         }
       ]

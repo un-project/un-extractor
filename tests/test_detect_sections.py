@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from src.pipeline.process_pdf import _parse_agenda_header
-from src.structure.detect_sections import _is_agenda_block, _is_speaker_block
+from src.structure.detect_sections import _is_agenda_block, _is_speaker_block, _is_content_boundary
 from src.models import FormattedSegment, TextBlock
 
 # ---------------------------------------------------------------------------
@@ -175,3 +175,31 @@ class TestParseAgendaHeader:
         num, sub, cont, title = _parse_agenda_header("AGENDA ITEM 9 (CONTINUED)")
         assert num == 9
         assert cont is True
+
+
+# ---------------------------------------------------------------------------
+# _is_content_boundary — document status labels are NOT boundaries
+# ---------------------------------------------------------------------------
+
+
+class TestDocumentStatusLabels:
+    """Italic margin labels like 'Provisional' must not stop the cover section."""
+
+    def _italic_block(self, text: str) -> TextBlock:
+        return TextBlock(
+            segments=[FormattedSegment(text=text, bold=False, italic=True)],
+            page_num=0,
+            y0=78.0,
+            x0=502.0,
+        )
+
+    @pytest.mark.parametrize(
+        "text",
+        ["Provisional", "Advance Copy", "Draft", "PROVISIONAL", "advance copy"],
+    )
+    def test_document_label_not_a_boundary(self, text: str) -> None:
+        assert not _is_content_boundary(self._italic_block(text))
+
+    def test_real_stage_direction_is_still_a_boundary(self) -> None:
+        b = self._italic_block("The meeting was called to order at 3 p.m.")
+        assert _is_content_boundary(b)

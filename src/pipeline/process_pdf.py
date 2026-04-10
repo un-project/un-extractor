@@ -33,6 +33,7 @@ from src.extraction.vote_extractor import (
 from src.models import DocumentItem, MeetingRecord, PresidentInfo, TextBlock
 from src.pdf.clean_text import clean_pages, flatten_blocks, normalize_allcaps
 from src.pdf.extract_text import extract_pages
+from src.pdf.ocr_quality import score_text_quality
 from src.structure.detect_sections import Section, detect_sections
 from src.validation.json_validator import validate_record
 
@@ -417,6 +418,21 @@ def process_pdf(
     # --- Phase 1: PDF ingestion ------------------------------------------------
     try:
         raw_pages = extract_pages(pdf_path)
+        raw_blocks = flatten_blocks(raw_pages)  # kept for quality scoring
+        ocr_result = score_text_quality(raw_blocks)
+        log.debug(
+            "OCR quality %s (score=%.3f, alpha_tokens=%d)",
+            pdf_path.name,
+            ocr_result.score,
+            ocr_result.alpha_tokens,
+        )
+        if ocr_result.label != "good":
+            log.warning(
+                "OCR quality %s for %s (score=%.3f) — re-OCR recommended",
+                ocr_result.label,
+                pdf_path.name,
+                ocr_result.score,
+            )
         clean = clean_pages(raw_pages)
         blocks = flatten_blocks(clean)
     except Exception as exc:
@@ -656,6 +672,8 @@ def process_pdf(
             location=location,
             president=president,
             items=items,
+            ocr_quality_score=ocr_result.score,
+            ocr_quality_label=ocr_result.label,
         )
 
         errors = validate_record(record)

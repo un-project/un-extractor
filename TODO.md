@@ -12,7 +12,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   but multi-word names split mid-word (e.g. `"United King- dom"`) may still fail. Audit the
   oldest sessions after a full pipeline rerun.
 
-- [ ] **OCR quality detector** — Add a heuristic score (ratio of alpha tokens that look
+- [x] **OCR quality detector** — Add a heuristic score (ratio of alpha tokens that look
   like real words) to classify whether the embedded text layer in a PDF is usable.
   A score below ~0.4 signals a stale/garbage OCR layer and should trigger re-OCR.
   Gate the re-OCR fallback (see below) on this score so it only runs where needed.

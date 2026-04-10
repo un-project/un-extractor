@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date as _Date  # noqa: F401 – Pydantic resolves this at runtime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, field_validator
 
@@ -176,6 +176,8 @@ class MeetingRecord(BaseModel):
     location: str
     president: PresidentInfo | None = None
     items: list[DocumentItem] = []
+    ocr_quality_score: Optional[float] = None  # [0.0, 1.0]; None if not yet scored
+    ocr_quality_label: Optional[Literal["good", "poor", "unusable"]] = None
 
     @field_validator("symbol")
     @classmethod

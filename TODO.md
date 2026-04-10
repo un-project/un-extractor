@@ -29,7 +29,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   an image and calling Claude Vision to extract text directly.  Claude handles
   two-column layout natively.  Trigger only as a last resort (expensive: ~$0.01/page).
 
-- [ ] **Image pre-processing before OCR** — Run `opencv` deskew, adaptive binarization
+- [x] **Image pre-processing before OCR** — Run `opencv` deskew, adaptive binarization
   (`cv2.adaptiveThreshold`), and denoising (`cv2.fastNlMeansDenoising`) on page images
   before Tesseract to handle uneven illumination, scanner speckle, and rotated scans.
   Also strip punch-hole shadows and margin borders that confuse column detection.

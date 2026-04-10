@@ -4,10 +4,11 @@ When the OCR quality score (``src.pdf.ocr_quality``) falls below
 ``POOR_THRESHOLD``, the embedded text layer is unreliable.  This module
 provides a fallback that:
 
-1. Runs ``ocrmypdf`` (Tesseract 5 + deskew + denoising) on the original PDF.
-2. Produces a new PDF with a clean text layer.
-3. Returns the path so the existing PyMuPDF extraction pipeline can process it
-   unchanged.
+1. Optionally pre-processes each page with OpenCV (border masking, denoising,
+   adaptive binarization) via ``src.pdf.preprocess`` to produce cleaner images.
+2. Runs ``ocrmypdf`` (Tesseract 5 + deskew) on the PDF.
+3. Produces a new PDF with a clean text layer that feeds the existing PyMuPDF
+   extraction pipeline unchanged.
 
 External dependencies (not installed automatically)
 ----------------------------------------------------
@@ -25,6 +26,9 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
+
+from src.pdf.preprocess import is_available as _preprocess_available
+from src.pdf.preprocess import preprocess_pdf
 
 log = logging.getLogger(__name__)
 
@@ -85,6 +89,7 @@ def reocr_pdf(
     deskew: bool = True,
     language: str = "eng",
     jobs: int = 1,
+    preprocess: bool = True,
 ) -> Path:
     """Re-OCR *input_path* and return the path of a new PDF with a clean text layer.
 
@@ -107,6 +112,10 @@ def reocr_pdf(
     jobs:
         Number of Tesseract workers.  Keep at 1 for batch pipeline runs to
         avoid over-subscribing CPU.
+    preprocess:
+        When ``True`` (default) and opencv-python is installed, apply border
+        masking, denoising, and adaptive binarization to each page image before
+        passing the PDF to Tesseract.  Falls back silently if opencv is absent.
 
     Returns
     -------
@@ -138,11 +147,33 @@ def reocr_pdf(
         os.close(fd)
         out_path = Path(tmp)
 
+    # Optionally pre-process page images (border masking, denoising, binarize)
+    # before Tesseract sees them.  The result is an image-only PDF; ocrmypdf
+    # then adds the text layer on top of the cleaner images.
+    ocr_input = input_path
+    if preprocess and _preprocess_available():
+        preprocessed_path = out_path.with_name(out_path.stem + "_prep.pdf")
+        try:
+            preprocess_pdf(input_path, preprocessed_path)
+            ocr_input = preprocessed_path
+            log.debug("Using pre-processed images for OCR: %s", preprocessed_path.name)
+        except Exception as exc:
+            log.warning(
+                "Image pre-processing failed for %s (%s) — using original",
+                input_path.name,
+                exc,
+            )
+    elif preprocess and not _preprocess_available():
+        log.debug(
+            "opencv not available — skipping image pre-processing for %s",
+            input_path.name,
+        )
+
     log.info("Re-OCR: %s → %s", input_path.name, out_path)
 
     try:
         exit_code = ocrmypdf.ocr(
-            input_path,
+            ocr_input,
             out_path,
             language=language,
             force_ocr=True,   # bypass any existing (poor-quality) text layer
@@ -161,6 +192,10 @@ def reocr_pdf(
         raise
     except Exception as exc:
         raise ReocrError(f"ocrmypdf failed for {input_path}: {exc}") from exc
+    finally:
+        # Clean up the intermediate pre-processed PDF regardless of outcome.
+        if ocr_input is not input_path and ocr_input.exists():
+            ocr_input.unlink(missing_ok=True)
 
     log.info("Re-OCR complete: %s", out_path)
     return out_path
@@ -189,10 +224,12 @@ class reocr_context:  # noqa: N801 — intentionally lowercase for ``with`` ergo
         *,
         deskew: bool = True,
         language: str = "eng",
+        preprocess: bool = True,
     ) -> None:
         self._input = input_path
         self._deskew = deskew
         self._language = language
+        self._preprocess = preprocess
         self._tmp_dir: tempfile.TemporaryDirectory[str] | None = None
         self._out: Path | None = None
 
@@ -203,6 +240,7 @@ class reocr_context:  # noqa: N801 — intentionally lowercase for ``with`` ergo
             work_dir=Path(self._tmp_dir.name),
             deskew=self._deskew,
             language=self._language,
+            preprocess=self._preprocess,
         )
         return self._out
 

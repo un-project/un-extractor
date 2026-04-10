@@ -73,19 +73,23 @@ pip install -r requirements.txt
 
 Requires Python 3.11+.
 
-**Optional: re-OCR support** (for pre-1990 scanned PDFs with poor text layers)
+**Optional: re-OCR with image pre-processing** (for pre-1990 scanned PDFs with poor text layers)
 
 ```bash
-# Python package
-pip install ocrmypdf
+# Python packages
+pip install ocrmypdf opencv-python-headless
 
 # System package (Debian/Ubuntu)
 sudo apt install tesseract-ocr tesseract-ocr-eng
 ```
 
-When both are installed, the pipeline automatically re-OCRs any PDF whose
-embedded text quality score is below 0.40, then falls back to the original
-text with a warning if re-OCR is unavailable.
+When both are installed, the pipeline automatically:
+1. **Pre-processes** each page image with OpenCV (border masking, denoising,
+   adaptive binarization) to remove punch-hole shadows and scanner speckle
+2. **Re-OCRs** with Tesseract 5 via ocrmypdf for any PDF whose embedded text
+   quality score is below 0.40
+
+Falls back gracefully to the original text with a warning if any dependency is unavailable.
 
 ---
 

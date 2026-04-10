@@ -28,7 +28,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         voeten/         # cached Voeten roll_calls.csv and issues.csv
 
     src/
-        pdf/            # Phase 1: text extraction and cleaning
+        pdf/            # Phase 1: text extraction, OCR quality scoring, re-OCR fallback
+            extract_text.py  # column-aware PyMuPDF extraction
+            clean_text.py    # strip headers, footers, page numbers
+            ocr_quality.py   # heuristic quality score [0.0–1.0]; labels good/poor/unusable
+            reocr.py         # ocrmypdf/Tesseract 5 re-OCR fallback (gated on quality score)
         structure/      # Phase 2: document segmentation
         extraction/     # Phase 3: rule-based extractors
             country_aliases.py   # static alias table + normalize_country_name()
@@ -80,6 +84,9 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
 
     # Process full dataset in parallel
     python process_dataset.py data/raw_pdfs/ --output output/ --workers 8
+
+    # Disable automatic re-OCR (when tesseract is not installed)
+    python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --no-reocr
 
     # Import JSON to database (set DATABASE_URL first)
     python import_json_to_db.py output/

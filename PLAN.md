@@ -227,6 +227,8 @@ Key tools:
         pdf/
             extract_text.py      # PyMuPDF, column-aware extraction
             clean_text.py        # strip headers, footers, page numbers
+            ocr_quality.py       # heuristic quality score [0.0–1.0]
+            reocr.py             # ocrmypdf/Tesseract 5 re-OCR fallback
 
         structure/
             detect_sections.py   # segment into agenda items, speeches, votes
@@ -262,7 +264,7 @@ The agent should implement the system in 6 phases.
 
 ## Phase 1 — PDF ingestion
 
-Goal: convert PDFs into clean text.
+Goal: convert PDFs into clean, usable text.
 
 Tasks:
 
@@ -290,7 +292,19 @@ Tasks:
    - bold = speaker attribution
    - italic = stage direction or adoption line
 
-4. Output normalised text, one file per PDF.
+4. Score OCR quality (`src/pdf/ocr_quality.py`):
+   - Compute the fraction of whitespace-delimited tokens that are "word-like"
+     (≥2 ASCII alpha chars, ≥50 % alpha ratio).
+   - Score < 0.40 → "unusable"; 0.40–0.70 → "poor"; ≥0.70 → "good".
+   - Attach `ocr_quality_score` and `ocr_quality_label` to `MeetingRecord`.
+
+5. Re-OCR fallback for poor/unusable PDFs (`src/pdf/reocr.py`):
+   - If score < 0.40 and `use_reocr=True` (default), run `ocrmypdf` with
+     `force_ocr=True` + `deskew=True` to produce a new PDF with a
+     Tesseract 5 text layer, then re-extract with PyMuPDF.
+   - Accept the re-OCR'd text only if quality improves; otherwise keep original.
+   - Requires: `pip install ocrmypdf` + `apt install tesseract-ocr tesseract-ocr-eng`.
+   - When dependencies are absent a warning is logged and the pipeline continues.
 
 Validation:
 
@@ -302,6 +316,7 @@ Success criteria:
 - text readable in reading order (left column then right column)
 - no repeated headers or footers
 - stage directions distinguishable from speech text
+- `ocr_quality_score` populated for every document
 
 ## Phase 2 — Document structure detection
 

@@ -27,7 +27,11 @@ data/
         # e.g. en/ga/64/pv/document_121.pdf → A/64/PV.121
 
 src/
-    pdf/            # Phase 1 – column-aware text extraction and cleaning
+    pdf/            # Phase 1 – text extraction, OCR quality scoring, re-OCR fallback
+                    #   extract_text.py  – column-aware PyMuPDF extraction
+                    #   clean_text.py    – strip headers, footers, page numbers
+                    #   ocr_quality.py   – heuristic quality score [0.0–1.0]
+                    #   reocr.py         – ocrmypdf/Tesseract 5 re-OCR fallback
     structure/      # Phase 2 – document segmentation into typed sections
     extraction/     # Phase 3 – rule-based extractors (metadata, speakers, votes)
                     #   country_aliases.py   – country name normalisation
@@ -69,6 +73,20 @@ pip install -r requirements.txt
 
 Requires Python 3.11+.
 
+**Optional: re-OCR support** (for pre-1990 scanned PDFs with poor text layers)
+
+```bash
+# Python package
+pip install ocrmypdf
+
+# System package (Debian/Ubuntu)
+sudo apt install tesseract-ocr tesseract-ocr-eng
+```
+
+When both are installed, the pipeline automatically re-OCRs any PDF whose
+embedded text quality score is below 0.40, then falls back to the original
+text with a warning if re-OCR is unavailable.
+
 ---
 
 ## Usage
@@ -101,6 +119,12 @@ python src/pipeline/process_pdf.py \
 
 ```bash
 python process_dataset.py data/raw_pdfs/ --output output/ --workers 8
+```
+
+To disable automatic re-OCR (e.g. when tesseract is not installed):
+
+```bash
+python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --no-reocr
 ```
 
 ### Import JSON to database
@@ -543,6 +567,36 @@ Key relationships:
 
 To reconstruct the full text of a meeting in order, join `document_items` (ordered by `position`), then merge `speeches`, `stage_directions`, and `votes` within each item on `position_in_item`.
 
+### Extraction coverage report
+
+Shows how many documents per body/session have been fully extracted (have speeches)
+vs. are stub-only rows (imported from UNDL voting CSVs but not yet processed from PDF):
+
+```bash
+python scripts/coverage_report.py --db postgresql://user:pass@localhost/undb
+
+# Filter to a single body
+python scripts/coverage_report.py --db ... --body GA
+
+# Machine-readable CSV
+python scripts/coverage_report.py --db ... --csv
+```
+
+### OCR quality check (standalone)
+
+To score the embedded text quality of a PDF without running the full pipeline:
+
+```python
+from pathlib import Path
+from src.pdf.extract_text import extract_pages
+from src.pdf.clean_text import flatten_blocks
+from src.pdf.ocr_quality import score_text_quality
+
+pages = extract_pages(Path("data/raw_pdfs/en/ga/31/pv/document_8.pdf"))
+result = score_text_quality(flatten_blocks(pages))
+print(result.label, result.score)  # e.g. "good 0.979"
+```
+
 ### Run tests
 
 ```bash
@@ -564,6 +618,8 @@ Each processed PDF produces one JSON file (`output/meeting_{symbol}.json`) confo
   "date": "2010-09-13",
   "location": "New York",
   "president": { "name": "Mr. Ali Abdussalam Treki", "country": "Libyan Arab Jamahiriya" },
+  "ocr_quality_score": 0.974,
+  "ocr_quality_label": "good",
   "items": [
     {
       "position": 0,

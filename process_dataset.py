@@ -59,6 +59,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Write intermediate artifacts to output/debug/<stem>/ for inspection",
     )
+    p.add_argument(
+        "--no-reocr",
+        action="store_true",
+        default=False,
+        help="Disable automatic re-OCR for poor-quality text layers (requires ocrmypdf + tesseract)",
+    )
     return p
 
 
@@ -83,6 +89,7 @@ def main() -> int:
         use_llm=args.llm,
         llm_api_key=args.api_key,
         debug=args.debug,
+        use_reocr=not args.no_reocr,
     )
 
     print(

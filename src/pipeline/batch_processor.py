@@ -81,6 +81,7 @@ def _process_one(
     use_llm: bool,
     llm_api_key: str | None,
     debug_dir: Path | None = None,
+    use_reocr: bool = True,
 ) -> ProcessResult:
     try:
         record = process_pdf(
@@ -89,6 +90,7 @@ def _process_one(
             use_llm=use_llm,
             llm_api_key=llm_api_key,
             debug_dir=debug_dir,
+            use_reocr=use_reocr,
         )
         return ProcessResult(pdf_path=pdf_path, success=True, record=record)
     except ExtractionError as exc:
@@ -147,6 +149,7 @@ def process_batch(
     llm_api_key: str | None = None,
     pdf_paths: list[Path] | None = None,
     debug: bool = False,
+    use_reocr: bool = True,
 ) -> BatchSummary:
     """Process all PDFs under *root_dir* in parallel.
 
@@ -164,6 +167,8 @@ def process_batch(
         Optional explicit API key.
     pdf_paths:
         Explicit list of PDFs to process (skips discovery).
+    use_reocr:
+        Automatically re-OCR PDFs with poor-quality embedded text layers.
 
     Returns
     -------
@@ -180,7 +185,7 @@ def process_batch(
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(
-                _process_one, pdf, output_dir, use_llm, llm_api_key, debug_dir
+                _process_one, pdf, output_dir, use_llm, llm_api_key, debug_dir, use_reocr
             ): pdf
             for pdf in pdfs
         }

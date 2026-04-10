@@ -34,7 +34,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   before Tesseract to handle uneven illumination, scanner speckle, and rotated scans.
   Also strip punch-hole shadows and margin borders that confuse column detection.
 
-- [ ] **ALL-CAPS speaker attribution patterns** — Pre-1985 documents print attributions
+- [x] **ALL-CAPS speaker attribution patterns** — Pre-1985 documents print attributions
   as `MR. MOLOTOV (Union of Soviet Socialist Republics):`.  The current `_SPEAKER_RE`
   and `_TITULAR_RE` patterns in `src/structure/detect_sections.py` require mixed-case
   titles (`Mr.`, `The President`).  Add uppercase-aware variants or make the patterns

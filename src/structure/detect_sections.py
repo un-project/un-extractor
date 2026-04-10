@@ -99,6 +99,23 @@ _SCANNED_SPEAKER_RE = re.compile(
     re.UNICODE,
 )
 
+# Early SC/GA documents (pre-1985) typeset the title itself in ALL CAPS and
+# often omit paragraph numbers entirely, e.g.:
+#   "MR. MOLOTOV (Union of Soviet Socialist Republics):"
+#   "MRS. PANDIT (India) (spoke in French):"
+#   "SIR Gladwyn JEBB (United Kingdom):"
+# These blocks carry no bold metadata, so the bold-path patterns never fire.
+# The separator may be ";" due to OCR misreading.
+_ALLCAPS_SPEAKER_RE = re.compile(
+    r"^"
+    r"(?:H\.E\.\s+)?(?:MR\.|MRS\.|MS\.|DR\.|PROF\.)\s+"  # ALL-CAPS title
+    r"[A-Z]{2}[A-Z\w\-\s\.]*?"  # ALL-CAPS surname (≥ 2 consecutive caps)
+    r"\s*\([^)]+\)"  # (Country or affiliation)
+    r"(?:\s*\([^)]+\))?"  # optional second parenthetical
+    r"\s*[:;]",
+    re.UNICODE,
+)
+
 # Titular speakers that may or may not carry a paragraph number in scanned docs
 _SCANNED_TITULAR_RE = re.compile(
     r"^(?:\d+\.\s+)?"
@@ -154,8 +171,13 @@ def _is_speaker_block(block: TextBlock) -> bool:
             or _DEPT_SPEAKER_RE.match(text)
         )
     # Fallback for scanned/OCR documents where bold metadata is absent:
-    # detect by ALL-CAPS surname pattern or titled speaker with paragraph number.
-    return bool(_SCANNED_SPEAKER_RE.match(text) or _SCANNED_TITULAR_RE.match(text))
+    # detect by ALL-CAPS surname pattern, titled speaker with paragraph number,
+    # or ALL-CAPS title without paragraph number (pre-1985 format).
+    return bool(
+        _SCANNED_SPEAKER_RE.match(text)
+        or _SCANNED_TITULAR_RE.match(text)
+        or _ALLCAPS_SPEAKER_RE.match(text)
+    )
 
 
 def _is_agenda_block(block: TextBlock) -> bool:

@@ -82,6 +82,39 @@ class TestParseSpeakerInfo:
         assert parse_speaker_info("Agenda item 13") is None
         assert parse_speaker_info("It was so decided.") is None
 
+    # -----------------------------------------------------------------------
+    # ALL-CAPS title patterns (pre-1985 documents)
+    # -----------------------------------------------------------------------
+
+    def test_allcaps_mr(self) -> None:
+        info = parse_speaker_info("MR. MOLOTOV (USSR):")
+        assert info is not None
+        assert "Molotov" in info.name
+
+    def test_allcaps_mrs_with_language(self) -> None:
+        info = parse_speaker_info("MRS. PANDIT (India) (spoke in French):")
+        assert info is not None
+        assert "Pandit" in info.name
+        assert info.country == "India"
+        assert info.language == "French"
+
+    def test_allcaps_dr(self) -> None:
+        info = parse_speaker_info("DR. EVATT (Australia):")
+        assert info is not None
+        assert info.country == "Australia"
+
+    def test_allcaps_the_president(self) -> None:
+        info = parse_speaker_info("THE PRESIDENT:")
+        assert info is not None
+        assert info.country is None
+        assert "President" in info.name
+
+    def test_allcaps_title_normalised_to_mixed_case(self) -> None:
+        info = parse_speaker_info("MR. MALIK (Pakistan):")
+        assert info is not None
+        # normalize_allcaps should convert MALIK → Malik
+        assert "Malik" in info.name
+
 
 class TestSplitAttributionAndBody:
     def test_simple(self) -> None:
@@ -102,3 +135,24 @@ class TestSplitAttributionAndBody:
         attr, body = _split_attribution_and_body("Mr. Smith (USA):")
         assert "Smith" in attr
         assert body == ""
+
+    def test_allcaps_attribution_no_number(self) -> None:
+        attr, body = _split_attribution_and_body(
+            "MR. MOLOTOV (USSR): The delegation of the Soviet Union…"
+        )
+        assert "MOLOTOV" in attr
+        assert "Soviet" in body
+
+    def test_allcaps_titular_no_number(self) -> None:
+        attr, body = _split_attribution_and_body("THE PRESIDENT: The meeting is called to order.")
+        assert "PRESIDENT" in attr
+        assert "meeting" in body
+
+    def test_scanned_with_paragraph_number_allcaps_title(self) -> None:
+        # Older scanned docs: paragraph number + ALL-CAPS title + CAPS surname
+        attr, body = _split_attribution_and_body(
+            "1. MR. AHMED (Pakistan): I should like to join…"
+        )
+        # Paragraph number stripped; attribution covers title + name + country
+        assert "AHMED" in attr
+        assert "join" in body

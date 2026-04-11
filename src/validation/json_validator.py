@@ -41,7 +41,9 @@ _SYMBOL_RE = re.compile(r"^[AS]/(?:\d+/)?PV\.\d+$")
 # optional addendum/revision suffixes — letters/digits/dots/slashes).
 _DRAFT_SYMBOL_RE = re.compile(
     r"^(?:"
-    r"(?:A|S)/\S+/L\.\d+"  # L-document: A/64/L.72, A/C.1/L.22, S/.../L.N
+    # L-document: A/64/L.72, A/C.1/L.22, S/.../L.N
+    # Optional revision/corrigendum/addendum suffix: /Rev.1, /Corr.2, /Add.1
+    r"(?:A|S)/\S+/L\.\d+(?:/(?:Rev|Corr|Add)\.\d+)*"
     r"|S/\d{4}/\d+"  # SC serial: S/2018/1016
     r"|(?:A|S)/\d+/\d[\w./]*"  # Early GA: A/32/291, A/32/291/Add.2J
     r")"

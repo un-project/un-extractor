@@ -134,6 +134,33 @@ def _parse_vote_count(s: str) -> int:
 # Used as a fallback when the adoption line itself carries no symbol.
 _SYMBOL_FROM_CONTEXT_RE = re.compile(r"([AS]/[^)\s,]+)", re.IGNORECASE)
 
+# ---------------------------------------------------------------------------
+# Draft-symbol OCR normalisation
+# ---------------------------------------------------------------------------
+# Older scanned documents contain predictable OCR substitutions in symbols:
+#   • "1" → "I" or "J" (the digit one rendered as a letter)
+#   • "." → "," (period rendered as comma in L-series separator)
+# These are fixed before storage so the validator and database see clean symbols.
+
+# Committee number: "C.I/" or "C.I\d" → "C.1/", "C.1\d"
+_OCR_COMMITTEE_I_RE = re.compile(r"(C\.)I(?=[/\d])")
+# L-series separator: "L," followed by a digit → "L."
+_OCR_L_COMMA_RE = re.compile(r"/L,(\d)")
+# Digit-J-digit or digit-J-end: J between/after digits (e.g. "3J" → "31", "36J" → "361")
+_OCR_DIGIT_J_RE = re.compile(r"(?<=\d)J(?=\d|[/.]|$)")
+# Trailing noise: strip characters that cannot end a valid symbol
+_OCR_TRAILING_NOISE_RE = re.compile(r"[^A-Za-z0-9)\]]+$")
+
+
+def _normalize_draft_symbol(sym: str) -> str:
+    """Fix common OCR substitutions in a raw draft symbol string."""
+    sym = _OCR_COMMITTEE_I_RE.sub(r"\g<1>1", sym)
+    sym = _OCR_L_COMMA_RE.sub(r"/L.\1", sym)
+    sym = _OCR_DIGIT_J_RE.sub("1", sym)
+    sym = _OCR_TRAILING_NOISE_RE.sub("", sym)
+    return sym
+
+
 # Resolution title — President announces "entitled 'Title'" before the vote.
 # Matches both ASCII and Unicode typographic quotes.
 # Two sub-patterns to handle different orderings:
@@ -317,11 +344,13 @@ def extract_resolution_from_adoption(
 
     # Extract draft symbol from whichever capture group matched.
     # See _ADOPTION_RE docstring for the full group layout.
-    draft_symbol: str = (m.group(2) or m.group(5) or "").rstrip(".,;")
+    draft_symbol: str = _normalize_draft_symbol(
+        (m.group(2) or m.group(5) or "").rstrip(".,;")
+    )
     if not draft_symbol and preceding_text:
         pm = _SYMBOL_FROM_CONTEXT_RE.search(preceding_text)
         if pm:
-            draft_symbol = pm.group(1).rstrip(".,;)")
+            draft_symbol = _normalize_draft_symbol(pm.group(1).rstrip(".,;)"))
     if not draft_symbol:
         return None
     # Groups 4, 7, 9 are the adopted symbol for cases 1/2, 4, 5 respectively.

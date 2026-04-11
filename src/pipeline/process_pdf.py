@@ -683,9 +683,7 @@ def process_pdf(
                 meta["meeting_number"] = meta["meeting_number"] or int(
                     path_symbol.rsplit(".", 1)[-1]
                 )
-                log.debug(
-                    "Symbol derived from path (last-resort): %s", path_symbol
-                )
+                log.debug("Symbol derived from path (last-resort): %s", path_symbol)
 
         # Date and location may be in the right-column header (older PDFs) rather
         # than in the cover section blocks.  Fall back to the raw first-page text.

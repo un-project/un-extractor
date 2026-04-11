@@ -35,7 +35,9 @@ log = logging.getLogger(__name__)
 # Optional dependency: imported at module level so tests can patch it.
 try:
     import ocrmypdf  # type: ignore[import]
-    from ocrmypdf.exceptions import MissingDependencyError as _MissingDependencyError  # type: ignore[import]
+    from ocrmypdf.exceptions import (  # type: ignore[import]
+        MissingDependencyError as _MissingDependencyError,
+    )
 except ImportError:  # pragma: no cover
     ocrmypdf = None  # type: ignore[assignment]
     _MissingDependencyError = Exception  # type: ignore[assignment,misc]
@@ -134,7 +136,8 @@ def reocr_pdf(
 
     if not is_available():
         raise ReocrUnavailable(
-            "tesseract is not on PATH — install tesseract-ocr (e.g. apt install tesseract-ocr)"
+            "tesseract is not on PATH"
+            " — install tesseract-ocr (e.g. apt install tesseract-ocr)"
         )
 
     if work_dir is not None:
@@ -186,10 +189,10 @@ def reocr_pdf(
             raise ReocrError(
                 f"ocrmypdf returned exit code {exit_code} for {input_path}"
             )
-    except _MissingDependencyError as exc:
-        raise ReocrUnavailable(str(exc)) from exc
     except (ReocrUnavailable, ReocrError):
         raise
+    except _MissingDependencyError as exc:
+        raise ReocrUnavailable(str(exc)) from exc
     except Exception as exc:
         raise ReocrError(f"ocrmypdf failed for {input_path}: {exc}") from exc
     finally:

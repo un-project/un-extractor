@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -22,12 +22,19 @@ from src.pdf.preprocess import (
     preprocess_pdf,
 )
 
+# Skip tests that call cv2 directly when opencv-python is not installed.
+requires_cv2 = pytest.mark.skipif(
+    not is_available(), reason="opencv-python not installed"
+)
+
 # ---------------------------------------------------------------------------
 # Helper: create synthetic test images
 # ---------------------------------------------------------------------------
 
 
-def _gray(h: int = 100, w: int = 80, value: int = 200) -> np.ndarray:  # type: ignore[type-arg]
+def _gray(  # type: ignore[type-arg]
+    h: int = 100, w: int = 80, value: int = 200
+) -> np.ndarray:
     return np.full((h, w), value, dtype=np.uint8)
 
 
@@ -52,6 +59,7 @@ def test_is_available_returns_bool() -> None:
     assert isinstance(is_available(), bool)
 
 
+@requires_cv2
 def test_is_available_true_when_cv2_present() -> None:
     assert is_available() is True
 
@@ -73,6 +81,7 @@ def test_to_gray_passthrough_2d() -> None:
     assert out.dtype == np.uint8
 
 
+@requires_cv2
 def test_to_gray_from_rgb() -> None:
     img = _rgb()
     out = _to_gray(img)
@@ -80,6 +89,7 @@ def test_to_gray_from_rgb() -> None:
     assert out.dtype == np.uint8
 
 
+@requires_cv2
 def test_to_gray_from_rgba() -> None:
     img = _rgba()
     out = _to_gray(img)
@@ -134,6 +144,7 @@ def test_mask_borders_output_same_shape() -> None:
 # ---------------------------------------------------------------------------
 
 
+@requires_cv2
 def test_binarize_output_is_binary() -> None:
     gray = _gray(100, 80, value=128)
     # Add some variation so threshold has something to work with
@@ -143,6 +154,7 @@ def test_binarize_output_is_binary() -> None:
     assert unique <= {0, 255}
 
 
+@requires_cv2
 def test_binarize_preserves_shape() -> None:
     gray = _gray(120, 90)
     out = _binarize(gray)
@@ -154,6 +166,7 @@ def test_binarize_preserves_shape() -> None:
 # ---------------------------------------------------------------------------
 
 
+@requires_cv2
 def test_preprocess_page_returns_2d_uint8() -> None:
     img = _rgb()
     out = preprocess_page(img)
@@ -161,18 +174,21 @@ def test_preprocess_page_returns_2d_uint8() -> None:
     assert out.dtype == np.uint8
 
 
+@requires_cv2
 def test_preprocess_page_from_grayscale() -> None:
     img = _gray()
     out = preprocess_page(img)
     assert out.ndim == 2
 
 
+@requires_cv2
 def test_preprocess_page_from_rgba() -> None:
     img = _rgba()
     out = preprocess_page(img)
     assert out.ndim == 2
 
 
+@requires_cv2
 def test_preprocess_page_border_masked() -> None:
     img = np.full((200, 160, 3), 50, dtype=np.uint8)
     out = preprocess_page(img, border_fraction=0.1, denoise=False, binarize=False)
@@ -182,6 +198,7 @@ def test_preprocess_page_border_masked() -> None:
     assert (out[:, :bw] == 255).all()
 
 
+@requires_cv2
 def test_preprocess_page_no_denoise_no_binarize() -> None:
     img = np.full((100, 80, 3), 128, dtype=np.uint8)
     out = preprocess_page(img, border_fraction=0.0, denoise=False, binarize=False)
@@ -195,6 +212,7 @@ def test_preprocess_page_raises_when_cv2_missing() -> None:
             preprocess_page(_rgb())
 
 
+@requires_cv2
 def test_preprocess_page_output_values_in_range() -> None:
     img = _rgb()
     out = preprocess_page(img)
@@ -215,6 +233,7 @@ def test_preprocess_pdf_raises_when_cv2_missing(tmp_path: Path) -> None:
             preprocess_pdf(dummy, tmp_path / "out.pdf")
 
 
+@requires_cv2
 def test_preprocess_pdf_integration(tmp_path: Path) -> None:
     """End-to-end: preprocess a real sample PDF and verify output is a valid PDF."""
     pdf = Path("data/raw_pdfs/en/ga/31/pv/document_8.pdf")
@@ -230,6 +249,7 @@ def test_preprocess_pdf_integration(tmp_path: Path) -> None:
     assert out.read_bytes()[:4] == b"%PDF"
 
 
+@requires_cv2
 def test_preprocess_pdf_page_count_matches(tmp_path: Path) -> None:
     """Output PDF must have the same number of pages as the input."""
     import pymupdf as fitz

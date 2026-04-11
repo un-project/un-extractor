@@ -509,7 +509,8 @@ def process_pdf(
                         )
             except ReocrUnavailable as exc:
                 log.warning(
-                    "Re-OCR unavailable for %s: %s — install ocrmypdf and tesseract-ocr",
+                    "Re-OCR unavailable for %s: %s"
+                    " — install ocrmypdf and tesseract-ocr",
                     pdf_path.name,
                     exc,
                 )

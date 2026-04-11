@@ -63,13 +63,19 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-reocr",
         action="store_true",
         default=False,
-        help="Disable automatic re-OCR for poor-quality text layers (requires ocrmypdf + tesseract)",
+        help=(
+            "Disable automatic re-OCR for poor-quality text layers"
+            " (requires ocrmypdf + tesseract)"
+        ),
     )
     p.add_argument(
         "--use-ods",
         action="store_true",
         default=False,
-        help="Fetch HTML from the UN ODS (undocs.org) and prefer it when quality exceeds PDF text",
+        help=(
+            "Fetch HTML from the UN ODS (undocs.org) and prefer it"
+            " when quality exceeds PDF text"
+        ),
     )
     return p
 

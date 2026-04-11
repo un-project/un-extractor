@@ -7,7 +7,6 @@ environments without the OCR stack installed.
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +18,18 @@ from src.pdf.reocr import (
     is_available,
     reocr_context,
     reocr_pdf,
+)
+
+# Some tests require ocrmypdf to be importable so they can patch its internals.
+try:
+    import ocrmypdf as _ocrmypdf_check  # noqa: F401
+
+    _OCRMYPDF_INSTALLED = True
+except ImportError:
+    _OCRMYPDF_INSTALLED = False
+
+requires_ocrmypdf = pytest.mark.skipif(
+    not _OCRMYPDF_INSTALLED, reason="ocrmypdf not installed"
 )
 
 # ---------------------------------------------------------------------------
@@ -37,6 +48,7 @@ def test_is_available_false_when_ocrmypdf_missing() -> None:
         assert is_available() is False
 
 
+@requires_ocrmypdf
 def test_is_available_false_when_tesseract_missing() -> None:
     # ocrmypdf present but tesseract not on PATH.
     with patch(
@@ -72,7 +84,7 @@ def test_reocr_pdf_raises_unavailable_when_tesseract_missing(
 
     with (
         patch("src.pdf.reocr.is_available", return_value=False),
-        patch.dict("sys.modules", {"ocrmypdf": MagicMock()}),
+        patch("src.pdf.reocr.ocrmypdf", MagicMock()),
     ):
         with pytest.raises(ReocrUnavailable, match="tesseract is not on PATH"):
             reocr_pdf(dummy_pdf, work_dir=tmp_path)
@@ -88,7 +100,6 @@ def test_reocr_pdf_raises_reocr_error_on_nonzero_exit(tmp_path: Path) -> None:
 
     with (
         patch("src.pdf.reocr.is_available", return_value=True),
-        patch.dict("sys.modules", {"ocrmypdf": mock_ocrmypdf}),
         patch("src.pdf.reocr.ocrmypdf", mock_ocrmypdf),
     ):
         with pytest.raises(ReocrError, match="exit code 2"):
@@ -199,12 +210,6 @@ def test_process_pdf_skips_reocr_when_quality_good(tmp_path: Path) -> None:
     """process_pdf does not call reocr_context when OCR quality is already good."""
     from pathlib import Path as _Path
 
-    from src.pdf.ocr_quality import OcrQualityResult
-
-    good_result = OcrQualityResult(
-        score=0.95, label="good", alpha_tokens=5000, word_like_tokens=4750
-    )
-
     pdf = _Path("data/raw_pdfs/en/ga/64/pv/document_121.pdf")
     if not pdf.exists():
         pytest.skip("Sample PDF not present")
@@ -249,7 +254,6 @@ def test_process_pdf_use_reocr_false_skips_reocr(tmp_path: Path) -> None:
 
 def test_process_pdf_logs_warning_when_reocr_unavailable(tmp_path: Path) -> None:
     """process_pdf logs a warning and continues when re-OCR is unavailable."""
-    import logging
     from pathlib import Path as _Path
 
     from src.pdf.ocr_quality import OcrQualityResult, POOR_THRESHOLD

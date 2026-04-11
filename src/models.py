@@ -178,9 +178,8 @@ class MeetingRecord(BaseModel):
     items: list[DocumentItem] = []
     ocr_quality_score: Optional[float] = None  # [0.0, 1.0]; None if not yet scored
     ocr_quality_label: Optional[Literal["good", "poor", "unusable"]] = None
-    ods_used: Optional[bool] = (
-        None  # True = ODS HTML preferred; False = tried but not better; None = not attempted
-    )
+    # True = ODS HTML preferred; False = tried but not better; None = not attempted
+    ods_used: Optional[bool] = None
 
     @field_validator("symbol")
     @classmethod

@@ -6,8 +6,6 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
 from src.pdf.extract_text import (
     _TWO_COLUMN_MIN_RIGHT_FRACTION,
     _extract_page_blocks,

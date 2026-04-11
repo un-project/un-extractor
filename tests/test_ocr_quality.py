@@ -145,9 +145,9 @@ def test_modern_pdf_scores_good(tmp_path: pytest.TempPathFactory) -> None:
     pages = extract_pages(pdf)
     blocks = flatten_blocks(pages)
     result = score_text_quality(blocks)
-    assert result.label == "good", (
-        f"Expected 'good' for modern PDF, got {result.label!r} (score={result.score})"
-    )
+    assert (
+        result.label == "good"
+    ), f"Expected 'good' for modern PDF, got {result.label!r} (score={result.score})"
 
 
 def test_scanned_pdf_returns_valid_result() -> None:

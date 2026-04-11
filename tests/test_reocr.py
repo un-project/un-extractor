@@ -13,8 +13,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.pdf.reocr import ReocrError, ReocrUnavailable, is_available, reocr_context, reocr_pdf
-
+from src.pdf.reocr import (
+    ReocrError,
+    ReocrUnavailable,
+    is_available,
+    reocr_context,
+    reocr_pdf,
+)
 
 # ---------------------------------------------------------------------------
 # is_available()
@@ -261,9 +266,14 @@ def test_process_pdf_logs_warning_when_reocr_unavailable(tmp_path: Path) -> None
     )
 
     class _FakeContext:
-        def __init__(self, *a, **kw): pass
-        def __enter__(self): raise ReocrUnavailable("tesseract not found")
-        def __exit__(self, *a): pass
+        def __init__(self, *a, **kw):
+            pass
+
+        def __enter__(self):
+            raise ReocrUnavailable("tesseract not found")
+
+        def __exit__(self, *a):
+            pass
 
     with (
         patch("src.pipeline.process_pdf.score_text_quality", return_value=poor_result),

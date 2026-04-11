@@ -181,6 +181,43 @@ def normalize_allcaps(text: str) -> str:
     return " ".join(out)
 
 
+# ---------------------------------------------------------------------------
+# Hyphenation repair
+# ---------------------------------------------------------------------------
+
+# Pre-1990 UN verbatim records were typeset with end-of-line hyphenation.
+# Column and page breaks fragment words such as "codifica-\ntion" or
+# "Organiza-\ntion".  OCR produces these as "codifica- tion" (hyphen +
+# space + continuation) within a single text block, or as two consecutive
+# blocks where the first ends in "word-" and the next starts with the
+# continuation.
+#
+# Rule: join word–hyphen–whitespace–continuation when the continuation
+# begins with a *lowercase* letter.  This covers both within-block and
+# cross-block (paragraph-joined) occurrences while leaving intentional
+# compound-proper-noun hyphens intact:
+#
+#   "codifica- tion"   →  "codification"  ✓
+#   "Organiza- tion"   →  "Organization"  ✓
+#   "Secretary-General" (no space)         unchanged ✓
+#   "Secretary- General" (space + upper)  →  "Secretary-General" (unchanged ✓)
+#
+# Note: unhyphenated forms of prefixed words ("nonnuclear", "cooperation")
+# are acceptable in this context; the primary goal is fixing broken tokens.
+_SOFT_HYPHEN_RE = re.compile(r"([A-Za-z])-[ \t\n]+([a-z])")
+
+
+def repair_hyphenation(text: str) -> str:
+    """Join soft-hyphen line-break artifacts left by OCR of pre-1990 documents.
+
+    Patterns like ``"codifica- tion"`` and ``"Organiza-\\ntion"`` are joined
+    into ``"codification"`` and ``"Organization"``.  Hyphens followed by an
+    uppercase letter (e.g. ``"Secretary-\\nGeneral"``) are left untouched
+    because they indicate intentional compound words or proper-noun titles.
+    """
+    return _SOFT_HYPHEN_RE.sub(r"\1\2", text)
+
+
 def _strip_inline_noise(text: str) -> str:
     """Remove doc-code/page-number runs embedded within block text."""
     cleaned = _INLINE_CODE_RE.sub("\n", text)

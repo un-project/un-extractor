@@ -65,6 +65,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Disable automatic re-OCR for poor-quality text layers (requires ocrmypdf + tesseract)",
     )
+    p.add_argument(
+        "--use-ods",
+        action="store_true",
+        default=False,
+        help="Fetch HTML from the UN ODS (undocs.org) and prefer it when quality exceeds PDF text",
+    )
     return p
 
 
@@ -90,6 +96,7 @@ def main() -> int:
         llm_api_key=args.api_key,
         debug=args.debug,
         use_reocr=not args.no_reocr,
+        use_ods=args.use_ods,
     )
 
     print(

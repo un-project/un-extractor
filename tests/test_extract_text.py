@@ -13,7 +13,6 @@ from src.pdf.extract_text import (
     _extract_page_blocks,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers: build fake PyMuPDF page objects
 # ---------------------------------------------------------------------------

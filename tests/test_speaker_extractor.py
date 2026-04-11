@@ -144,7 +144,9 @@ class TestSplitAttributionAndBody:
         assert "Soviet" in body
 
     def test_allcaps_titular_no_number(self) -> None:
-        attr, body = _split_attribution_and_body("THE PRESIDENT: The meeting is called to order.")
+        attr, body = _split_attribution_and_body(
+            "THE PRESIDENT: The meeting is called to order."
+        )
         assert "PRESIDENT" in attr
         assert "meeting" in body
 

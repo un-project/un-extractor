@@ -46,13 +46,13 @@ Open tasks and known limitations for the un-extractor pipeline.
   and scrambles reading order.  If fewer than ~20 % of blocks have x0 > midpoint,
   treat the page as single-column and skip the split.
 
-- [ ] **Hyphenation repair across column and page breaks** — Pre-1990 documents typeset
+- [x] **Hyphenation repair across column and page breaks** — Pre-1990 documents typeset
   running text with end-of-line hyphenation; column and page breaks split words
   mid-hyphen (e.g. `"recom-\nmendation"`).  A post-OCR pass joining `word-\ncontinuation`
   tokens (with a dictionary check) would clean up many malformed tokens and improve
   downstream regex matching.
 
-- [ ] **UN ODS HTML as alternative text source** — The UN Official Document System
+- [x] **UN ODS HTML as alternative text source** — The UN Official Document System
   (`documents.un.org`) sometimes has an HTML or Word-derived rendition of the same
   verbatim record that is cleaner than the scanned PDF.  A script could fetch the
   HTML version using the document symbol as the lookup key, score its quality against

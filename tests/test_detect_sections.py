@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 
 from src.pipeline.process_pdf import _parse_agenda_header
-from src.structure.detect_sections import _is_agenda_block, _is_speaker_block, _is_content_boundary
+from src.structure.detect_sections import (
+    _is_agenda_block,
+    _is_speaker_block,
+    _is_content_boundary,
+)
 from src.models import FormattedSegment, TextBlock
 
 # ---------------------------------------------------------------------------

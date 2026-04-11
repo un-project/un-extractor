@@ -33,6 +33,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
             clean_text.py    # strip headers, footers, page numbers
             ocr_quality.py   # heuristic quality score [0.0–1.0]; labels good/poor/unusable
             reocr.py         # ocrmypdf/Tesseract 5 re-OCR fallback (gated on quality score)
+            ods_client.py    # fetch HTML from undocs.org as alternative text source
         structure/      # Phase 2: document segmentation
         extraction/     # Phase 3: rule-based extractors
             country_aliases.py   # static alias table + normalize_country_name()
@@ -87,6 +88,9 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
 
     # Disable automatic re-OCR (when tesseract is not installed)
     python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --no-reocr
+
+    # Prefer UN ODS HTML over PDF text when available (requires network access)
+    python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --use-ods
 
     # Import JSON to database (set DATABASE_URL first)
     python import_json_to_db.py output/

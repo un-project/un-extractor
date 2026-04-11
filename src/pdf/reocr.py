@@ -176,9 +176,9 @@ def reocr_pdf(
             ocr_input,
             out_path,
             language=language,
-            force_ocr=True,   # bypass any existing (poor-quality) text layer
+            force_ocr=True,  # bypass any existing (poor-quality) text layer
             deskew=deskew,
-            optimize=0,       # skip image compression — we only want the text layer
+            optimize=0,  # skip image compression — we only want the text layer
             jobs=jobs,
             progress_bar=False,
         )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.pdf.clean_text import _DOC_CODE_RE, _strip_inline_noise
+from src.pdf.clean_text import _DOC_CODE_RE, _strip_inline_noise, repair_hyphenation
 
 
 class TestDocCodeRe:
@@ -82,3 +82,66 @@ class TestStripInlineNoise:
         assert "07-50429" not in result
         assert "first sentence" in result
         assert "second sentence" in result
+
+
+# ---------------------------------------------------------------------------
+# repair_hyphenation
+# ---------------------------------------------------------------------------
+
+
+class TestRepairHyphenation:
+    """repair_hyphenation must join OCR soft-hyphen artifacts from pre-1990 docs."""
+
+    @pytest.mark.parametrize(
+        "broken, fixed",
+        [
+            # Standard within-block OCR artifacts (hyphen + space + lowercase)
+            ("codifica- tion", "codification"),
+            ("disarma- ment", "disarmament"),
+            ("establish- ment", "establishment"),
+            ("Organiza- tion", "Organization"),
+            ("satisfac- tory", "satisfactory"),
+            ("neces- sary", "necessary"),
+            ("unequi- vocal", "unequivocal"),
+            # Multi-word context — repair is applied in-situ
+            (
+                "political codifica- tion of the rules",
+                "political codification of the rules",
+            ),
+            (
+                "nuclear disarma- ment will prove",
+                "nuclear disarmament will prove",
+            ),
+            # Proper nouns
+            ("Seychel- les", "Seychelles"),
+            ("Domini- can Republic", "Dominican Republic"),
+            # Across-block / cross-paragraph (hyphen + newline + lowercase)
+            ("Declara-\n\ntion on the Establis", "Declaration on the Establis"),
+            ("recom-\nmendation", "recommendation"),
+        ],
+    )
+    def test_soft_hyphen_joined(self, broken: str, fixed: str) -> None:
+        assert repair_hyphenation(broken) == fixed
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            # Hyphen + uppercase continuation → intentional compound, leave intact
+            "Secretary- General",
+            "non-proliferation",  # no space → hard hyphen, untouched
+            "well-known",  # no space → hard hyphen, untouched
+            "The meeting rose at 5 p.m.",  # no hyphen at all
+        ],
+    )
+    def test_hard_hyphen_unchanged(self, text: str) -> None:
+        assert repair_hyphenation(text) == text
+
+    def test_idempotent(self) -> None:
+        """Applying the function twice produces the same result."""
+        text = "codifica- tion of disarma- ment measures"
+        once = repair_hyphenation(text)
+        twice = repair_hyphenation(once)
+        assert once == twice
+
+    def test_empty_string(self) -> None:
+        assert repair_hyphenation("") == ""

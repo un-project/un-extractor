@@ -58,6 +58,38 @@ def _session_from_path(pdf_path: Path) -> int | None:
     return None
 
 
+def _symbol_from_path(pdf_path: Path) -> str | None:
+    """Derive the UN document symbol from the standard directory layout.
+
+    Expects a path like ``…/{body}/{session_or_year}/pv/document_{N}.pdf``
+    where *body* is ``ga`` or ``sc``.
+
+    Examples::
+
+        en/ga/64/pv/document_121.pdf  →  "A/64/PV.121"
+        en/sc/2018/pv/document_8422.pdf  →  "S/PV.8422"
+
+    Returns ``None`` if the path does not match the expected layout.
+    """
+    parts = pdf_path.parts
+    if "pv" not in parts:
+        return None
+    idx = parts.index("pv")
+    if idx < 2:
+        return None
+    body_part = parts[idx - 2].lower()
+    session_part = parts[idx - 1]
+    m = re.match(r"document_(\d+)$", pdf_path.stem)
+    if not m:
+        return None
+    doc_num = m.group(1)
+    if body_part == "ga" and session_part.isdigit():
+        return f"A/{session_part}/PV.{doc_num}"
+    if body_part == "sc":
+        return f"S/PV.{doc_num}"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Agenda header parsing
 # ---------------------------------------------------------------------------
@@ -367,6 +399,7 @@ def process_pdf(
     llm_api_key: str | None = None,
     debug_dir: Path | None = None,
     use_reocr: bool = True,
+    use_ods: bool = False,
 ) -> MeetingRecord:
     """Process one PDF through the full pipeline.
 
@@ -390,6 +423,11 @@ def process_pdf(
         text quality is below the ``POOR_THRESHOLD``.  Requires ocrmypdf
         and tesseract to be installed; if they are absent a warning is logged
         and the original (possibly poor-quality) text is used unchanged.
+    use_ods:
+        When ``True``, fetch the HTML rendition from the UN Official Document
+        System (``undocs.org``) and prefer it over the PDF text when it scores
+        higher on the OCR quality heuristic.  Requires a network connection;
+        failures are logged and the PDF text is used as fallback.
 
     Returns
     -------
@@ -493,6 +531,54 @@ def process_pdf(
         blocks = flatten_blocks(clean)
     except Exception as exc:
         raise ExtractionError(pdf_path, "pdf_ingestion", exc) from exc
+
+    # --- Phase 1b: ODS HTML fallback (optional) --------------------------------
+    # Fetch the cleaner HTML rendition from the UN Official Document System and
+    # prefer it when it scores higher than the (possibly OCR'd) PDF text.
+    ods_used: bool | None = None
+    if use_ods:
+        symbol_guess = _symbol_from_path(pdf_path)
+        if symbol_guess:
+            try:
+                from src.pdf.ods_client import (
+                    OdsNoDocument,
+                    OdsUnavailable,
+                    fetch_ods_blocks,
+                )
+
+                ods_raw = fetch_ods_blocks(symbol_guess)
+                ods_quality = score_text_quality(ods_raw)
+                log.debug(
+                    "ODS quality %.3f vs PDF quality %.3f for %s",
+                    ods_quality.score,
+                    ocr_result.score,
+                    symbol_guess,
+                )
+                if ods_quality.score > ocr_result.score:
+                    blocks = ods_raw
+                    ods_used = True
+                    log.info(
+                        "Using ODS text for %s (%.3f > %.3f)",
+                        symbol_guess,
+                        ods_quality.score,
+                        ocr_result.score,
+                    )
+                else:
+                    ods_used = False
+                    log.debug(
+                        "ODS text not better for %s (%.3f ≤ %.3f); keeping PDF text",
+                        symbol_guess,
+                        ods_quality.score,
+                        ocr_result.score,
+                    )
+            except OdsNoDocument as exc:
+                log.debug("No ODS document for %s: %s", symbol_guess, exc)
+            except OdsUnavailable as exc:
+                log.warning("ODS unavailable for %s: %s", symbol_guess, exc)
+            except Exception as exc:
+                log.warning("ODS fetch failed for %s: %s", symbol_guess, exc)
+        else:
+            log.debug("Cannot derive symbol from path %s; skipping ODS", pdf_path)
 
     _debug_write(
         "01_blocks.txt",
@@ -730,6 +816,7 @@ def process_pdf(
             items=items,
             ocr_quality_score=ocr_result.score,
             ocr_quality_label=ocr_result.label,
+            ods_used=ods_used,
         )
 
         errors = validate_record(record)

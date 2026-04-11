@@ -69,13 +69,13 @@ RENDER_DPI: int = 300
 BORDER_FRACTION: float = 0.03
 
 # cv2.fastNlMeansDenoising tunables.
-DENOISE_H: int = 10          # filter strength; 10 is a safe default for scanner speckle
-DENOISE_TEMPLATE: int = 7    # template window size (pixels)
-DENOISE_SEARCH: int = 21     # search window size (pixels)
+DENOISE_H: int = 10  # filter strength; 10 is a safe default for scanner speckle
+DENOISE_TEMPLATE: int = 7  # template window size (pixels)
+DENOISE_SEARCH: int = 21  # search window size (pixels)
 
 # cv2.adaptiveThreshold tunables.
-BINARIZE_BLOCK: int = 11     # neighbourhood size; must be odd
-BINARIZE_C: int = 2          # constant subtracted from the mean
+BINARIZE_BLOCK: int = 11  # neighbourhood size; must be odd
+BINARIZE_C: int = 2  # constant subtracted from the mean
 
 
 # ---------------------------------------------------------------------------
@@ -119,10 +119,10 @@ def _mask_borders(
     bh = max(1, int(h * fraction))
     bw = max(1, int(w * fraction))
     out = gray.copy()
-    out[:bh, :] = 255    # top
-    out[-bh:, :] = 255   # bottom
-    out[:, :bw] = 255    # left
-    out[:, -bw:] = 255   # right
+    out[:bh, :] = 255  # top
+    out[-bh:, :] = 255  # bottom
+    out[:, :bw] = 255  # left
+    out[:, -bw:] = 255  # right
     return out
 
 

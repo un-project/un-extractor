@@ -70,13 +70,9 @@ def is_available() -> bool:
     if ocrmypdf is None:
         return False
 
-    try:
-        from ocrmypdf._exec.tesseract import get_version  # type: ignore[import]
+    import shutil
 
-        get_version("tesseract")
-        return True
-    except Exception:
-        return False
+    return shutil.which("tesseract") is not None
 
 
 # ---------------------------------------------------------------------------

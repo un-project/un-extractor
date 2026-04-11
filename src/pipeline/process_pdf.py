@@ -508,7 +508,7 @@ def process_pdf(
                             reocr_result.score,
                         )
             except ReocrUnavailable as exc:
-                log.warning(
+                log.debug(
                     "Re-OCR unavailable for %s: %s",
                     pdf_path.name,
                     exc,

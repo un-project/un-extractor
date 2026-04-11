@@ -185,6 +185,17 @@ def process_batch(
     debug_dir = output_dir / "debug" if debug else None
     summary = BatchSummary(total=len(pdfs))
 
+    # Check re-OCR availability once so we don't spam per-document warnings.
+    if use_reocr:
+        from src.pdf.reocr import is_available as _reocr_available
+
+        if not _reocr_available():
+            log.warning(
+                "Re-OCR disabled: tesseract is not on PATH"
+                " — install tesseract-ocr (e.g. apt install tesseract-ocr)"
+            )
+            use_reocr = False
+
     log.info("Starting batch: %d PDFs, %d workers", len(pdfs), max_workers)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:

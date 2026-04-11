@@ -35,8 +35,17 @@ class ValidationError:
 # ---------------------------------------------------------------------------
 
 _SYMBOL_RE = re.compile(r"^[AS]/(?:\d+/)?PV\.\d+$")
-# GA draft: A/64/L.72 or S/.../L.N; SC draft: S/2018/1016 (year/serial, no /L.)
-_DRAFT_SYMBOL_RE = re.compile(r"^(?:(?:A|S)/\S+/L\.\d+|S/\d{4}/\d+)")
+# GA draft: A/64/L.72 or A/C.1/L.22 (L-document);
+# SC draft: S/2018/1016 (year/serial);
+# Early GA: A/32/291, A/32/291/Add.2, A/32/291/Add.2J (pre-L-series, with
+# optional addendum/revision suffixes — letters/digits/dots/slashes).
+_DRAFT_SYMBOL_RE = re.compile(
+    r"^(?:"
+    r"(?:A|S)/\S+/L\.\d+"  # L-document: A/64/L.72, A/C.1/L.22, S/.../L.N
+    r"|S/\d{4}/\d+"  # SC serial: S/2018/1016
+    r"|(?:A|S)/\d+/\d[\w./]*"  # Early GA: A/32/291, A/32/291/Add.2J
+    r")"
+)
 # Roman numerals (I, II … XIX and beyond) are valid draft symbols in omnibus sessions.
 _ROMAN_NUMERAL_RE = re.compile(r"^[IVXLCDM]+$", re.IGNORECASE)
 # GA adopted: 64/299; SC adopted: 2448 (2018)

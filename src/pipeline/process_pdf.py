@@ -687,12 +687,25 @@ def process_pdf(
 
         # Date and location may be in the right-column header (older PDFs) rather
         # than in the cover section blocks.  Fall back to the raw first-page text.
+        # For older documents whose first page is a table of contents, the date
+        # appears on page 1 or 2 (the actual opening meeting page).
         if not meta.get("date"):
             from src.extraction.metadata_extractor import extract_date
 
             meta["date"] = extract_date(raw_first_page_text)
             if meta["date"]:
-                log.debug("Date recovered from raw page: %s", meta["date"])
+                log.debug("Date recovered from raw page 0: %s", meta["date"])
+            else:
+                for pg_idx in range(1, min(3, len(raw_pages))):
+                    page_text = " ".join(b.text for b in raw_pages[pg_idx])
+                    meta["date"] = extract_date(page_text)
+                    if meta["date"]:
+                        log.debug(
+                            "Date recovered from raw page %d: %s",
+                            pg_idx,
+                            meta["date"],
+                        )
+                        break
 
         if not meta.get("location"):
             from src.extraction.metadata_extractor import extract_location

@@ -18,7 +18,14 @@ ignore_missing_imports = true
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["src.db.models", "src.db.database", "src.pdf.extract_text", "src.llm.semantic_extractor"]
+module = [
+    "src.db.models",
+    "src.db.database",
+    "src.pdf.extract_text",
+    "src.pdf.preprocess",
+    "src.pdf.reocr",
+    "src.llm.semantic_extractor",
+]
 ignore_errors = true
 
 [tool.pytest.ini_options]

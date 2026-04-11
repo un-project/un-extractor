@@ -509,8 +509,7 @@ def process_pdf(
                         )
             except ReocrUnavailable as exc:
                 log.warning(
-                    "Re-OCR unavailable for %s: %s"
-                    " — install ocrmypdf and tesseract-ocr",
+                    "Re-OCR unavailable for %s: %s",
                     pdf_path.name,
                     exc,
                 )
@@ -660,6 +659,33 @@ def process_pdf(
                 meta["meeting_number"] = meeting_from_text
                 meta["body"] = "SC" if body_prefix == "S" else "GA"
                 log.debug("Symbol reconstructed from path+text: %s", reconstructed)
+
+        # Last-resort fallback: derive symbol directly from the directory path.
+        # For files produced by un-scraper the document number in the filename
+        # IS the PV number (document_121.pdf → PV.121), so no text parsing is
+        # needed and this always succeeds when the path follows the standard
+        # layout.  Used for very poor-quality scans where all text-based
+        # methods above fail.
+        if not meta.get("symbol"):
+            path_symbol = _symbol_from_path(pdf_path)
+            if path_symbol:
+                from src.extraction.metadata_extractor import (
+                    extract_body,
+                    extract_session,
+                )
+
+                meta["symbol"] = path_symbol
+                body = extract_body(path_symbol)
+                meta["body"] = body
+                meta["session"] = meta["session"] or (
+                    extract_session(path_symbol) if body == "GA" else None
+                )
+                meta["meeting_number"] = meta["meeting_number"] or int(
+                    path_symbol.rsplit(".", 1)[-1]
+                )
+                log.debug(
+                    "Symbol derived from path (last-resort): %s", path_symbol
+                )
 
         # Date and location may be in the right-column header (older PDFs) rather
         # than in the cover section blocks.  Fall back to the raw first-page text.

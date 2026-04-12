@@ -104,11 +104,12 @@ def _available_years(session: Session) -> list[int]:
             JOIN documents d ON d.id = v.document_id
             WHERE r.body = 'GA'
               AND cv.vote_position != 'non_voting'
+              AND d.date IS NOT NULL
             ORDER BY yr
             """
         )
     ).fetchall()
-    return [r[0] for r in rows]
+    return [r[0] for r in rows if r[0] is not None]
 
 
 def _compute_year(

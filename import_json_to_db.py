@@ -41,10 +41,18 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+_MAX_COUNTRY_NAME_LEN = 80  # longest real name is ~55 chars
+
+
 def _get_or_create_country(session: Session, name: str) -> Country | None:
     name = normalize_country_name(name)
     if not name or name.lower() == "none":
         log.warning("Skipping blank/null country name")
+        return None
+    if len(name) > _MAX_COUNTRY_NAME_LEN:
+        log.warning(
+            "Skipping implausible country name (%d chars): %.60s…", len(name), name
+        )
         return None
     obj = session.query(Country).filter_by(name=name).first()
     if obj is None:

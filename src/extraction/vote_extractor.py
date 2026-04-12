@@ -239,7 +239,15 @@ def _parse_country_list(raw: str) -> list[str]:
                 parts.append(part[split_pos:].strip().lstrip("and").strip())
             else:
                 parts.append(part)
-    return [normalize_country_name(p) for p in parts if p and p.lower() != "none"]
+    # Reject tokens that are clearly not country names: real names are at most
+    # ~55 characters ("United Kingdom of Great Britain and Northern Ireland").
+    # Anything longer is speech text that leaked through the stop-regex.
+    _MAX_COUNTRY_LEN = 80
+    return [
+        normalize_country_name(p)
+        for p in parts
+        if p and p.lower() != "none" and len(p) <= _MAX_COUNTRY_LEN
+    ]
 
 
 def _extract_vote_totals(

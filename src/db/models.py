@@ -24,6 +24,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -99,6 +100,9 @@ class Document(Base):
     date: Mapped[Optional[date]] = mapped_column(Date)
     location: Mapped[Optional[str]] = mapped_column(String(50))
     pdf_path: Mapped[Optional[str]] = mapped_column(String(500))
+    ocr_quality_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ocr_quality_label: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    ods_used: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
     items: Mapped[list["DocumentItem"]] = relationship(back_populates="document")
     speeches: Mapped[list["Speech"]] = relationship(back_populates="document")

@@ -150,6 +150,9 @@ def import_record(
             session=record.session,
             date=record.date,
             location=record.location,
+            ocr_quality_score=record.ocr_quality_score,
+            ocr_quality_label=record.ocr_quality_label,
+            ods_used=record.ods_used,
         )
         db_session.add(doc)
         db_session.flush()
@@ -230,10 +233,19 @@ def import_record(
                 db_session.add(vote)
                 db_session.flush()
 
+                seen_country_ids: set[int] = set()
                 for cv in res.country_votes:
                     country = _get_or_create_country(db_session, cv.country)
                     if country is None:
                         continue
+                    if country.id in seen_country_ids:
+                        log.warning(
+                            "Skipping duplicate country vote: %s in %s",
+                            cv.country,
+                            record.symbol,
+                        )
+                        continue
+                    seen_country_ids.add(country.id)
                     obj_cv = CountryVote(
                         vote_id=vote.id,
                         country_id=country.id,

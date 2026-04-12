@@ -388,7 +388,16 @@ def extract_resolution_from_adoption(
 
     if yes is not None or has_recorded_signal:
         vote_type = "recorded"
-        country_votes = _extract_country_votes(surrounding_blocks)
+        raw_votes = _extract_country_votes(surrounding_blocks)
+        # Deduplicate: keep first occurrence when a country appears in multiple
+        # vote-position sections (OCR duplication in older scanned documents).
+        seen: set[str] = set()
+        country_votes = []
+        for cv in raw_votes:
+            key = cv.country.lower()
+            if key not in seen:
+                seen.add(key)
+                country_votes.append(cv)
     else:
         vote_type = "consensus"
         country_votes = []

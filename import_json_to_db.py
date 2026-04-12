@@ -234,16 +234,13 @@ def import_record(
                 db_session.flush()
 
                 seen_country_ids: set[int] = set()
+                skipped: list[str] = []
                 for cv in res.country_votes:
                     country = _get_or_create_country(db_session, cv.country)
                     if country is None:
                         continue
                     if country.id in seen_country_ids:
-                        log.warning(
-                            "Skipping duplicate country vote: %s in %s",
-                            cv.country,
-                            record.symbol,
-                        )
+                        skipped.append(cv.country)
                         continue
                     seen_country_ids.add(country.id)
                     obj_cv = CountryVote(
@@ -252,6 +249,14 @@ def import_record(
                         vote_position=cv.vote_position,
                     )
                     db_session.add(obj_cv)
+                if skipped:
+                    log.warning(
+                        "%s: skipped %d duplicate country vote(s) for %s: %s",
+                        record.symbol,
+                        len(skipped),
+                        res.draft_symbol,
+                        ", ".join(skipped),
+                    )
 
         db_session.flush()
     log.info("Imported %s", record.symbol)

@@ -417,6 +417,20 @@ def compute_ideal_points(
                 continue
 
             countries, theta, se = result
+
+            # Orient so that the anti-Western reference country is negative.
+            # Without this, the optimizer can flip the axis (theta and alpha
+            # both negate simultaneously), producing USSR/Russia at +5 instead
+            # of -5 in years where the L-BFGS-B converges to the mirror solution.
+            ref_iso3 = 'SUN' if year <= 1991 else 'RUS'
+            if ref_iso3 in countries:
+                ref_i = countries.index(ref_iso3)
+                if theta[ref_i] > 0:
+                    theta = -theta
+                    log.debug(
+                        "Year %d: flipped axis (%s was positive).", year, ref_iso3
+                    )
+
             log.info("Year %d: %d countries estimated.", year, len(countries))
 
             # Store this year's estimates as warm start for next year

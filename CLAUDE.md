@@ -58,10 +58,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_ga_resolution_texts.py    # fetch GA resolution full texts from UN Documents API
         import_unbench_sc_drafts.py      # SC draft texts + co-sponsorship (UNBench, MIT)
         import_voeten_resolution_meta.py # importantvote flag + issue area codes (Voeten et al.)
+        import_voeten_ideal_points.py    # published BSV 2017 ideal points (1946–present) from Harvard Dataverse
         import_sc_vetoes.py              # SC veto data 1946–present (DPPA-SCVETOES, HDX)
         import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset
         compute_alignment_series.py      # pairwise country voting-alignment time series
-        compute_ideal_points.py          # per-country per-year IRT ideal points (BSV 2017)
+        compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
         coverage_report.py               # extracted vs. stub-only documents per body/session
         generate_unbis_mapping.py        # dev tool: regenerate src/extraction/unbis_subjects.py
 
@@ -122,7 +123,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/compute_alignment_series.py --db ...        # pairwise alignment time series (run after import_undl_votes)
     python scripts/import_harvard_ga_votes.py --db ...         # backfill GA vote tally counts (run after import_undl_votes)
 
-    # Compute ideal points (requires numpy + scipy; run after import_undl_votes)
+    # Ideal points — run in order (requires numpy + scipy)
+    python scripts/import_voeten_ideal_points.py --db ...  # import published BSV 2017 values (1946–present)
+    python scripts/compute_ideal_points.py --extend --db postgresql://user:pass@host/db  # extend for new years only
+
+    # Re-estimate all years from scratch (development / validation only)
     python scripts/compute_ideal_points.py --db postgresql://user:pass@host/db
 
     # Dev tool: regenerate UNBIS thesaurus mapping (only needed after a new thesaurus release)

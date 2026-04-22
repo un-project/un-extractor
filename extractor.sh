@@ -25,7 +25,8 @@ python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --use-ods
 # 1. Drop and recreate the database
 # ---------------------------------------------------------------------------
 
-dropdb unproject && createdb unproject
+docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "DROP DATABASE IF EXISTS unproject;" \
+  && docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "CREATE DATABASE unproject;"
 
 # ---------------------------------------------------------------------------
 # 2. Import extracted JSONs (creates schema automatically)
@@ -86,7 +87,7 @@ python scripts/import_crUnsc_texts.py --db $DATABASE_URL
 python scripts/import_crUnsc_citations.py --db $DATABASE_URL
 
 # SC draft texts + co-sponsorship data (UNBench, MIT)
-python scripts/import_unbench_sc_drafts.py --db $DATABASE_URL
+python scripts/import_unbench_sc_drafts.py --data-dir ./UNBench-all/ --db $DATABASE_URL
 
 # ---------------------------------------------------------------------------
 # 9. Compute derived analytics
@@ -95,12 +96,14 @@ python scripts/import_unbench_sc_drafts.py --db $DATABASE_URL
 # Pairwise country voting-alignment time series
 python scripts/compute_alignment_series.py --db $DATABASE_URL
 
-# Per-country per-year IRT ideal points (BSV 2017; requires numpy + scipy)
-python scripts/compute_ideal_points.py --db $DATABASE_URL
+# Ideal points — import published BSV 2017 values first, then extend for
+# any new sessions beyond Voeten's last data year (requires numpy + scipy)
+python scripts/import_voeten_ideal_points.py --db $DATABASE_URL
+python scripts/compute_ideal_points.py --extend --db $DATABASE_URL
 
 # ---------------------------------------------------------------------------
 # 10. un-project.org website sync (run from the un-project.org repo)
 # ---------------------------------------------------------------------------
 
-# DB_HOST=localhost python scripts/populate_iso_and_flags.py
+# DB_HOST=localhost DB_PORT=5433 python scripts/populate_iso_and_flags.py
 # docker compose exec web python manage.py refresh_search_index --full

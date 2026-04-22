@@ -1,34 +1,44 @@
 #!/usr/bin/env python3
-"""Estimate UN country ideal points from GA recorded votes (Bailey-Strezhnev-Voeten).
+"""Extend UN ideal points for years beyond the published Voeten/BSV dataset.
 
-Implements a cross-sectional two-parameter logistic (2PL) IRT model for each
-GA session year, placing every country on a latent policy dimension anchored at
-the United States (θ_USA = 0 in all years, positive = more aligned with USA).
+Two modes
+---------
+Default (no ``--extend``)
+    Re-estimates ideal points for *all* years using a cross-sectional 2PL IRT
+    per year.  Stored with ``source = 'computed_irt'``.  Useful for
+    development and for validating the model against Voeten's published values.
+
+``--extend``
+    Estimates only years that do *not* already have a ``voeten_bsv2017`` row
+    in the database (i.e. sessions after Voeten's last data year).  For each
+    new year the optimizer is warm-started from the previous year's rescaled
+    ideal points (Voeten values are shifted so USA = 0 before use as θ₀),
+    giving smoother cross-year trajectories than a cold start.
+    Stored with ``source = 'computed_irt'``.
+
+    Run ``scripts/import_voeten_ideal_points.py`` *before* this script when
+    using ``--extend``.
 
 Model
 -----
-For country i, vote j in year t:
+Cross-sectional two-parameter logistic (2PL) IRT per year:
 
     P(y_ij = Yes) = Φ(α_j · θ_i − β_j)
 
-where Φ is the standard normal CDF, θ_i is the country ideal point,
-α_j is the vote discrimination parameter, and β_j is the vote difficulty.
+where Φ is the standard normal CDF, θ_i is the country ideal point (positive
+= more aligned with USA), α_j the vote discrimination, β_j the difficulty.
 
-Identification
---------------
-- θ_USA = 0 in all years (USA as reference, "Western liberal" pole).
-- L2 regularisation (λ = 0.1) on free θ parameters to stabilise estimation.
+Identification: θ_USA = 0 in all years.  Abstentions and absences are treated
+as missing.  Only resolutions with ≥ 10 Yes/No votes are included.
 
-Abstentions and absences are treated as missing (not used in likelihood).
-Only resolutions with ≥ 10 Yes/No votes are included.
+Standard errors come from the diagonal of the Fisher information matrix.
 
-Standard errors are computed from the diagonal of the Fisher information
-matrix at the optimum:  SE_i = 1 / sqrt(Σ_j α_j² φ(η_ij)² / [p_ij(1-p_ij)]).
-
-Output
-------
-Writes to ``country_ideal_points (country_id, iso3, year, ideal_point, se)``,
-one row per (country, year) with at least one classifiable vote.
+Note on scale
+-------------
+Our cross-sectional estimates place the USA at 0 by construction, whereas
+Voeten's published values place the USA at ~+2.5 (world mean ≈ 0).  These are
+*not* directly comparable on the y-axis; do not mix them in the same plot.
+Use the ``source`` column to filter.
 
 Reference
 ---------
@@ -41,8 +51,8 @@ Usage
 -----
     python scripts/compute_ideal_points.py
     python scripts/compute_ideal_points.py --db postgresql://...
-    python scripts/compute_ideal_points.py --csv data/undl/ga_voting.csv
-    python scripts/compute_ideal_points.py --year 2010
+    python scripts/compute_ideal_points.py --extend           # new years only
+    python scripts/compute_ideal_points.py --year 2024        # single year
     python scripts/compute_ideal_points.py --dry-run
 """
 
@@ -79,12 +89,12 @@ log = logging.getLogger(__name__)
 _DEFAULT_CSV = Path(__file__).resolve().parents[1] / "data" / "undl" / "ga_voting.csv"
 
 # IRT hyper-parameters
-_MIN_VOTES_PER_RES = 10   # minimum Y+N votes for a resolution to be included
-_MIN_RES_PER_YEAR = 5     # minimum resolutions to attempt estimation
-_MIN_COUNTRIES = 20       # minimum countries to attempt estimation
-_REGULARISATION = 0.1     # L2 penalty on ideal points (not USA anchor)
-_GTOL = 1e-4              # gradient norm convergence tolerance
-_MAXITER = 500            # L-BFGS-B max iterations
+_MIN_VOTES_PER_RES = 10
+_MIN_RES_PER_YEAR = 5
+_MIN_COUNTRIES = 20
+_REGULARISATION = 0.1
+_GTOL = 1e-4
+_MAXITER = 500
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +113,7 @@ def _ensure_schema(session: Session) -> None:
                 year        INTEGER NOT NULL,
                 ideal_point DOUBLE PRECISION NOT NULL,
                 se          DOUBLE PRECISION,
+                source      VARCHAR(32) NOT NULL DEFAULT 'computed_irt',
                 UNIQUE (iso3, year)
             )
             """
@@ -110,16 +121,18 @@ def _ensure_schema(session: Session) -> None:
     )
     session.execute(
         text(
-            "CREATE INDEX IF NOT EXISTS ix_cip_country "
-            "ON country_ideal_points (country_id)"
+            """
+            ALTER TABLE country_ideal_points
+            ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'computed_irt'
+            """
         )
     )
-    session.execute(
-        text(
-            "CREATE INDEX IF NOT EXISTS ix_cip_year "
-            "ON country_ideal_points (year)"
-        )
-    )
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS ix_cip_country ON country_ideal_points (country_id)",
+        "CREATE INDEX IF NOT EXISTS ix_cip_year ON country_ideal_points (year)",
+        "CREATE INDEX IF NOT EXISTS ix_cip_source ON country_ideal_points (source)",
+    ]:
+        session.execute(text(idx_sql))
     session.commit()
     log.info("country_ideal_points schema ready.")
 
@@ -154,18 +167,63 @@ def _load_votes(csv_path: Path) -> dict[int, dict[str, dict[str, int]]]:
 
 
 # ---------------------------------------------------------------------------
+# Warm-start helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_voeten_last_year(session: Session) -> int | None:
+    """Return the highest year covered by voeten_bsv2017 rows, or None."""
+    row = session.execute(
+        text(
+            "SELECT max(year) FROM country_ideal_points "
+            "WHERE source = 'voeten_bsv2017'"
+        )
+    ).fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
+def _get_warm_start(session: Session, year: int) -> dict[str, float]:
+    """Return {iso3: theta} for the given year, rescaled to USA = 0.
+
+    Used to initialise the optimiser for the first extension year from
+    Voeten's published values, and for subsequent extension years from the
+    previous year's computed_irt results.
+    """
+    rows = session.execute(
+        text(
+            "SELECT iso3, ideal_point FROM country_ideal_points WHERE year = :y"
+            " ORDER BY source DESC"  # voeten_bsv2017 > computed_irt (alphabetic)
+        ),
+        {"y": year},
+    ).fetchall()
+    if not rows:
+        return {}
+    ip_map = {iso3.upper(): ip for iso3, ip in rows}
+    usa_shift = ip_map.get("USA", 0.0)
+    return {iso3: ip - usa_shift for iso3, ip in ip_map.items()}
+
+
+# ---------------------------------------------------------------------------
 # IRT estimation (one year)
 # ---------------------------------------------------------------------------
 
 
 def _estimate_year(
     year_votes: dict[str, dict[str, int]],
+    warm_start: dict[str, float] | None = None,
 ) -> tuple[list[str], np.ndarray, np.ndarray] | None:
     """Estimate ideal points for a single year.
 
     Returns (countries, ideal_points, standard_errors) or None if
-    insufficient data.  ``ideal_points`` is signed so that positive values
-    indicate alignment with the USA reference point.
+    insufficient data.  Positive values indicate alignment with the USA
+    reference point (θ_USA = 0 by construction).
+
+    Parameters
+    ----------
+    warm_start:
+        Optional {iso3: theta} mapping (USA=0 scale) to use as the starting
+        point for the optimizer instead of zeros.  Countries not present in
+        the mapping start at 0.
     """
     countries = sorted(year_votes.keys())
     resolutions = sorted({r for cv in year_votes.values() for r in cv})
@@ -174,7 +232,6 @@ def _estimate_year(
     if n_c < _MIN_COUNTRIES or n_r < _MIN_RES_PER_YEAR:
         return None
 
-    # Vote matrix: (n_c, n_r), NaN = missing
     V = np.full((n_c, n_r), np.nan)
     c_idx = {c: i for i, c in enumerate(countries)}
     r_idx = {r: j for j, r in enumerate(resolutions)}
@@ -182,7 +239,6 @@ def _estimate_year(
         for r, v in rv.items():
             V[c_idx[c], r_idx[r]] = float(v)
 
-    # Drop resolutions with fewer than _MIN_VOTES_PER_RES Y/N votes
     n_observed = np.sum(~np.isnan(V), axis=0)
     keep = n_observed >= _MIN_VOTES_PER_RES
     V = V[:, keep]
@@ -190,10 +246,9 @@ def _estimate_year(
     if n_r < _MIN_RES_PER_YEAR:
         return None
 
-    obs = ~np.isnan(V)           # (n_c, n_r) boolean mask
-    y = np.where(obs, V, 0.0)    # NaN → 0 (masked by obs in LL)
+    obs = ~np.isnan(V)
+    y = np.where(obs, V, 0.0)
 
-    # USA fixed at θ=0 for identification
     usa_idx = countries.index("USA") if "USA" in countries else None
     free_idx = np.array(
         [i for i in range(n_c) if i != usa_idx], dtype=int
@@ -202,17 +257,16 @@ def _estimate_year(
 
     def neg_ll_grad(params: np.ndarray) -> tuple[float, np.ndarray]:
         theta_free = params[:n_free]
-        alpha = params[n_free:n_free + n_r]
-        beta = params[n_free + n_r:]
+        alpha = params[n_free : n_free + n_r]
+        beta = params[n_free + n_r :]
 
         theta = np.zeros(n_c)
         theta[free_idx] = theta_free
 
-        eta = alpha[None, :] * theta[:, None] - beta[None, :]  # (n_c, n_r)
+        eta = alpha[None, :] * theta[:, None] - beta[None, :]
         phi = _norm.pdf(eta)
         Phi = np.clip(_norm.cdf(eta), 1e-9, 1.0 - 1e-9)
 
-        # Score contribution per observation
         r = obs * phi * (y / Phi - (1.0 - y) / (1.0 - Phi))
 
         ll = (
@@ -227,8 +281,14 @@ def _estimate_year(
         grad = np.concatenate([g_theta, g_alpha, g_beta])
         return -ll, -grad
 
+    # Initialise theta from warm_start (rescaled to USA=0) when available
     x0 = np.zeros(n_free + 2 * n_r)
-    x0[n_free : n_free + n_r] = 1.0  # initialise discrimination = 1
+    x0[n_free : n_free + n_r] = 1.0  # discrimination = 1
+    if warm_start:
+        free_countries = [countries[i] for i in free_idx]
+        for k, c in enumerate(free_countries):
+            if c in warm_start:
+                x0[k] = warm_start[c]
 
     result = minimize(
         neg_ll_grad,
@@ -247,14 +307,14 @@ def _estimate_year(
     theta = np.zeros(n_c)
     theta[free_idx] = theta_free
 
-    # Fisher information SE: SE_i = 1 / sqrt(Σ_j α_j² φ² / [p(1-p)])
     eta = alpha[None, :] * theta[:, None] - beta[None, :]
     phi = _norm.pdf(eta)
     Phi = np.clip(_norm.cdf(eta), 1e-9, 1.0 - 1e-9)
     info = np.sum(obs * alpha[None, :] ** 2 * phi ** 2 / (Phi * (1.0 - Phi)), axis=1)
-    se = np.where(info > 0.0, 1.0 / np.sqrt(info), np.nan)
+    safe_info = np.where(info > 0.0, info, 1.0)  # avoid sqrt(0) before np.where selects
+    se = np.where(info > 0.0, 1.0 / np.sqrt(safe_info), np.nan)
 
-    # Sign convention: positive = agrees with USA (flip raw θ)
+    # Flip: positive = agrees with USA
     return countries, -theta, se
 
 
@@ -278,9 +338,18 @@ def _build_iso3_to_country_id(session: Session) -> dict[str, int]:
 def compute_ideal_points(
     db_url: str | None = None,
     csv_path: Path | None = None,
+    extend: bool = False,
     dry_run: bool = False,
     only_year: int | None = None,
 ) -> None:
+    """Estimate ideal points and write to country_ideal_points.
+
+    Parameters
+    ----------
+    extend:
+        When True, estimate only years after the last voeten_bsv2017 year,
+        using the previous year's ideal points as a warm start.
+    """
     if csv_path is None:
         csv_path = _DEFAULT_CSV
 
@@ -296,24 +365,65 @@ def compute_ideal_points(
     years = sorted(all_votes.keys())
     if only_year is not None:
         years = [y for y in years if y == only_year]
+
+    # --extend: restrict to years after the last Voeten year
+    voeten_last_year: int | None = None
+    if extend:
+        with get_session(engine) as session:
+            voeten_last_year = _get_voeten_last_year(session)
+        if voeten_last_year is None:
+            log.warning(
+                "--extend specified but no voeten_bsv2017 rows found in DB. "
+                "Run import_voeten_ideal_points.py first.  "
+                "Falling back to full estimation."
+            )
+        else:
+            years = [y for y in years if y > voeten_last_year]
+            log.info(
+                "Voeten data covers up to %d; extending for %d year(s): %s",
+                voeten_last_year,
+                len(years),
+                years,
+            )
+
+    if not years:
+        log.info("No years to estimate — nothing to do.")
+        return
+
     log.info("Estimating ideal points for %d year(s).", len(years))
 
     with get_session(engine) as session:
         iso3_to_country = _build_iso3_to_country_id(session)
 
-        total_rows = 0
+    total_rows = 0
+    prev_theta: dict[str, float] = {}  # warm start for next year
+
+    with get_session(engine) as session:
         for year in years:
-            result = _estimate_year(all_votes[year])
+            # Build warm start: either from previous year's DB rows (first
+            # extension year) or from the previous iteration's estimates.
+            if extend and not prev_theta and voeten_last_year is not None:
+                warm_start = _get_warm_start(session, voeten_last_year)
+                log.debug(
+                    "Year %d: warm-starting from %d voeten year-%d values.",
+                    year, len(warm_start), voeten_last_year,
+                )
+            else:
+                warm_start = prev_theta or None
+
+            result = _estimate_year(all_votes[year], warm_start=warm_start)
             if result is None:
                 log.warning("Year %d: insufficient data — skipped.", year)
                 continue
 
             countries, theta, se = result
-            log.info(
-                "Year %d: %d countries estimated.",
-                year,
-                len(countries),
-            )
+            log.info("Year %d: %d countries estimated.", year, len(countries))
+
+            # Store this year's estimates as warm start for next year
+            prev_theta = {
+                iso3: float(theta[i])
+                for i, iso3 in enumerate(countries)
+            }
 
             if not dry_run:
                 for i, iso3 in enumerate(countries):
@@ -325,12 +435,13 @@ def compute_ideal_points(
                         text(
                             """
                             INSERT INTO country_ideal_points
-                                (country_id, iso3, year, ideal_point, se)
-                            VALUES (:cid, :iso3, :year, :ip, :se)
+                                (country_id, iso3, year, ideal_point, se, source)
+                            VALUES (:cid, :iso3, :year, :ip, :se, 'computed_irt')
                             ON CONFLICT (iso3, year) DO UPDATE
                                 SET ideal_point = EXCLUDED.ideal_point,
-                                    se = EXCLUDED.se,
-                                    country_id = EXCLUDED.country_id
+                                    se          = EXCLUDED.se,
+                                    source      = EXCLUDED.source,
+                                    country_id  = EXCLUDED.country_id
                             """
                         ),
                         {
@@ -347,21 +458,14 @@ def compute_ideal_points(
         if not dry_run:
             log.info("Committed %d country-year ideal point rows.", total_rows)
         else:
-            log.info(
-                "Dry run: would write %d rows (not committed).",
-                sum(
-                    len(_estimate_year(all_votes[y])[0])
-                    for y in years
-                    if _estimate_year(all_votes[y]) is not None
-                ),
-            )
+            log.info("Dry run: would write %d rows (not committed).", total_rows)
 
 
 def main() -> int:
     p = argparse.ArgumentParser(
         description=(
-            "Estimate UN country ideal points (Bailey-Strezhnev-Voeten 2PL IRT) "
-            "from GA recorded votes and store in country_ideal_points."
+            "Estimate UN ideal points (cross-sectional 2PL IRT) "
+            "and store in country_ideal_points."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -372,11 +476,19 @@ def main() -> int:
         help="Path to ga_voting.csv (default: data/undl/ga_voting.csv)",
     )
     p.add_argument(
+        "--extend",
+        action="store_true",
+        help=(
+            "Only estimate years beyond the last voeten_bsv2017 year in the DB. "
+            "Requires import_voeten_ideal_points.py to have been run first."
+        ),
+    )
+    p.add_argument(
         "--year",
         type=int,
         default=None,
         metavar="YYYY",
-        help="Estimate only this year",
+        help="Estimate only this year (overrides --extend year filtering)",
     )
     p.add_argument(
         "--dry-run",
@@ -394,6 +506,7 @@ def main() -> int:
     compute_ideal_points(
         db_url=args.db,
         csv_path=Path(args.csv) if args.csv else None,
+        extend=args.extend,
         dry_run=args.dry_run,
         only_year=args.year,
     )

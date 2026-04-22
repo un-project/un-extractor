@@ -117,6 +117,39 @@ structured to consume but that the pipeline does not yet extract.
 
 ---
 
+## Ideal points
+
+- [ ] **Full dynamic IRT (BSV 2017) from scratch** — The current
+  `compute_ideal_points.py` runs an independent cross-sectional 2PL IRT per
+  year and warm-starts extension years from the prior year's estimates.  This
+  is a practical approximation but cannot reproduce Voeten's published
+  trajectories because it lacks the dynamic random-walk prior that links years
+  together.  A faithful reimplementation requires:
+
+  1. **Ordered probit** (3 outcomes: No / Abstain / Yes) instead of the
+     current binary logit.  Abstentions carry signal that the current model
+     discards.
+
+  2. **Dynamic prior** — `θ_i,t ~ N(θ_i,t-1, σ²_i)` — a per-country random
+     walk that makes ideal points cross-year comparable and produces the smooth
+     long-run trends visible in Voeten's graph.
+
+  3. **Bayesian MCMC** — the joint posterior over all years is not separable,
+     so year-by-year optimisation is invalid.  Use **PyMC** (preferred, pure
+     Python) or **NumPyro** (JAX backend, GPU-friendly) with a NUTS sampler.
+     Approximate variational inference (ADVI in PyMC) would be much faster
+     and likely sufficient for the extension use-case.
+
+  4. **Identification** — mean(θ)=0, var(θ)=1 via Bayesian priors (as in BSV)
+     rather than pinning USA=0.  This puts all countries on the same scale
+     as the published dataset.
+
+  Estimated effort: ~300 lines of PyMC model code + several hours of CPU
+  sampling for the full 1946–present panel.  Add `pymc` to `pyproject.toml`
+  dependencies when implementing.
+
+---
+
 ## Voting analytics & geopolitics
 
 The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide

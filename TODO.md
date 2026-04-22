@@ -119,7 +119,8 @@ structured to consume but that the pipeline does not yet extract.
 
 ## Ideal points
 
-- [ ] **Full dynamic IRT (BSV 2017) from scratch** — The current
+- [x] **Full dynamic IRT (BSV 2017) from scratch** — Implemented in
+  `scripts/compute_ideal_points_mcmc.py`.  The current
   `compute_ideal_points.py` runs an independent cross-sectional 2PL IRT per
   year and warm-starts extension years from the prior year's estimates.  This
   is a practical approximation but cannot reproduce Voeten's published

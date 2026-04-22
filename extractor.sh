@@ -96,8 +96,12 @@ python scripts/import_unbench_sc_drafts.py --data-dir ./UNBench-all/ --db $DATAB
 # Pairwise country voting-alignment time series
 python scripts/compute_alignment_series.py --db $DATABASE_URL
 
-# Ideal points — import published BSV 2017 values first, then extend for
-# any new sessions beyond Voeten's last data year (requires numpy + scipy)
+# Ideal points — full dynamic Bayesian IRT (BSV 2017 ordinal-probit Gibbs sampler)
+# Produces source='bsv2017_mcmc' rows matching Voeten's published scale.
+# Takes several hours; reduce --n-iter for a quick test run.
+python scripts/compute_ideal_points_mcmc.py --n-iter 10000 --n-burn 2000 --thin 20 --db $DATABASE_URL
+
+# Cross-sectional IRT extension for sessions beyond the MCMC dataset cutoff:
 python scripts/import_voeten_ideal_points.py --db $DATABASE_URL
 python scripts/compute_ideal_points.py --extend --db $DATABASE_URL
 

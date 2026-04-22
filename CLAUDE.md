@@ -63,6 +63,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset
         compute_alignment_series.py      # pairwise country voting-alignment time series
         compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
+        compute_ideal_points_mcmc.py     # full BSV 2017 dynamic ordinal-probit Gibbs sampler
         coverage_report.py               # extracted vs. stub-only documents per body/session
         generate_unbis_mapping.py        # dev tool: regenerate src/extraction/unbis_subjects.py
 
@@ -129,6 +130,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
 
     # Re-estimate all years from scratch (development / validation only)
     python scripts/compute_ideal_points.py --db postgresql://user:pass@host/db
+
+    # Full dynamic Bayesian IRT (BSV 2017 ordinal-probit Gibbs sampler; hours to run)
+    # Produces source='bsv2017_mcmc' rows matching Voeten's published scale (mean=0, std=1)
+    python scripts/compute_ideal_points_mcmc.py --db postgresql://user:pass@host/db
+    python scripts/compute_ideal_points_mcmc.py --n-iter 10000 --n-burn 2000 --thin 20 --db ...
 
     # Dev tool: regenerate UNBIS thesaurus mapping (only needed after a new thesaurus release)
     # pip install rdflib

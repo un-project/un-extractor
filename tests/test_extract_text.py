@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 from src.pdf.extract_text import (
     _TWO_COLUMN_MIN_RIGHT_FRACTION,
     _extract_page_blocks,
+    _is_bilingual_layout,
 )
 
 # ---------------------------------------------------------------------------
@@ -16,9 +17,16 @@ from src.pdf.extract_text import (
 # ---------------------------------------------------------------------------
 
 
-def _span(text: str, bold: bool = False, italic: bool = False) -> dict[str, Any]:
+def _span(
+    text: str, bold: bool = False, italic: bool = False, x0: float = 0.0
+) -> dict[str, Any]:
     flags = (0x10 if bold else 0) | (0x02 if italic else 0)
-    return {"text": text, "flags": flags, "font": "Times"}
+    return {
+        "text": text,
+        "flags": flags,
+        "font": "Times",
+        "bbox": (x0, 0.0, x0 + 50.0, 10.0),
+    }
 
 
 def _block(x0: float, y0: float, text: str = "word") -> dict[str, Any]:
@@ -173,3 +181,106 @@ class TestEdgeCases:
 
 def test_threshold_constant_is_sensible() -> None:
     assert 0.0 < _TWO_COLUMN_MIN_RIGHT_FRACTION < 0.5
+
+
+# ---------------------------------------------------------------------------
+# Bilingual layout detection
+# ---------------------------------------------------------------------------
+
+
+def _block_with_spans(
+    x0: float, y0: float, spans: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Build a block whose lines contain the given pre-built span dicts."""
+    return {
+        "type": 0,
+        "bbox": (x0, y0, x0 + 200, y0 + 20),
+        "lines": [{"spans": spans}],
+    }
+
+
+def _positioned_span(text: str, x0: float) -> dict[str, Any]:
+    """Span at a specific x0 position."""
+    return {"text": text, "flags": 0, "font": "Times", "bbox": (x0, 0, x0 + 50, 10)}
+
+
+class TestBilingualDetection:
+    """_is_bilingual_layout should fire on French-right columns only."""
+
+    def _en_block(self, y: float, text: str = "English word") -> dict[str, Any]:
+        return _block_with_spans(10.0, y, [_positioned_span(text, 10.0)])
+
+    def _fr_block(self, y: float, text: str) -> dict[str, Any]:
+        return _block_with_spans(310.0, y, [_positioned_span(text, 310.0)])
+
+    def test_french_right_column_detected(self) -> None:
+        """Right column full of French diacritics → bilingual."""
+        fr_text = "éèêëàâçîïôùûüœæ" * 10  # well above threshold
+        blocks = [
+            self._en_block(0.0, "The Council met at"),
+            self._fr_block(0.0, fr_text),
+        ]
+        assert _is_bilingual_layout(blocks, mid_x=300.0) is True
+
+    def test_english_right_column_not_detected(self) -> None:
+        """Right column that is English → not bilingual."""
+        blocks = [
+            _block_with_spans(10.0, 0.0, [_positioned_span("Left column text", 10.0)]),
+            _block_with_spans(
+                310.0, 0.0, [_positioned_span("Right column text", 310.0)]
+            ),
+        ]
+        assert _is_bilingual_layout(blocks, mid_x=300.0) is False
+
+    def test_too_little_right_text_not_detected(self) -> None:
+        """Fewer than 100 right-column chars → inconclusive, returns False."""
+        blocks = [
+            _block_with_spans(310.0, 0.0, [_positioned_span("éàç", 310.0)]),
+        ]
+        assert _is_bilingual_layout(blocks, mid_x=300.0) is False
+
+    def test_empty_blocks_not_detected(self) -> None:
+        assert _is_bilingual_layout([], mid_x=300.0) is False
+
+
+class TestBilingualExtraction:
+    """_extract_page_blocks with bilingual=True drops right-column content."""
+
+    def test_right_column_blocks_discarded(self) -> None:
+        left = _block(50.0, 100.0, "English")
+        right = _block(350.0, 100.0, "Francais")
+        page = _make_page([left, right], width=600.0)
+        result = _extract_page_blocks(page, page_num=0, bilingual=True)
+        texts = [tb.text.strip() for tb in result]
+        assert texts == ["English"]
+        assert "Francais" not in texts
+
+    def test_wide_block_right_spans_filtered(self) -> None:
+        """A block that straddles both columns: only left-side spans kept."""
+        wide_block = {
+            "type": 0,
+            "bbox": (10.0, 100.0, 590.0, 120.0),
+            "lines": [
+                {
+                    "spans": [
+                        _positioned_span("Hello", 10.0),  # left → keep
+                        _positioned_span("Bonjour", 310.0),  # right → discard
+                    ]
+                }
+            ],
+        }
+        page = _make_page([wide_block], width=600.0)
+        result = _extract_page_blocks(page, page_num=0, bilingual=True)
+        assert len(result) == 1
+        assert "Hello" in result[0].text
+        assert "Bonjour" not in result[0].text
+
+    def test_non_bilingual_mode_unchanged(self) -> None:
+        """bilingual=False must preserve the normal two-column behaviour."""
+        left = _block(50.0, 100.0, "Left")
+        right = _block(350.0, 100.0, "Right")
+        page = _make_page([left, right], width=600.0)
+        result = _extract_page_blocks(page, page_num=0, bilingual=False)
+        texts = [tb.text.strip() for tb in result]
+        assert "Left" in texts
+        assert "Right" in texts

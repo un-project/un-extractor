@@ -1,0 +1,29 @@
+{
+  "symbol": "S/PV.492",
+  "session": null,
+  "meeting_number": 492,
+  "date": "1950-08-24",
+  "location": "New York",
+  "president_name": null,
+  "total_speeches": 13,
+  "total_resolutions": 0,
+  "total_stage_directions": 5,
+  "items": [
+    {
+      "position": 0,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 2,
+      "resolution_count": 0,
+      "resolutions": []
+    },
+    {
+      "position": 1,
+      "item_type": "other_item",
+      "agenda_number": null,
+      "speech_count": 11,
+      "resolution_count": 0,
+      "resolutions": []
+    }
+  ]
+}

@@ -104,7 +104,7 @@ structured to consume but that the pipeline does not yet extract.
   by a country list.  A regex pass over `speeches.text` could fill these
   gaps in the existing `resolution_sponsors` table.
 
-- [ ] **Resolution symbol mentions in speeches** — Speeches routinely cite
+- [x] **Resolution symbol mentions in speeches** — Speeches routinely cite
   resolution symbols in their text (e.g. "resolution 64/299", "draft resolution
   A/64/L.72").  A regex pass over `speeches.text` could populate a
   `speech_resolution_mentions (speech_id, resolution_id)` table, enabling an

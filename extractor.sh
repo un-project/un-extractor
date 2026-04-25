@@ -110,6 +110,9 @@ python scripts/extract_speech_resolution_mentions.py --db $DATABASE_URL
 # Pairwise country voting-alignment time series
 python scripts/compute_alignment_series.py --db $DATABASE_URL
 
+# Data-driven voting bloc detection (5-year rolling window, connected components)
+python scripts/compute_voting_blocs.py --db $DATABASE_URL
+
 # Ideal points — full dynamic Bayesian IRT (BSV 2017 ordinal-probit Gibbs sampler)
 # Produces source='bsv2017_mcmc' rows matching Voeten's published scale.
 # Takes several hours; reduce --n-iter for a quick test run.

@@ -159,7 +159,7 @@ The UNDL voting CSVs (already imported: ~947k GA rows, ~41k SC rows) provide
 a complete `(country, resolution, vote_position, date)` record from 1946–2026
 that is sufficient for the following analytical features.
 
-- [ ] **Data-driven bloc detection** — Compute a pairwise voting-agreement
+- [x] **Data-driven bloc detection** — Compute a pairwise voting-agreement
   matrix per year and apply hierarchical or spectral clustering to recover
   voting blocs automatically, rather than the hardcoded `coalitions.py` list
   in the website.  Store results in a `voting_blocs (country_id, year, bloc)`

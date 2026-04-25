@@ -66,6 +66,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         tag_speech_types.py                       # classify speeches as substantive / explanation_of_vote / procedural
         compute_alignment_series.py      # pairwise country voting-alignment time series
         compute_voting_blocs.py          # data-driven voting bloc detection (connected components)
+        compute_vote_predictions.py      # gradient-boosting vote predictor + anomaly detection
         compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
         compute_ideal_points_mcmc.py     # full BSV 2017 dynamic ordinal-probit Gibbs sampler
         coverage_report.py               # extracted vs. stub-only documents per body/session

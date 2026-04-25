@@ -165,7 +165,7 @@ that is sufficient for the following analytical features.
   in the website.  Store results in a `voting_blocs (country_id, year, bloc)`
   table.  Use rolling 5-year windows to detect gradual realignments.
 
-- [ ] **Vote prediction model** — Train a gradient-boosting classifier to
+- [x] **Vote prediction model** — Train a gradient-boosting classifier to
   predict a country's vote (yes/no/abstain) on a resolution given: the
   country's recent ideal point, resolution category/subjects, and sponsoring
   region.  Useful both as a research tool and for flagging anomalous votes

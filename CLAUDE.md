@@ -61,6 +61,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         import_voeten_ideal_points.py    # published BSV 2017 ideal points (1946–present) from Harvard Dataverse
         import_sc_vetoes.py              # SC veto data 1946–present (DPPA-SCVETOES, HDX)
         import_harvard_ga_votes.py       # backfill GA vote tally counts from Voeten et al. dataset
+        extract_speech_cosponsors.py     # co-sponsorship extraction from speech text → resolution_sponsors
         compute_alignment_series.py      # pairwise country voting-alignment time series
         compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
         compute_ideal_points_mcmc.py     # full BSV 2017 dynamic ordinal-probit Gibbs sampler
@@ -123,6 +124,9 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_sc_vetoes.py --db ...                # SC veto data 1946–present (run after import_undl_votes)
     python scripts/compute_alignment_series.py --db ...        # pairwise alignment time series (run after import_undl_votes)
     python scripts/import_harvard_ga_votes.py --db ...         # backfill GA vote tally counts (run after import_undl_votes)
+    python scripts/extract_speech_cosponsors.py --db ...       # GA + pre-1994 SC co-sponsorship from speech text
+    python scripts/extract_speech_cosponsors.py --body GA --db ...          # GA only
+    python scripts/extract_speech_cosponsors.py --body SC --before-year 1994 --db ...  # pre-UNBench SC
 
     # Ideal points — run in order (requires numpy + scipy)
     python scripts/import_voeten_ideal_points.py --db ...  # import published BSV 2017 values (1946–present)

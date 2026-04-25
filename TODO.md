@@ -95,7 +95,7 @@ Open tasks and known limitations for the un-extractor pipeline.
 These items produce data that the un-project.org website is already
 structured to consume but that the pipeline does not yet extract.
 
-- [ ] **Co-sponsorship extraction from speeches** — SC draft co-sponsorship
+- [x] **Co-sponsorship extraction from speeches** — SC draft co-sponsorship
   for the UNBench period (~1994–present) is already imported by
   `import_unbench_sc_drafts.py` into `resolution_sponsors`.  Gaps remain:
   GA resolutions (all periods) and SC resolutions pre-1994.  Speeches

@@ -169,7 +169,12 @@ that is sufficient for the following analytical features.
   predict a country's vote (yes/no/abstain) on a resolution given: the
   country's recent ideal point, resolution category/subjects, and sponsoring
   region.  Useful both as a research tool and for flagging anomalous votes
-  (country broke from expected pattern).
+  (country broke from expected pattern).  Note: `un-project.org` already has a
+  live IRT-style threshold predictor (`api/views.py::vote_predict`) that covers
+  the interactive use case; this item is for a trained offline classifier with
+  anomaly-detection output stored in the DB.  If built, the training script
+  belongs here (pure data pipeline, no Django dependency); un-project.org would
+  only read the resulting predictions table.
 
 ---
 

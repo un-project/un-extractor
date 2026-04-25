@@ -90,7 +90,21 @@ python scripts/import_crUnsc_citations.py --db $DATABASE_URL
 python scripts/import_unbench_sc_drafts.py --data-dir ./UNBench-all/ --db $DATABASE_URL
 
 # ---------------------------------------------------------------------------
-# 9. Compute derived analytics
+# 9. Speech-level enrichment (run after all resolution imports are complete)
+# ---------------------------------------------------------------------------
+
+# Tag speeches as substantive / explanation_of_vote / procedural
+python scripts/tag_speech_types.py --db $DATABASE_URL
+
+# Extract co-sponsorship mentions from speech text → resolution_sponsors
+# (GA all periods + SC pre-1994; post-1994 SC covered by import_unbench_sc_drafts above)
+python scripts/extract_speech_cosponsors.py --db $DATABASE_URL
+
+# Extract resolution symbol mentions from speech text → speech_resolution_mentions
+python scripts/extract_speech_resolution_mentions.py --db $DATABASE_URL
+
+# ---------------------------------------------------------------------------
+# 10. Compute derived analytics
 # ---------------------------------------------------------------------------
 
 # Pairwise country voting-alignment time series
@@ -106,7 +120,7 @@ python scripts/import_voeten_ideal_points.py --db $DATABASE_URL
 python scripts/compute_ideal_points.py --extend --db $DATABASE_URL
 
 # ---------------------------------------------------------------------------
-# 10. un-project.org website sync (run from the un-project.org repo)
+# 11. un-project.org website sync (run from the un-project.org repo)
 # ---------------------------------------------------------------------------
 
 # DB_HOST=localhost DB_PORT=5433 python scripts/populate_iso_and_flags.py

@@ -82,7 +82,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   before either writes). Use `INSERT … ON CONFLICT DO NOTHING` or a PostgreSQL advisory
   lock keyed on the document symbol.
 
-- [ ] **Speaker deduplication ignores language** — The deduplication key is `(name, country_id,
+- [x] **Speaker deduplication ignores language** — The deduplication key is `(name, country_id,
   organization)`. A delegate who speaks in both English and French is treated as the same
   speaker, which is correct; but two different delegates with the same name from the same
   country are silently merged. Consider adding a secondary check on first-seen meeting date

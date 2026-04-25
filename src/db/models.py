@@ -75,6 +75,10 @@ class Speaker(Base):
     organization: Mapped[Optional[str]] = mapped_column(String(400), nullable=True)
     role: Mapped[Optional[str]] = mapped_column(String(500))
     title: Mapped[Optional[str]] = mapped_column(String(20))
+    # Earliest meeting date at which this speaker has been observed.  Used to
+    # detect probable false merges when the same (name, country) key recurs
+    # many years later (likely a different person with the same name).
+    first_seen_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     country: Mapped[Optional[Country]] = relationship(back_populates="speakers")
     speeches: Mapped[list["Speech"]] = relationship(back_populates="speaker")

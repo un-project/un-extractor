@@ -13,6 +13,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import text
@@ -45,6 +46,11 @@ log = logging.getLogger(__name__)
 
 _MAX_COUNTRY_NAME_LEN = 80  # longest real name is ~55 chars
 
+# If the same (name, country) key appears in a document whose date is more
+# than this many years after the speaker's first_seen_date, the deduplication
+# is likely wrong (different person with the same name).
+_SPEAKER_SAME_PERSON_MAX_YEARS: int = 15
+
 
 def _get_or_create_country(session: Session, name: str) -> Country | None:
     name = normalize_country_name(name)
@@ -76,6 +82,7 @@ def _get_or_create_speaker(
     organization: str | None,
     role: str | None,
     title: str | None,
+    doc_date: date | None = None,
 ) -> Speaker:
     country_id = country.id if country else None
     obj = (
@@ -92,6 +99,7 @@ def _get_or_create_speaker(
                     organization=organization,
                     role=role,
                     title=title,
+                    first_seen_date=doc_date,
                 )
                 session.add(obj)
                 session.flush()
@@ -105,6 +113,27 @@ def _get_or_create_speaker(
     assert (
         obj is not None
     ), f"Speaker ({name!r}, country_id={country_id}) vanished after IntegrityError"
+
+    # Keep first_seen_date as the earliest observed date, and warn when the
+    # gap is large enough to suggest a different person with the same name.
+    if doc_date is not None:
+        if obj.first_seen_date is None or doc_date < obj.first_seen_date:
+            obj.first_seen_date = doc_date
+            session.flush()
+        elif obj.first_seen_date is not None:
+            gap_years = (doc_date - obj.first_seen_date).days / 365.25
+            if gap_years > _SPEAKER_SAME_PERSON_MAX_YEARS:
+                country_name = country.name if country else "no country"
+                log.warning(
+                    "Possible speaker identity collision: %s (%s) — "
+                    "first seen %s, now %s (gap %.0f years)",
+                    name,
+                    country_name,
+                    obj.first_seen_date,
+                    doc_date,
+                    gap_years,
+                )
+
     return obj
 
 
@@ -235,6 +264,7 @@ def import_record(
                     organization=sp.organization,
                     role=sp.role,
                     title=sp.title,
+                    doc_date=record.date,
                 )
                 obj_speech = Speech(
                     document_id=doc.id,
@@ -311,6 +341,19 @@ def import_directory(
 
     engine = get_engine(db_url)
     create_schema(engine)
+
+    # Backward-compat migration: add first_seen_date to existing speakers tables.
+    # CREATE TABLE already includes the column for fresh schemas; this is only
+    # needed when upgrading an existing PostgreSQL database.
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE speakers"
+                    " ADD COLUMN IF NOT EXISTS first_seen_date DATE"
+                )
+            )
+            conn.commit()
 
     ok = 0
     failed = 0

@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -399,6 +400,110 @@ class TestRollbackOnFailure:
         with get_session(engine) as session:
             assert session.query(Document).count() == 1
             assert session.query(Speech).count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Speaker first_seen_date tracking
+# ---------------------------------------------------------------------------
+
+
+class TestSpeakerFirstSeenDate:
+    def _record_with_speaker(
+        self,
+        symbol: str,
+        meeting_number: int,
+        speaker_name: str,
+        doc_date: date,
+    ) -> MeetingRecord:
+        speech = ModelSpeech(
+            position=0,
+            position_in_item=0,
+            speaker=SpeakerInfo(name=speaker_name, country="France", title="Mr."),
+            text="Speech text.",
+        )
+        item = ModelDocumentItem(
+            position=0,
+            item_type="agenda_item",
+            title="Item",
+            agenda_number=1,
+            speeches=[speech],
+        )
+        return MeetingRecord(
+            symbol=symbol,
+            body="GA",
+            session=64,
+            meeting_number=meeting_number,
+            date=doc_date,
+            location="New York",
+            items=[item],
+        )
+
+    def test_first_seen_date_set_on_creation(self) -> None:
+        engine = _engine()
+        rec = self._record_with_speaker("A/64/PV.1", 1, "Mr. Jones", date(2010, 3, 1))
+        with get_session(engine) as session:
+            import_record(session, rec)
+        with get_session(engine) as session:
+            sp = session.query(Speaker).filter_by(name="Mr. Jones").one()
+            assert sp.first_seen_date == date(2010, 3, 1)
+
+    def test_first_seen_date_updated_to_earlier(self) -> None:
+        """When an earlier document is imported later, first_seen_date moves back."""
+        engine = _engine()
+        rec1 = self._record_with_speaker("A/64/PV.2", 2, "Mr. Jones", date(2010, 6, 1))
+        rec2 = self._record_with_speaker("A/64/PV.1", 1, "Mr. Jones", date(2009, 1, 1))
+        with get_session(engine) as session:
+            import_record(session, rec1)
+        with get_session(engine) as session:
+            import_record(session, rec2)
+        with get_session(engine) as session:
+            sp = session.query(Speaker).filter_by(name="Mr. Jones").one()
+            assert sp.first_seen_date == date(2009, 1, 1)
+
+    def test_first_seen_date_not_moved_forward(self) -> None:
+        """A later document must not overwrite an earlier first_seen_date."""
+        engine = _engine()
+        rec1 = self._record_with_speaker("A/64/PV.1", 1, "Mr. Jones", date(2005, 1, 1))
+        rec2 = self._record_with_speaker("A/64/PV.2", 2, "Mr. Jones", date(2008, 1, 1))
+        with get_session(engine) as session:
+            import_record(session, rec1)
+        with get_session(engine) as session:
+            import_record(session, rec2)
+        with get_session(engine) as session:
+            sp = session.query(Speaker).filter_by(name="Mr. Jones").one()
+            assert sp.first_seen_date == date(2005, 1, 1)
+
+    def test_warns_on_large_gap(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A gap larger than _SPEAKER_SAME_PERSON_MAX_YEARS triggers a warning."""
+        from import_json_to_db import _SPEAKER_SAME_PERSON_MAX_YEARS
+
+        engine = _engine()
+        early_date = date(2000, 1, 1)
+        late_date = date(2000 + _SPEAKER_SAME_PERSON_MAX_YEARS + 1, 1, 1)
+        rec1 = self._record_with_speaker("A/64/PV.1", 1, "Mr. Jones", early_date)
+        rec2 = self._record_with_speaker("A/64/PV.2", 2, "Mr. Jones", late_date)
+        with get_session(engine) as session:
+            import_record(session, rec1)
+        with caplog.at_level(logging.WARNING, logger="import_json_to_db"):
+            with get_session(engine) as session:
+                import_record(session, rec2)
+        assert any("identity collision" in r.message for r in caplog.records)
+
+    def test_no_warn_within_threshold(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A gap within the threshold must not produce a warning."""
+        from import_json_to_db import _SPEAKER_SAME_PERSON_MAX_YEARS
+
+        engine = _engine()
+        early_date = date(2000, 1, 1)
+        late_date = date(2000 + _SPEAKER_SAME_PERSON_MAX_YEARS - 1, 1, 1)
+        rec1 = self._record_with_speaker("A/64/PV.1", 1, "Mr. Jones", early_date)
+        rec2 = self._record_with_speaker("A/64/PV.2", 2, "Mr. Jones", late_date)
+        with get_session(engine) as session:
+            import_record(session, rec1)
+        with caplog.at_level(logging.WARNING, logger="import_json_to_db"):
+            with get_session(engine) as session:
+                import_record(session, rec2)
+        assert not any("identity collision" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

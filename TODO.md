@@ -95,12 +95,14 @@ Open tasks and known limitations for the un-extractor pipeline.
 These items produce data that the un-project.org website is already
 structured to consume but that the pipeline does not yet extract.
 
-- [ ] **Co-sponsorship extraction** — Speeches frequently contain lines like
-  "The following countries are co-sponsors of draft resolution A/64/L.72: …"
-  or "I also speak on behalf of …" followed by a country list.  Extracting
-  these would populate a new `resolution_sponsors (resolution_id, country_id)`
-  table, enabling a co-sponsor list on the resolution detail page and
-  co-sponsorship-based country clustering on the website.
+- [ ] **Co-sponsorship extraction from speeches** — SC draft co-sponsorship
+  for the UNBench period (~1994–present) is already imported by
+  `import_unbench_sc_drafts.py` into `resolution_sponsors`.  Gaps remain:
+  GA resolutions (all periods) and SC resolutions pre-1994.  Speeches
+  frequently contain lines like "The following countries are co-sponsors of
+  draft resolution A/64/L.72: …" or "I also speak on behalf of …" followed
+  by a country list.  A regex pass over `speeches.text` could fill these
+  gaps in the existing `resolution_sponsors` table.
 
 - [ ] **Resolution symbol mentions in speeches** — Speeches routinely cite
   resolution symbols in their text (e.g. "resolution 64/299", "draft resolution

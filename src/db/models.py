@@ -219,6 +219,8 @@ class Speech(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     position_in_document: Mapped[int] = mapped_column(Integer, nullable=False)
     position_in_item: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # NULL = untagged; populated by scripts/tag_speech_types.py
+    speech_type: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="speeches")
     item: Mapped[Optional[DocumentItem]] = relationship(back_populates="speeches")

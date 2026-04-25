@@ -111,7 +111,7 @@ structured to consume but that the pipeline does not yet extract.
   "Speeches about this resolution" section on the resolution detail page and a
   "Resolutions discussed in this speech" annotation on speaker/country profiles.
 
-- [ ] **Explanation-of-vote tagging** — In recorded-vote meetings, delegates
+- [x] **Explanation-of-vote tagging** — In recorded-vote meetings, delegates
   often give a short speech immediately before or after the vote to explain their
   position.  These could be tagged (e.g. a `speech_type` enum: `substantive`,
   `explanation_of_vote`, `procedural`) and surfaced as a dedicated section on

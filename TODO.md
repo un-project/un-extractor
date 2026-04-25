@@ -77,7 +77,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   making it impossible to store oral/undocumented amendments. Defer until the schema is
   relaxed and the extractor handles contextual resolution references.
 
-- [ ] **Concurrent import race condition** — Running two importer processes against the
+- [x] **Concurrent import race condition** — Running two importer processes against the
   same database simultaneously can create duplicate rows (both read "symbol not present"
   before either writes). Use `INSERT … ON CONFLICT DO NOTHING` or a PostgreSQL advisory
   lock keyed on the document symbol.

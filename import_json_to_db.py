@@ -15,6 +15,8 @@ import logging
 import sys
 from pathlib import Path
 
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from scripts.fix_country_duplicates import fix_duplicates
@@ -56,9 +58,14 @@ def _get_or_create_country(session: Session, name: str) -> Country | None:
         return None
     obj = session.query(Country).filter_by(name=name).first()
     if obj is None:
-        obj = Country(name=name)
-        session.add(obj)
-        session.flush()
+        try:
+            with session.begin_nested():
+                obj = Country(name=name)
+                session.add(obj)
+                session.flush()
+        except IntegrityError:
+            # Another concurrent worker inserted the same country first.
+            obj = session.query(Country).filter_by(name=name).first()
     return obj
 
 
@@ -77,15 +84,27 @@ def _get_or_create_speaker(
         .first()
     )
     if obj is None:
-        obj = Speaker(
-            name=name,
-            country_id=country_id,
-            organization=organization,
-            role=role,
-            title=title,
-        )
-        session.add(obj)
-        session.flush()
+        try:
+            with session.begin_nested():
+                obj = Speaker(
+                    name=name,
+                    country_id=country_id,
+                    organization=organization,
+                    role=role,
+                    title=title,
+                )
+                session.add(obj)
+                session.flush()
+        except IntegrityError:
+            # Another concurrent worker inserted the same speaker first.
+            obj = (
+                session.query(Speaker)
+                .filter_by(name=name, country_id=country_id, organization=organization)
+                .first()
+            )
+    assert (
+        obj is not None
+    ), f"Speaker ({name!r}, country_id={country_id}) vanished after IntegrityError"
     return obj
 
 
@@ -142,6 +161,17 @@ def import_record(
 ) -> None:
     """Import one ``MeetingRecord`` into the database."""
     with db_session.begin_nested():
+        # Serialize concurrent workers that might import the same document
+        # simultaneously.  pg_advisory_xact_lock is released automatically when
+        # the surrounding transaction commits or rolls back.
+        # Advisory locks are a PostgreSQL extension; skip on other backends
+        # (SQLite is used in tests).
+        if db_session.get_bind().dialect.name == "postgresql":
+            db_session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:sym))"),
+                {"sym": record.symbol},
+            )
+
         # Document
         doc = db_session.query(Document).filter_by(symbol=record.symbol).first()
         if doc is not None:

@@ -70,6 +70,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
         compute_ideal_points_mcmc.py     # full BSV 2017 dynamic ordinal-probit Gibbs sampler
         coverage_report.py               # extracted vs. stub-only documents per body/session
+        notify_update.py                 # send pg_notify('un_data_updated') to wake the website listener
         generate_unbis_mapping.py        # dev tool: regenerate src/extraction/unbis_subjects.py
 
     tests/
@@ -146,6 +147,10 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     # Produces source='bsv2017_mcmc' rows matching Voeten's published scale (mean=0, std=1)
     python scripts/compute_ideal_points_mcmc.py --db postgresql://user:pass@host/db
     python scripts/compute_ideal_points_mcmc.py --n-iter 10000 --n-burn 2000 --thin 20 --db ...
+
+    # Notify un-project.org listener (triggers cache clear + search re-index)
+    # Called automatically at the end of extractor.sh
+    python scripts/notify_update.py --db postgresql://user:pass@host/db
 
     # Dev tool: regenerate UNBIS thesaurus mapping (only needed after a new thesaurus release)
     # pip install rdflib

@@ -131,3 +131,12 @@ python scripts/compute_ideal_points.py --extend --db $DATABASE_URL
 
 # DB_HOST=localhost DB_PORT=5433 python scripts/populate_iso_and_flags.py
 # docker compose exec web python manage.py refresh_search_index --full
+
+# ---------------------------------------------------------------------------
+# 12. Notify un-project.org listener (triggers cache clear + search re-index)
+# ---------------------------------------------------------------------------
+
+# The listener container watches the un_data_updated channel and responds by
+# calling refresh_search_index and clearing the shared DatabaseCache so all
+# Gunicorn workers serve fresh results without a restart.
+python scripts/notify_update.py --db $DATABASE_URL

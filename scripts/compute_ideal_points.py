@@ -402,6 +402,7 @@ def compute_ideal_points(
         for year in years:
             # Build warm start: either from previous year's DB rows (first
             # extension year) or from the previous iteration's estimates.
+            warm_start: dict[str, float] | None
             if extend and not prev_theta and voeten_last_year is not None:
                 warm_start = _get_warm_start(session, voeten_last_year)
                 log.debug(

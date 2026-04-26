@@ -108,13 +108,13 @@ def _download(url: str, dest: Path, force: bool = False) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _parse_meta(path: Path) -> dict[str, dict]:
+def _parse_meta(path: Path) -> dict[str, dict[str, str]]:
     """Return {meeting_symbol: {date, topic, spv}} from meta.tsv.
 
     meta.tsv columns: (index) basename date topic year month day spv num_speeches
     Symbol is derived from the spv column: S/PV.{spv}
     """
-    result: dict[str, dict] = {}
+    result: dict[str, dict[str, str]] = {}
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         for row in reader:
@@ -130,13 +130,13 @@ def _parse_meta(path: Path) -> dict[str, dict]:
     return result
 
 
-def _parse_speakers(path: Path) -> dict[str, dict]:
+def _parse_speakers(path: Path) -> dict[str, dict[str, str]]:
     """Return {filename: row_dict} from speaker.tsv.
 
     Key fields: filename, meeting_symbol, speech_number, speaker,
     speaker_country, role, agenda_item1, agenda_item2, date.
     """
-    result: dict[str, dict] = {}
+    result: dict[str, dict[str, str]] = {}
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         for row in reader:
@@ -218,7 +218,7 @@ def _get_or_create_doc(
     session.flush()
     doc_idx[symbol] = doc.id
     log.debug("Created document %s id=%d", symbol, doc.id)
-    return doc.id
+    return doc.id  # type: ignore[no-any-return]
 
 
 def _get_or_create_item(
@@ -237,7 +237,7 @@ def _get_or_create_item(
     )
     if existing:
         item_cache[doc_id] = existing.id
-        return existing.id
+        return existing.id  # type: ignore[no-any-return]
 
     item = DocumentItem(
         document_id=doc_id,
@@ -250,7 +250,7 @@ def _get_or_create_item(
     session.add(item)
     session.flush()
     item_cache[doc_id] = item.id
-    return item.id
+    return item.id  # type: ignore[no-any-return]
 
 
 def _get_or_create_speaker(
@@ -274,7 +274,7 @@ def _get_or_create_speaker(
     session.add(spk)
     session.flush()
     spk_idx[key] = spk.id
-    return spk.id
+    return spk.id  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ def _get_or_create_speaker(
 
 def _import(
     session: Session,
-    speaker_rows: dict[str, dict],
+    speaker_rows: dict[str, dict[str, str]],
     speeches_tar: Path,
     doc_idx: dict[str, int],
     skip_doc_ids: set[int],

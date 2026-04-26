@@ -251,7 +251,7 @@ def _insert_sponsor(
         return True
     from sqlalchemy.engine import CursorResult
 
-    result: CursorResult[Any] = session.execute(  # type: ignore[assignment]
+    result: CursorResult[Any] = session.execute(
         text("""
             INSERT INTO resolution_sponsors (resolution_id, country_id, country_name)
             VALUES (:rid, :cid, :name)

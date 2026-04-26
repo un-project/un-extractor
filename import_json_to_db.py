@@ -72,7 +72,7 @@ def _get_or_create_country(session: Session, name: str) -> Country | None:
         except IntegrityError:
             # Another concurrent worker inserted the same country first.
             obj = session.query(Country).filter_by(name=name).first()
-    return obj
+    return obj  # type: ignore[no-any-return]
 
 
 def _get_or_create_speaker(
@@ -134,7 +134,7 @@ def _get_or_create_speaker(
                     gap_years,
                 )
 
-    return obj
+    return obj  # type: ignore[no-any-return]
 
 
 def _get_or_create_resolution(
@@ -154,7 +154,7 @@ def _get_or_create_resolution(
     elif title and not obj.title:
         obj.title = title
         session.flush()
-    return obj
+    return obj  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------

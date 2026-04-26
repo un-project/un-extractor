@@ -45,6 +45,7 @@ import logging
 import sys
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -68,7 +69,7 @@ _DATAVERSE_API = "https://dataverse.harvard.edu/api"
 # (former states, name variants, splits/merges)
 # ---------------------------------------------------------------------------
 
-_COW_TO_ISO3: dict[int, str] = {
+_COW_TO_ISO3: dict[int, str | None] = {
     2: "USA",   # United States of America
     20: "CAN",  # Canada
     40: "CUB",  # Cuba
@@ -355,7 +356,7 @@ def _discover_file_id(doi: str) -> int | None:
     for entry in files:
         fname = entry.get("dataFile", {}).get("filename", "")
         if fname.lower() == "idealpoints.tab":
-            return entry["dataFile"]["id"]
+            return entry["dataFile"]["id"]  # type: ignore[no-any-return]
     log.warning("Idealpoints.tab not found in dataset %s (found: %s)", doi,
                 [e.get("dataFile", {}).get("filename") for e in files])
     return None
@@ -396,7 +397,7 @@ def _download_ideal_points(dest: Path, force: bool) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _load_ideal_points(path: Path) -> list[dict]:
+def _load_ideal_points(path: Path) -> list[dict[str, Any]]:
     """Parse Idealpoints.tab and return list of {ccode, year, ideal_point, se, country}."""
     rows = []
     with path.open(newline="", encoding="utf-8-sig") as fh:

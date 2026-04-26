@@ -1,4 +1,5 @@
 """Unit tests for scripts/compute_vote_predictions.py."""
+
 from __future__ import annotations
 
 import math
@@ -10,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.compute_vote_predictions import (
+from scripts.compute_vote_predictions import (  # noqa: E402
     _FEATURE_COLS,
     _CLASSES,
     _DEFAULT_ANOMALY_THRESHOLD,

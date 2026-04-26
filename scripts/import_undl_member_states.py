@@ -38,6 +38,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import text  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import Country  # noqa: E402
@@ -57,7 +58,7 @@ _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "undl"
 # ---------------------------------------------------------------------------
 
 
-def _ensure_columns(session) -> None:
+def _ensure_columns(session: Session) -> None:
     for col, typ in [("m49", "VARCHAR(5)"), ("un_member_end", "DATE")]:
         exists = session.execute(
             text(
@@ -96,7 +97,7 @@ def _parse_date(s: str) -> date | None:
     return None
 
 
-def _build_country_index(session) -> dict[str, int]:
+def _build_country_index(session: Session) -> dict[str, int]:
     rows = session.query(Country.id, Country.name, Country.iso3).all()
     idx: dict[str, int] = {}
     for cid, name, iso3 in rows:
@@ -129,7 +130,7 @@ def _download(url: str, dest: Path, force: bool = False) -> Path:
     return dest
 
 
-def _import(session, csv_path: Path, dry_run: bool) -> tuple[int, int]:
+def _import(session: Session, csv_path: Path, dry_run: bool) -> tuple[int, int]:
     updated = skipped = 0
     idx = _build_country_index(session)
     missing_aliases: list[str] = []

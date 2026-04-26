@@ -179,7 +179,7 @@ def _compute_year(
         return len(rows)
 
     result = session.execute(upsert_sql, params)
-    return result.rowcount
+    return result.rowcount  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------

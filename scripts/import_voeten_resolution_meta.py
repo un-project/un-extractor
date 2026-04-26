@@ -150,9 +150,9 @@ def _normalise_unres(unres: str) -> list[str]:
     return [s]
 
 
-def _load_roll_calls(path: Path) -> dict[str, dict]:
+def _load_roll_calls(path: Path) -> dict[str, dict[str, str]]:
     """Return {rcid: {importantvote, unres, session}} keyed by rcid string."""
-    result: dict[str, dict] = {}
+    result: dict[str, dict[str, str]] = {}
     with path.open(newline="", encoding="utf-8-sig") as fh:
         for row in csv.DictReader(fh):
             rcid = row.get("rcid", "").strip()
@@ -237,7 +237,7 @@ def import_voeten_resolution_meta(
             important = rc["importantvote"] == "1"
             rcid_issues = issues.get(rcid, set())
 
-            params: dict = {
+            params: dict[str, object] = {
                 "id": res_id,
                 "important_vote": important,
                 "issue_me": "me" in rcid_issues,

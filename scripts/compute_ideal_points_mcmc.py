@@ -61,6 +61,7 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -128,7 +129,7 @@ def _ensure_schema(session: Session) -> None:
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 
-def _load_votes_ordinal(csv_path: Path) -> dict:
+def _load_votes_ordinal(csv_path: Path) -> dict[str, Any]:
     """Load GA votes as ordinal 1=Yes / 2=Abstain / 3=No.
 
     Returns a dict with arrays and index structures used by the sampler.
@@ -214,7 +215,7 @@ def _load_votes_ordinal(csv_path: Path) -> dict:
 
 # ── Preprocessing ─────────────────────────────────────────────────────────────
 
-def _compute_smooth_vector(cs_list: list, IndN: np.ndarray) -> np.ndarray:
+def _compute_smooth_vector(cs_list: list[Any], IndN: np.ndarray) -> np.ndarray:
     """Compute SmoothVector for each country-session.
 
     SV_it = n_it / (n_it + n_{i, prev})
@@ -256,7 +257,7 @@ def _compute_smooth_vector(cs_list: list, IndN: np.ndarray) -> np.ndarray:
 
 
 def _build_lag_indices(
-    cs_list: list,
+    cs_list: list[Any],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Precompute lag/next indices for each country-session.
 
@@ -318,7 +319,7 @@ def _init_beta(
     y_obs: np.ndarray,
     beta_obs_idx: np.ndarray,
     theta_obs_idx: np.ndarray,
-    cs_list: list,
+    cs_list: list[Any],
     TT: int,
 ) -> np.ndarray:
     """Initialise beta from US vs Russia vote polarity (matching BSV Beta init).
@@ -352,7 +353,7 @@ def _init_beta(
     return beta
 
 
-def _init_theta(cs_list: list, NN: int) -> np.ndarray:
+def _init_theta(cs_list: list[Any], NN: int) -> np.ndarray:
     """Initialise theta with US = +3, Russia = −2, others = 0 (matching BSV)."""
     theta = np.zeros(NN)
     for i, (iso3, _) in enumerate(cs_list):
@@ -366,7 +367,7 @@ def _init_theta(cs_list: list, NN: int) -> np.ndarray:
 # ── Gibbs sampler ─────────────────────────────────────────────────────────────
 
 def _run_gibbs(
-    data: dict,
+    data: dict[str, Any],
     smooth_vec: np.ndarray,
     prev_cs_idx: np.ndarray,
     next_cs_idx: np.ndarray,

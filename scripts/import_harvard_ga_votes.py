@@ -58,7 +58,7 @@ _DEFAULT_CSV = Path(__file__).resolve().parents[1] / "data" / "undl" / "ga_votin
 
 def _load_tallies(
     csv_path: Path,
-) -> tuple[dict[str, tuple], dict[str, tuple]]:
+) -> tuple[dict[str, tuple[int | None, ...]], dict[str, tuple[int | None, ...]]]:
     """Parse the CSV and return two lookup dicts.
 
     Returns:
@@ -67,8 +67,8 @@ def _load_tallies(
                      Keys include both full form (``A/RES/57/60``) and short
                      form (``57/60``) so callers can probe either.
     """
-    by_undl_id: dict[str, tuple] = {}
-    by_symbol: dict[str, tuple] = {}
+    by_undl_id: dict[str, tuple[int | None, ...]] = {}
+    by_symbol: dict[str, tuple[int | None, ...]] = {}
 
     def _safe_int(val: str) -> int | None:
         try:

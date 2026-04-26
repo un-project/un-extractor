@@ -60,8 +60,10 @@ import json
 import logging
 import sys
 import urllib.request
+from collections.abc import Iterator
 from datetime import date as _Date
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -188,7 +190,7 @@ def _download_samples(force: bool = False) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _parse_authors(raw: str | list) -> list[str]:
+def _parse_authors(raw: str | list[str]) -> list[str]:
     """Return a list of author strings from the Authors field.
 
     Handles:
@@ -227,7 +229,7 @@ def _resolve_country(
     return cid
 
 
-def _iter_json_files(data_dir: Path):
+def _iter_json_files(data_dir: Path) -> Iterator[tuple[Path, dict[str, Any]]]:
     """Yield all .json files recursively under data_dir."""
     for path in sorted(data_dir.rglob("*.json")):
         if path.name.startswith("."):

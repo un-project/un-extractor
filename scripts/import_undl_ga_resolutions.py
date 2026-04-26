@@ -40,6 +40,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import text  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import Resolution  # noqa: E402
@@ -59,7 +60,7 @@ _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "undl"
 # ---------------------------------------------------------------------------
 
 
-def _ensure_columns(session) -> None:
+def _ensure_columns(session: Session) -> None:
     for col, typ in [
         ("undl_id", "VARCHAR(30)"),
         ("undl_link", "VARCHAR(500)"),
@@ -107,7 +108,7 @@ def _download(url: str, dest: Path, force: bool = False) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _import(session, csv_path: Path, dry_run: bool) -> tuple[int, int, int]:
+def _import(session: Session, csv_path: Path, dry_run: bool) -> tuple[int, int, int]:
     updated = inserted_stub = skipped = 0
 
     # Build adopted_symbol → resolution id index

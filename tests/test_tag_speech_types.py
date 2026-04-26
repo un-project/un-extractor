@@ -1,4 +1,5 @@
 """Unit and integration tests for scripts/tag_speech_types.py."""
+
 from __future__ import annotations
 
 import sys
@@ -6,14 +7,14 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.tag_speech_types import _ensure_column, tag_speeches
-from src.db.database import create_schema
-from src.db.models import (
+from scripts.tag_speech_types import _ensure_column, tag_speeches  # noqa: E402
+from src.db.database import create_schema  # noqa: E402
+from src.db.models import (  # noqa: E402
     Country,
     Document,
     DocumentItem,
@@ -22,7 +23,6 @@ from src.db.models import (
     Speech,
     Vote,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -148,7 +148,7 @@ class TestSubstantive:
 
     def test_speeches_without_item_are_substantive(self, session):
         doc = _make_doc(session)
-        item = _make_item(session, doc)
+        _make_item(session, doc)
         sp = _make_speaker(session, "Jones")
         speech = Speech(
             document_id=doc.id,

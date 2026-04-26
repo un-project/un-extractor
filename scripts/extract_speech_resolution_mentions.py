@@ -252,7 +252,7 @@ def _upsert_mention(
         return True
     from sqlalchemy.engine import CursorResult
 
-    result: CursorResult[Any] = session.execute(  # type: ignore[assignment]
+    result: CursorResult[Any] = session.execute(
         text("""
             INSERT INTO speech_resolution_mentions (speech_id, cited_symbol, resolution_id)
             VALUES (:sid, :sym, :rid)

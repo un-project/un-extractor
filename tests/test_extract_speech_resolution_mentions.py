@@ -1,13 +1,14 @@
 """Unit tests for scripts/extract_speech_resolution_mentions.py."""
+
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.extract_speech_resolution_mentions import _extract_symbols, _lookup
-
+from scripts.extract_speech_resolution_mentions import (  # noqa: E402
+    _extract_symbols,
+    _lookup,
+)
 
 # ---------------------------------------------------------------------------
 # _extract_symbols

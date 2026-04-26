@@ -42,6 +42,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sqlalchemy.orm import Session  # noqa: E402
+
 from src.db.database import create_schema, get_engine, get_session  # noqa: E402
 from src.db.models import (  # noqa: E402
     Country,
@@ -83,7 +85,7 @@ def _download(url: str, dest: Path, force: bool = False) -> Path:
     return dest
 
 
-def _build_country_index(session) -> dict[str, int]:
+def _build_country_index(session: Session) -> dict[str, int]:
     rows = session.query(Country.id, Country.name).all()
     return {normalize_country_name(name): cid for cid, name in rows}
 
@@ -94,7 +96,7 @@ def _build_country_index(session) -> dict[str, int]:
 
 
 def _import_perm_reps(
-    session, csv_path: Path, country_idx: dict[str, int], dry_run: bool
+    session: Session, csv_path: Path, country_idx: dict[str, int], dry_run: bool
 ) -> tuple[int, int]:
     inserted = skipped = 0
 
@@ -154,7 +156,7 @@ def _import_perm_reps(
 
 
 def _import_sc_reps(
-    session, csv_path: Path, country_idx: dict[str, int], dry_run: bool
+    session: Session, csv_path: Path, country_idx: dict[str, int], dry_run: bool
 ) -> tuple[int, int]:
     inserted = skipped = 0
 
@@ -250,11 +252,13 @@ def import_undl_representatives(
         country_idx = _build_country_index(session)
 
         if not skip_perm_reps:
+            assert perm_reps_csv is not None
             pr_ins, pr_skip = _import_perm_reps(session, perm_reps_csv, country_idx, dry_run)
             action = "Would insert" if dry_run else "Inserted"
             log.info("%s %d permanent representatives (%d skipped).", action, pr_ins, pr_skip)
 
         if not skip_sc_reps:
+            assert sc_reps_csv is not None
             sc_ins, sc_skip = _import_sc_reps(session, sc_reps_csv, country_idx, dry_run)
             action = "Would insert" if dry_run else "Inserted"
             log.info("%s %d SC representatives (%d skipped).", action, sc_ins, sc_skip)

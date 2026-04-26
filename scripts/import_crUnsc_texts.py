@@ -83,7 +83,7 @@ def _symbol_from_filename(fname: str) -> tuple[str, str] | None:
 
 def _find_resolution(session: Session, full_symbol: str) -> Resolution | None:
     """Look up a resolution by its UNDL adopted_symbol (e.g. ``S/RES/1(1946)``)."""
-    return (
+    return (  # type: ignore[no-any-return]
         session.query(Resolution)
         .filter(Resolution.adopted_symbol == full_symbol)
         .first()

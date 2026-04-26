@@ -40,6 +40,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import Engine, func, select  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 from src.db.database import get_engine, get_session  # noqa: E402
 from src.db.models import Country, CountryVote, Speaker, Speech  # noqa: E402
@@ -75,7 +76,7 @@ _JUNK_CONCAT_DOT = re.compile(r"\.\s+[A-Z][a-z]")
 
 
 def _merge_speakers(
-    session, alias_country_id: int, canonical_country_id: int, dry_run: bool
+    session: Session, alias_country_id: int, canonical_country_id: int, dry_run: bool
 ) -> int:
     """Reassign speakers from alias country to canonical country.
 
@@ -123,7 +124,7 @@ def _merge_speakers(
 
 
 def _merge_country_votes(
-    session, alias_country_id: int, canonical_country_id: int, dry_run: bool
+    session: Session, alias_country_id: int, canonical_country_id: int, dry_run: bool
 ) -> int:
     """Reassign country_votes from alias country to canonical country.
 
@@ -156,7 +157,7 @@ def _merge_country_votes(
     return len(alias_votes)
 
 
-def _delete_junk_rows(session, dry_run: bool) -> None:
+def _delete_junk_rows(session: Session, dry_run: bool) -> None:
     """Remove country rows with blank, sentinel, or hopelessly garbled names."""
     junk = (
         session.query(Country)
@@ -241,7 +242,7 @@ def _delete_junk_rows(session, dry_run: bool) -> None:
                 session.flush()
 
 
-def _normalize_existing_rows(session, dry_run: bool) -> tuple[int, int]:
+def _normalize_existing_rows(session: Session, dry_run: bool) -> tuple[int, int]:
     """Apply ``normalize_country_name`` to every country row.
 
     For each row whose name changes after normalization:

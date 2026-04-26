@@ -22,6 +22,7 @@ import csv
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -66,10 +67,10 @@ def _pct(part: int, total: int) -> str:
     return f"{100 * part / total:5.1f}%"
 
 
-def _print_table(rows: list[dict]) -> None:
+def _print_table(rows: list[dict[str, Any]]) -> None:
     """Print a human-readable ASCII table to stdout."""
     # Group by body for sub-totals
-    bodies: dict[str, list[dict]] = {}
+    bodies: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         bodies.setdefault(row["body"], []).append(row)
 
@@ -121,7 +122,7 @@ def _print_table(rows: list[dict]) -> None:
         )
 
 
-def _write_csv(rows: list[dict], path: str) -> None:
+def _write_csv(rows: list[dict[str, Any]], path: str) -> None:
     with open(path, "w", newline="") as fh:
         writer = csv.DictWriter(
             fh,

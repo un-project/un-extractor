@@ -279,7 +279,7 @@ def _get_or_create_country_by_code(
         log.debug("Created country %r (iso3=%s)", canonical, ms_code)
 
     _cache[ms_code] = country
-    return country
+    return country  # type: ignore[no-any-return]
 
 
 def _get_or_create_document(
@@ -312,7 +312,7 @@ def _get_or_create_document(
         log.debug("Created stub document %s", meeting_symbol)
 
     _cache[meeting_symbol] = doc
-    return doc
+    return doc  # type: ignore[no-any-return]
 
 
 def _get_or_create_resolution(
@@ -443,7 +443,7 @@ def _get_or_create_vote(
             session.flush()
 
     _cache[cache_key] = vote
-    return vote
+    return vote  # type: ignore[no-any-return]
 
 
 def _upsert_country_vote(

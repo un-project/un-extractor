@@ -66,7 +66,7 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Analytics & enrichment
 
-- [ ] **Topic modeling on speeches** — Run BERTopic (or LDA as a lighter baseline) over
+- [x] **Topic modeling on speeches** — Run BERTopic (or LDA as a lighter baseline) over
   the SC Debates corpus and the General Debate full texts to produce per-speech topic tags
   and per-resolution topic distributions.  Store results in a `speech_topics
   (speech_id, topic_id, weight)` table.  Topics surface naturally on country and

@@ -67,6 +67,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         compute_alignment_series.py      # pairwise country voting-alignment time series
         compute_voting_blocs.py          # data-driven voting bloc detection (connected components)
         compute_vote_predictions.py      # gradient-boosting vote predictor + anomaly detection
+        compute_speech_topics.py         # LDA/BERTopic topic model → topics + speech_topics tables
         compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
         compute_ideal_points_mcmc.py     # full BSV 2017 dynamic ordinal-probit Gibbs sampler
         coverage_report.py               # extracted vs. stub-only documents per body/session
@@ -147,6 +148,11 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     # Produces source='bsv2017_mcmc' rows matching Voeten's published scale (mean=0, std=1)
     python scripts/compute_ideal_points_mcmc.py --db postgresql://user:pass@host/db
     python scripts/compute_ideal_points_mcmc.py --n-iter 10000 --n-burn 2000 --thin 20 --db ...
+
+    # Topic model over speech text (LDA default, or BERTopic with --model bertopic)
+    python scripts/compute_speech_topics.py --db postgresql://user:pass@host/db
+    python scripts/compute_speech_topics.py --n-topics 40 --body GA --db ...
+    python scripts/compute_speech_topics.py --model bertopic --n-topics 30 --db ...
 
     # Notify un-project.org listener (triggers cache clear + search re-index)
     # Called automatically at the end of extractor.sh

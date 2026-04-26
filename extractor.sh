@@ -116,6 +116,9 @@ python scripts/compute_voting_blocs.py --db $DATABASE_URL
 # Vote prediction model + anomaly detection (requires ideal points and Voeten metadata)
 python scripts/compute_vote_predictions.py --db $DATABASE_URL
 
+# Topic model over speech text (LDA, 50 topics)
+python scripts/compute_speech_topics.py --db $DATABASE_URL
+
 # Ideal points — full dynamic Bayesian IRT (BSV 2017 ordinal-probit Gibbs sampler)
 # Produces source='bsv2017_mcmc' rows matching Voeten's published scale.
 # Takes several hours; reduce --n-iter for a quick test run.

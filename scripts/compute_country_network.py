@@ -87,6 +87,40 @@ def _ensure_schema(session: Session) -> None:
 # ---------------------------------------------------------------------------
 
 
+_YEAR_SQL = """
+    -- Resolve the year for each (country, resolution) co-sponsorship row.
+    --
+    -- Priority:
+    --   1. Earliest date of any vote document for this resolution (most accurate).
+    --   2. GA session number: session + 1945  (e.g. session 75 → 2020).
+    --   3. Year embedded in SC draft symbol:  S/YYYY/N  (e.g. S/2020/891 → 2020).
+    --
+    -- Resolutions that cannot be dated by any method are excluded.
+    SELECT country_id, resolution_id, year
+    FROM (
+        SELECT rs.country_id,
+               rs.resolution_id,
+               COALESCE(
+                   MIN(EXTRACT(YEAR FROM d.date)::int),
+                   CASE
+                       WHEN r.body = 'GA' AND r.session IS NOT NULL
+                       THEN r.session + 1945
+                       WHEN r.body = 'SC'
+                       THEN (regexp_match(r.draft_symbol, '^S/([12][0-9]{3})/'))[ 1]::int
+                   END
+               ) AS year
+        FROM   resolution_sponsors rs
+        JOIN   resolutions r  ON r.id  = rs.resolution_id
+        LEFT JOIN votes v     ON v.resolution_id = rs.resolution_id
+        LEFT JOIN documents d ON d.id = v.document_id AND d.date IS NOT NULL
+        WHERE  rs.country_id IS NOT NULL
+        GROUP  BY rs.country_id, rs.resolution_id, r.body, r.session, r.draft_symbol
+    ) sub
+    WHERE year BETWEEN 1946 AND 2100
+    ORDER BY year
+"""
+
+
 def _get_years(
     session: Session,
     year: int | None,
@@ -95,16 +129,8 @@ def _get_years(
 ) -> list[int]:
     if year is not None:
         return [year]
-    rows = session.execute(text("""
-        SELECT DISTINCT EXTRACT(YEAR FROM MIN(d.date))::int AS yr
-        FROM resolution_sponsors rs
-        JOIN votes v  ON v.resolution_id = rs.resolution_id
-        JOIN documents d ON d.id = v.document_id
-        WHERE rs.country_id IS NOT NULL
-          AND d.date IS NOT NULL
-          AND EXTRACT(YEAR FROM d.date) > 1900
-        GROUP BY rs.resolution_id
-        ORDER BY yr
+    rows = session.execute(text(f"""
+        SELECT DISTINCT year FROM ({_YEAR_SQL}) all_rows ORDER BY year
     """)).fetchall()
     years = [r[0] for r in rows if r[0] is not None]
     if year_from is not None:
@@ -115,20 +141,12 @@ def _get_years(
 
 
 def _load_cosponsors(session: Session) -> dict[int, dict[int, set[int]]]:
-    """Return {year: {resolution_id: {country_id, ...}}}."""
-    rows = session.execute(text("""
-        SELECT rs.country_id,
-               rs.resolution_id,
-               EXTRACT(YEAR FROM MIN(d.date))::int AS year
-        FROM   resolution_sponsors rs
-        JOIN   votes v  ON v.resolution_id = rs.resolution_id
-        JOIN   documents d ON d.id = v.document_id
-        WHERE  rs.country_id IS NOT NULL
-          AND  d.date IS NOT NULL
-          AND  EXTRACT(YEAR FROM d.date) > 1900
-        GROUP  BY rs.country_id, rs.resolution_id
-        ORDER  BY year
-    """)).fetchall()
+    """Return {year: {resolution_id: {country_id, ...}}}.
+
+    Year is resolved in priority order: vote-document date → GA session →
+    SC draft-symbol year.  Resolutions without any of these are excluded.
+    """
+    rows = session.execute(text(_YEAR_SQL)).fetchall()
 
     result: dict[int, dict[int, set[int]]] = defaultdict(lambda: defaultdict(set))
     for country_id, res_id, year in rows:
@@ -280,6 +298,16 @@ def _process_year(
     n_nodes = len(adj)
     if n_nodes < 2:
         log.debug("  %d: fewer than 2 nodes — skipping.", year)
+        return 0
+
+    n_edges = sum(len(v) for v in adj.values()) // 2
+    if n_edges == 0:
+        # All nodes are isolated: PageRank degenerates to 1/n and betweenness
+        # to 0 for every country — not meaningful. Skip rather than write noise.
+        log.warning(
+            "  %d: %d countries but 0 edges — co-sponsorship data too sparse, skipping.",
+            year, n_nodes,
+        )
         return 0
 
     pr = _pagerank(adj)

@@ -38,6 +38,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import json
+import os
+
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -315,6 +318,64 @@ def _fit_bertopic(
 
 
 # ---------------------------------------------------------------------------
+# LLM topic labelling
+# ---------------------------------------------------------------------------
+
+
+def _label_topics_with_llm(keyword_lists: list[list[str]]) -> list[str]:
+    """Return a short human-readable phrase for each topic using Claude.
+
+    Sends all topics in a single API call.  Falls back to the dot-joined
+    keyword string if the API key is absent or the call fails.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        log.warning("ANTHROPIC_API_KEY not set — using keyword fallback for labels.")
+        return [" · ".join(kws[:6]) for kws in keyword_lists]
+
+    try:
+        import anthropic
+    except ImportError:
+        log.warning("anthropic package not available — using keyword fallback.")
+        return [" · ".join(kws[:6]) for kws in keyword_lists]
+
+    topics_payload = [
+        {"id": i, "keywords": kws[:10]} for i, kws in enumerate(keyword_lists)
+    ]
+    prompt = (
+        "You are labelling topics from a topic model trained on UN speeches.\n"
+        "For each topic below, return a concise noun phrase (2–5 words) that "
+        "captures the theme — e.g. 'Nuclear disarmament', 'Humanitarian aid in conflict'.\n"
+        "Return ONLY a JSON array of strings, one label per topic, in the same order.\n\n"
+        f"{json.dumps(topics_payload, indent=2)}"
+    )
+
+    client = anthropic.Anthropic(api_key=api_key)
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+        labels: list[str] = json.loads(raw)
+        if len(labels) != len(keyword_lists):
+            raise ValueError(
+                f"Expected {len(keyword_lists)} labels, got {len(labels)}"
+            )
+        log.info("LLM labels generated for %d topics.", len(labels))
+        return labels
+    except Exception as exc:
+        log.warning("LLM labelling failed (%s) — using keyword fallback.", exc)
+        return [" · ".join(kws[:6]) for kws in keyword_lists]
+
+
+# ---------------------------------------------------------------------------
 # DB writes
 # ---------------------------------------------------------------------------
 
@@ -344,14 +405,14 @@ def _clear_run(session: Session, model: str, n_topics: int) -> None:
 def _write_topics(
     session: Session,
     keyword_lists: list[list[str]],
+    labels: list[str],
     topic_nums: list[int],
     model: str,
     n_topics: int,
 ) -> dict[int, int]:
     """Insert topic rows; return {topic_num: topics.id}."""
     topic_num_to_id: dict[int, int] = {}
-    for topic_num, keywords in zip(topic_nums, keyword_lists):
-        label = " · ".join(keywords[:6])
+    for topic_num, keywords, label in zip(topic_nums, keyword_lists, labels):
         row = session.execute(
             text(
                 """
@@ -498,12 +559,13 @@ def compute_speech_topics(
     if model_name == "lda":
         _lda, _vec, doc_topic, keyword_lists = _fit_lda(texts, n_topics, n_top_words)
         topic_nums = list(range(n_topics))
+        labels = _label_topics_with_llm(keyword_lists)
 
         with get_session(engine) as session:
             if not dry_run:
                 _clear_run(session, model_name, n_topics)
             topic_num_to_id = _write_topics(
-                session, keyword_lists, topic_nums, model_name, n_topics
+                session, keyword_lists, labels, topic_nums, model_name, n_topics
             )
             n_rows = _write_assignments_lda(
                 session, speech_ids, doc_topic,
@@ -513,8 +575,8 @@ def compute_speech_topics(
                 session.commit()
 
         # Print topic summary
-        for i, kws in enumerate(keyword_lists):
-            log.info("  Topic %2d: %s", i, " · ".join(kws))
+        for i, (label, kws) in enumerate(zip(labels, keyword_lists)):
+            log.info("  Topic %2d: %s  [%s]", i, label, " · ".join(kws[:6]))
 
     elif model_name == "bertopic":
         bt_model, assignments, probs, keyword_lists = _fit_bertopic(
@@ -522,12 +584,13 @@ def compute_speech_topics(
         )
         # BERTopic topic numbers can be non-contiguous (and include -1)
         unique_nums = sorted(set(assignments) - {-1})
+        labels = _label_topics_with_llm(keyword_lists)
 
         with get_session(engine) as session:
             if not dry_run:
                 _clear_run(session, model_name, n_topics)
             topic_num_to_id = _write_topics(
-                session, keyword_lists, unique_nums, model_name, n_topics
+                session, keyword_lists, labels, unique_nums, model_name, n_topics
             )
             n_rows = _write_assignments_bertopic(
                 session, speech_ids, assignments, probs, topic_num_to_id, dry_run

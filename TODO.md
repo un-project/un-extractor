@@ -72,7 +72,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   (speech_id, topic_id, weight)` table.  Topics surface naturally on country and
   resolution profile pages as "most discussed themes".
 
-- [ ] **Country network centrality** — Build a per-year co-sponsorship graph and compute
+- [x] **Country network centrality** — Build a per-year co-sponsorship graph and compute
   PageRank and betweenness-centrality scores to rank the most influential resolution
   sponsors.  Store in a `country_network_stats (country_id, year, pagerank,
   betweenness)` table alongside the ideal points.  The `resolution_sponsors` table

@@ -119,6 +119,9 @@ python scripts/compute_vote_predictions.py --db $DATABASE_URL
 # Topic model over speech text (LDA, 50 topics)
 python scripts/compute_speech_topics.py --db $DATABASE_URL
 
+# Co-sponsorship network centrality (PageRank + betweenness) — run after extract_speech_cosponsors
+python scripts/compute_country_network.py --db $DATABASE_URL
+
 # Ideal points — full dynamic Bayesian IRT (BSV 2017 ordinal-probit Gibbs sampler)
 # Produces source='bsv2017_mcmc' rows matching Voeten's published scale.
 # Takes several hours; reduce --n-iter for a quick test run.

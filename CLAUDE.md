@@ -66,6 +66,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
         tag_speech_types.py                       # classify speeches as substantive / explanation_of_vote / procedural
         compute_alignment_series.py      # pairwise country voting-alignment time series
         compute_voting_blocs.py          # data-driven voting bloc detection (connected components)
+        compute_country_network.py       # per-year PageRank + betweenness on co-sponsorship graph → country_network_stats
         compute_vote_predictions.py      # gradient-boosting vote predictor + anomaly detection
         compute_speech_topics.py         # LDA/BERTopic topic model → topics + speech_topics tables
         compute_ideal_points.py          # extend ideal points beyond Voeten's last year (cross-sectional IRT)
@@ -129,6 +130,7 @@ See [PLAN.md](PLAN.md) for the full architecture, phase breakdown, and database 
     python scripts/import_voeten_resolution_meta.py --db ...   # importantvote + issue codes (run after import_undl_votes)
     python scripts/import_sc_vetoes.py --db ...                # SC veto data 1946–present (run after import_undl_votes)
     python scripts/compute_alignment_series.py --db ...        # pairwise alignment time series (run after import_undl_votes)
+    python scripts/compute_country_network.py --db ...         # PageRank + betweenness on co-sponsorship graph (run after extract_speech_cosponsors)
     python scripts/import_harvard_ga_votes.py --db ...         # backfill GA vote tally counts (run after import_undl_votes)
     python scripts/extract_speech_cosponsors.py --db ...       # GA + pre-1994 SC co-sponsorship from speech text
     python scripts/extract_speech_cosponsors.py --body GA --db ...          # GA only

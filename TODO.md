@@ -32,7 +32,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   a warning, but does not retry. Add a simple exponential backoff (1–2 retries) for
   transient API errors.
 
-- [ ] **Incremental processing** — `process_dataset.py` re-processes every PDF on every
+- [x] **Incremental processing** — `process_dataset.py` re-processes every PDF on every
   run.  Add a lightweight "already processed" check — a `processed_at` timestamp column
   in the `documents` table, or a persistent set of document symbols in a sidecar file —
   so that re-runs only touch new or changed PDFs.  This is critical once the dataset

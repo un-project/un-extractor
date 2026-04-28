@@ -48,6 +48,7 @@ class BatchSummary:
     total: int = 0
     succeeded: int = 0
     failed: int = 0
+    skipped: int = 0
     results: list[ProcessResult] = field(default_factory=list)
 
     @property
@@ -58,6 +59,17 @@ class BatchSummary:
 # ---------------------------------------------------------------------------
 # PDF discovery
 # ---------------------------------------------------------------------------
+
+
+def _expected_output_path(pdf_path: Path, output_dir: Path) -> Path | None:
+    """Return the output JSON path for *pdf_path*, or None if the symbol cannot
+    be derived from the path (those PDFs are always processed)."""
+    from src.pipeline.process_pdf import _symbol_from_path  # noqa: PLC0415
+
+    symbol = _symbol_from_path(pdf_path)
+    if symbol is None:
+        return None
+    return output_dir / f"meeting_{symbol.replace('/', '_')}.json"
 
 
 def find_pdfs(root_dir: Path) -> list[Path]:
@@ -153,6 +165,7 @@ def process_batch(
     debug: bool = False,
     use_reocr: bool = True,
     use_ods: bool = False,
+    incremental: bool = False,
 ) -> BatchSummary:
     """Process all PDFs under *root_dir* in parallel.
 
@@ -174,6 +187,8 @@ def process_batch(
         Automatically re-OCR PDFs with poor-quality embedded text layers.
     use_ods:
         Fetch HTML from the UN ODS and prefer it when quality exceeds the PDF.
+    incremental:
+        When True, skip PDFs whose output JSON already exists in *output_dir*.
 
     Returns
     -------
@@ -183,7 +198,22 @@ def process_batch(
     pdfs = pdf_paths if pdf_paths is not None else find_pdfs(root_dir)
     failed_dir = output_dir / "failed"
     debug_dir = output_dir / "debug" if debug else None
-    summary = BatchSummary(total=len(pdfs))
+
+    n_skipped = 0
+    if incremental:
+        pending: list[Path] = []
+        for pdf in pdfs:
+            out = _expected_output_path(pdf, output_dir)
+            if out is not None and out.exists():
+                n_skipped += 1
+                log.debug("Skipping %s (output exists)", pdf.name)
+            else:
+                pending.append(pdf)
+        if n_skipped:
+            log.info("Incremental mode: skipping %d already-processed PDFs.", n_skipped)
+        pdfs = pending
+
+    summary = BatchSummary(total=len(pdfs), skipped=n_skipped)
 
     # Check re-OCR availability once so we don't spam per-document warnings.
     if use_reocr:
@@ -235,11 +265,13 @@ def process_batch(
                 )
                 _write_failure_report(result, failed_dir, root_dir)
 
+    skip_msg = f", {summary.skipped} skipped" if summary.skipped else ""
     log.info(
-        "Batch complete: %d/%d succeeded (%.1f%%)",
+        "Batch complete: %d/%d succeeded (%.1f%%)%s",
         summary.succeeded,
         summary.total,
         summary.success_rate * 100,
+        skip_msg,
     )
     return summary
 

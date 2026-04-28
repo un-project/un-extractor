@@ -60,6 +60,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Write intermediate artifacts to output/debug/<stem>/ for inspection",
     )
     p.add_argument(
+        "--incremental",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip PDFs whose output JSON already exists in the output directory."
+            " Re-run without this flag to reprocess everything."
+        ),
+    )
+    p.add_argument(
         "--no-reocr",
         action="store_true",
         default=False,
@@ -103,11 +112,13 @@ def main() -> int:
         debug=args.debug,
         use_reocr=not args.no_reocr,
         use_ods=args.use_ods,
+        incremental=args.incremental,
     )
 
+    skip_note = f", {summary.skipped} skipped" if summary.skipped else ""
     print(
         f"\nDone: {summary.succeeded}/{summary.total} succeeded "
-        f"({summary.success_rate:.1%})"
+        f"({summary.success_rate:.1%}{skip_note})"
     )
     if summary.failed:
         print(f"  {summary.failed} failed — see output/failed/ for error reports")

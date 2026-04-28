@@ -15,6 +15,8 @@ export DATABASE_URL="postgresql://myuser:mypassword@localhost:5433/unproject"
 # Process all PDFs (adjust --workers to your CPU count).
 # --use-ods fetches cleaner HTML from undocs.org when available (needs network).
 # --no-reocr disables Tesseract fallback if ocrmypdf is not installed.
+# For incremental updates (only process PDFs whose output JSON is missing):
+#   add --incremental to the commands below.
 python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --use-ods
 
 # SC PDFs via CR-UNSC (only needed if not already downloaded):
@@ -29,13 +31,13 @@ docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "DROP DATABASE I
   && docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "CREATE DATABASE unproject;"
 
 # ---------------------------------------------------------------------------
-# 2. Import extracted JSONs (creates schema automatically)
+# 2. Import extracted JSONs (runs Alembic migrations, then imports)
 # ---------------------------------------------------------------------------
 
 python import_json_to_db.py output/ --recreate
 
 # ---------------------------------------------------------------------------
-# 3. Import authoritative UNDL voting data (applies schema migrations)
+# 3. Import authoritative UNDL voting data
 # ---------------------------------------------------------------------------
 
 python scripts/import_undl_votes.py --db $DATABASE_URL

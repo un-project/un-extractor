@@ -125,6 +125,12 @@ python src/pipeline/process_pdf.py \
 python process_dataset.py data/raw_pdfs/ --output output/ --workers 8
 ```
 
+To skip PDFs whose output JSON already exists (useful when only new PDFs have been added):
+
+```bash
+python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --incremental
+```
+
 To disable automatic re-OCR (e.g. when tesseract is not installed):
 
 ```bash
@@ -151,19 +157,29 @@ CREATE DATABASE undb;
 export DATABASE_URL="postgresql://user:pass@localhost/undb"
 ```
 
-#### 3. Create the schema
+#### 3. Apply migrations
 
-The schema is created automatically on first import. You can also create it manually:
+The schema is managed by [Alembic](https://alembic.sqlalchemy.org/). `import_json_to_db.py` runs migrations automatically on startup. To apply them manually:
 
 ```bash
-python - <<'EOF'
-from src.db.database import create_schema, get_engine
-create_schema(get_engine())
-print("Schema created.")
-EOF
+DATABASE_URL=postgresql://user:pass@localhost/undb alembic upgrade head
 ```
 
-This runs `CREATE TABLE IF NOT EXISTS` for all tables — safe to call repeatedly.
+**New database:** this creates all tables.
+
+**Existing database (pre-Alembic):** if you set up the schema before Alembic was introduced, stamp it at the current revision so Alembic knows it is already up to date:
+
+```bash
+DATABASE_URL=postgresql://user:pass@localhost/undb alembic stamp head
+```
+
+**Adding a schema change:** edit `src/db/models.py`, then autogenerate a migration:
+
+```bash
+DATABASE_URL=... alembic revision --autogenerate -m "describe_the_change"
+# review alembic/versions/<rev>_describe_the_change.py, then:
+DATABASE_URL=... alembic upgrade head
+```
 
 #### 4. Run the importer
 

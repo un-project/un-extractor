@@ -38,7 +38,7 @@ Open tasks and known limitations for the un-extractor pipeline.
   so that re-runs only touch new or changed PDFs.  This is critical once the dataset
   exceeds a few thousand documents.
 
-- [ ] **Schema migration framework** — Schema changes are currently applied via ad-hoc
+- [x] **Schema migration framework** — Schema changes are currently applied via ad-hoc
   `ALTER TABLE IF NOT EXISTS` blocks scattered across import scripts.  Migrating to
   **Alembic** would give a versioned migration history, safe rollback, and a single
   canonical view of the schema at any revision.  The existing `src/db/models.py`

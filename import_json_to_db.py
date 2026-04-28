@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from scripts.fix_country_duplicates import fix_duplicates
-from src.db.database import create_schema, get_engine, get_session
+from src.db.database import create_schema, get_engine, get_session, run_migrations
 from src.extraction.country_aliases import normalize_country_name
 from src.db.models import (
     Country,
@@ -340,20 +340,10 @@ def import_directory(
         return
 
     engine = get_engine(db_url)
-    create_schema(engine)
-
-    # Backward-compat migration: add first_seen_date to existing speakers tables.
-    # CREATE TABLE already includes the column for fresh schemas; this is only
-    # needed when upgrading an existing PostgreSQL database.
     if engine.dialect.name == "postgresql":
-        with engine.connect() as conn:
-            conn.execute(
-                text(
-                    "ALTER TABLE speakers"
-                    " ADD COLUMN IF NOT EXISTS first_seen_date DATE"
-                )
-            )
-            conn.commit()
+        run_migrations(db_url)
+    else:
+        create_schema(engine)
 
     ok = 0
     failed = 0

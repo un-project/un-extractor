@@ -56,11 +56,16 @@ Open tasks and known limitations for the un-extractor pipeline.
   making it impossible to store oral/undocumented amendments. Defer until the schema is
   relaxed and the extractor handles contextual resolution references.
 
-- [ ] **Full-text search index** — Add a `tsvector` GIN index on `speeches.text` and
+- [x] **Full-text search index** — Add a `tsvector` GIN index on `speeches.text` and
   expose a `/search` endpoint in un-project.org.  PostgreSQL FTS handles stopwords,
   stemming, and `ts_rank` scoring natively.  A `to_tsvector('english', text)` trigger
   column on `speeches` is the simplest implementation; a separate `search_vector`
   column with a `BEFORE INSERT OR UPDATE` trigger avoids re-computing on every query.
+  — Implemented in un-project.org as a materialized view (`search_index`) with a GIN
+  index on a weighted tsvector (speaker A, country B, text C) covering speeches and
+  resolutions. Refreshed via `REFRESH MATERIALIZED VIEW CONCURRENTLY` on pg_notify.
+  A trigger column on speeches would duplicate this at lower quality with extra write
+  overhead on every pipeline INSERT — not needed.
 
 ---
 

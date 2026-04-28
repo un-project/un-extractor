@@ -86,6 +86,16 @@ def _build_parser() -> argparse.ArgumentParser:
             " when quality exceeds PDF text"
         ),
     )
+    p.add_argument(
+        "--ods-cache-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Cache ODS HTML responses to DIR so re-runs skip the network."
+            " Defaults to data/ods_cache/ when --use-ods is active."
+        ),
+    )
     return p
 
 
@@ -103,6 +113,10 @@ def main() -> int:
         print(f"Error: {args.root_dir} does not exist", file=sys.stderr)
         return 1
 
+    ods_cache_dir: Path | None = None
+    if args.use_ods:
+        ods_cache_dir = args.ods_cache_dir or Path("data/ods_cache")
+
     summary = process_batch(
         root_dir=args.root_dir,
         output_dir=args.output,
@@ -113,6 +127,7 @@ def main() -> int:
         use_reocr=not args.no_reocr,
         use_ods=args.use_ods,
         incremental=args.incremental,
+        ods_cache_dir=ods_cache_dir,
     )
 
     skip_note = f", {summary.skipped} skipped" if summary.skipped else ""

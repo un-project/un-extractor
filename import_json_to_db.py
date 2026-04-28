@@ -13,6 +13,7 @@ import argparse
 import json
 import logging
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from pathlib import Path
 
@@ -330,10 +331,44 @@ def import_record(
     log.info("Imported %s", record.symbol)
 
 
+def _import_one(
+    json_path: Path,
+    engine: object,
+    recreate: bool,
+) -> tuple[bool, str]:
+    """Load and import one JSON file; return (success, error_message)."""
+    try:
+        with json_path.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+        record = MeetingRecord.model_validate(data)
+        with get_session(engine) as session:  # type: ignore[arg-type]
+            import_record(session, record, recreate=recreate)
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+
 def import_directory(
-    json_dir: Path, db_url: str | None = None, recreate: bool = False
+    json_dir: Path,
+    db_url: str | None = None,
+    recreate: bool = False,
+    workers: int = 4,
 ) -> None:
-    """Import all JSON files in *json_dir* into the database."""
+    """Import all JSON files in *json_dir* into the database.
+
+    Parameters
+    ----------
+    json_dir:
+        Directory containing ``meeting_*.json`` files.
+    db_url:
+        Database URL (falls back to ``DATABASE_URL`` env var).
+    recreate:
+        Delete and re-import documents that already exist.
+    workers:
+        Number of parallel import threads.  Each thread holds its own DB
+        connection; the advisory lock in :func:`import_record` ensures that
+        two workers never write the same document symbol simultaneously.
+    """
     json_files = sorted(json_dir.glob("meeting_*.json"))
     if not json_files:
         log.warning("No meeting_*.json files found in %s", json_dir)
@@ -347,17 +382,18 @@ def import_directory(
 
     ok = 0
     failed = 0
-    for json_path in json_files:
-        try:
-            with json_path.open(encoding="utf-8") as fh:
-                data = json.load(fh)
-            record = MeetingRecord.model_validate(data)
-            with get_session(engine) as session:
-                import_record(session, record, recreate=recreate)
-            ok += 1
-        except Exception as exc:
-            log.error("Failed to import %s: %s", json_path.name, exc)
-            failed += 1
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(_import_one, p, engine, recreate): p for p in json_files
+        }
+        for future in as_completed(futures):
+            json_path = futures[future]
+            success, error = future.result()
+            if success:
+                ok += 1
+            else:
+                log.error("Failed to import %s: %s", json_path.name, error)
+                failed += 1
 
     log.info("Import complete: %d ok, %d failed", ok, failed)
     log.info("Running fix_country_duplicates …")
@@ -386,6 +422,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Delete and re-import documents that already exist in the database",
     )
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of parallel import threads",
+    )
     p.add_argument("--verbose", action="store_true", default=False)
     return p
 
@@ -404,7 +446,9 @@ def main() -> int:
         return 1
 
     try:
-        import_directory(args.json_dir, db_url=args.db, recreate=args.recreate)
+        import_directory(
+            args.json_dir, db_url=args.db, recreate=args.recreate, workers=args.workers
+        )
     except Exception as exc:
         log.error("Import aborted: %s", exc)
         return 1

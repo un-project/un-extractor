@@ -400,6 +400,7 @@ def process_pdf(
     debug_dir: Path | None = None,
     use_reocr: bool = True,
     use_ods: bool = False,
+    ods_cache_dir: Path | None = None,
 ) -> MeetingRecord:
     """Process one PDF through the full pipeline.
 
@@ -428,6 +429,10 @@ def process_pdf(
         System (``undocs.org``) and prefer it over the PDF text when it scores
         higher on the OCR quality heuristic.  Requires a network connection;
         failures are logged and the PDF text is used as fallback.
+    ods_cache_dir:
+        If given, ODS HTML responses are cached to this directory so
+        subsequent runs skip the network request entirely.  404 responses
+        are also cached (as ``.miss`` files) to avoid redundant retries.
 
     Returns
     -------
@@ -546,7 +551,7 @@ def process_pdf(
                     fetch_ods_blocks,
                 )
 
-                ods_raw = fetch_ods_blocks(symbol_guess)
+                ods_raw = fetch_ods_blocks(symbol_guess, cache_dir=ods_cache_dir)
                 ods_quality = score_text_quality(ods_raw)
                 log.debug(
                     "ODS quality %.3f vs PDF quality %.3f for %s",

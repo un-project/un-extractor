@@ -28,6 +28,7 @@ import re
 import urllib.error
 import urllib.request
 from html.parser import HTMLParser
+from pathlib import Path
 
 from src.models import FormattedSegment, TextBlock
 
@@ -247,9 +248,15 @@ def html_to_blocks(html_text: str) -> list[TextBlock]:
 # ---------------------------------------------------------------------------
 
 
+def _cache_key(symbol: str) -> str:
+    """Return a filesystem-safe stem for *symbol* cache files."""
+    return symbol.replace("/", "_").replace(".", "_")
+
+
 def fetch_ods_html(
     symbol: str,
     *,
+    cache_dir: Path | None = None,
     timeout: int = _REQUEST_TIMEOUT,
 ) -> str:
     """Fetch the HTML rendition of *symbol* from ``undocs.org``.
@@ -258,6 +265,10 @@ def fetch_ods_html(
     ----------
     symbol:
         UN document symbol, e.g. ``"A/64/PV.121"``.
+    cache_dir:
+        Optional directory for persistent caching.  On a cache hit the HTML
+        is returned without a network request.  ``{symbol}.miss`` sentinel
+        files record permanent 404s so they are never re-fetched.
     timeout:
         Network timeout in seconds.
 
@@ -274,6 +285,21 @@ def fetch_ods_html(
         If the server returns HTTP 404 (no HTML version exists for this
         symbol) or the response is not HTML.
     """
+    cache_file: Path | None = None
+    miss_file: Path | None = None
+
+    if cache_dir is not None:
+        key = _cache_key(symbol)
+        cache_file = cache_dir / f"{key}.html"
+        miss_file = cache_dir / f"{key}.miss"
+        if miss_file.exists():
+            raise OdsNoDocument(
+                f"ODS has no document for symbol {symbol!r} (cached miss)"
+            )
+        if cache_file.exists():
+            log.debug("ODS cache hit: %s", symbol)
+            return cache_file.read_text(encoding="utf-8")
+
     url = ods_url(symbol)
     req = urllib.request.Request(
         url,
@@ -288,14 +314,16 @@ def fetch_ods_html(
                     f"for {symbol!r}"
                 )
             raw: bytes = resp.read()
-            # Detect encoding from Content-Type or BOM; default to UTF-8.
             charset = "utf-8"
             m = re.search(r"charset=([^\s;]+)", content_type, re.IGNORECASE)
             if m:
                 charset = m.group(1).strip().strip('"')
-            return raw.decode(charset, errors="replace")
+            html = raw.decode(charset, errors="replace")
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
+            if miss_file is not None:
+                miss_file.parent.mkdir(parents=True, exist_ok=True)
+                miss_file.write_text(f"HTTP 404 for {symbol}", encoding="utf-8")
             raise OdsNoDocument(
                 f"ODS has no document for symbol {symbol!r} (HTTP 404)"
             ) from exc
@@ -307,6 +335,13 @@ def fetch_ods_html(
             f"Network error fetching ODS for {symbol!r}: {exc}"
         ) from exc
 
+    if cache_file is not None:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(html, encoding="utf-8")
+        log.debug("ODS cached: %s", symbol)
+
+    return html
+
 
 # ---------------------------------------------------------------------------
 # High-level helper
@@ -316,6 +351,7 @@ def fetch_ods_html(
 def fetch_ods_blocks(
     symbol: str,
     *,
+    cache_dir: Path | None = None,
     timeout: int = _REQUEST_TIMEOUT,
 ) -> list[TextBlock]:
     """Fetch ODS HTML for *symbol* and return parsed :class:`TextBlock` objects.
@@ -326,6 +362,8 @@ def fetch_ods_blocks(
     ----------
     symbol:
         UN document symbol, e.g. ``"A/64/PV.121"``.
+    cache_dir:
+        Optional persistent cache directory (see :func:`fetch_ods_html`).
     timeout:
         Network timeout in seconds.
 
@@ -341,7 +379,7 @@ def fetch_ods_blocks(
     OdsNoDocument
         When ODS has no HTML for this symbol.
     """
-    html_text = fetch_ods_html(symbol, timeout=timeout)
+    html_text = fetch_ods_html(symbol, cache_dir=cache_dir, timeout=timeout)
     blocks = html_to_blocks(html_text)
     if len(blocks) < _MIN_PARAGRAPHS:
         raise OdsNoDocument(

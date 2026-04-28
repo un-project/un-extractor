@@ -95,6 +95,7 @@ def _process_one(
     debug_dir: Path | None = None,
     use_reocr: bool = True,
     use_ods: bool = False,
+    ods_cache_dir: Path | None = None,
 ) -> ProcessResult:
     try:
         record = process_pdf(
@@ -105,6 +106,7 @@ def _process_one(
             debug_dir=debug_dir,
             use_reocr=use_reocr,
             use_ods=use_ods,
+            ods_cache_dir=ods_cache_dir,
         )
         return ProcessResult(pdf_path=pdf_path, success=True, record=record)
     except ExtractionError as exc:
@@ -166,6 +168,7 @@ def process_batch(
     use_reocr: bool = True,
     use_ods: bool = False,
     incremental: bool = False,
+    ods_cache_dir: Path | None = None,
 ) -> BatchSummary:
     """Process all PDFs under *root_dir* in parallel.
 
@@ -189,6 +192,10 @@ def process_batch(
         Fetch HTML from the UN ODS and prefer it when quality exceeds the PDF.
     incremental:
         When True, skip PDFs whose output JSON already exists in *output_dir*.
+    ods_cache_dir:
+        Persistent cache directory for ODS HTML responses (see
+        :func:`~src.pdf.ods_client.fetch_ods_html`).  Only used when
+        *use_ods* is True.
 
     Returns
     -------
@@ -239,6 +246,7 @@ def process_batch(
                 debug_dir,
                 use_reocr,
                 use_ods,
+                ods_cache_dir,
             ): pdf
             for pdf in pdfs
         }

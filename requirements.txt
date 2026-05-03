@@ -20,6 +20,9 @@ scipy>=1.12.0
 # Topic modelling (compute_speech_topics.py — LDA backend)
 scikit-learn>=1.4.0
 
+# Canonical name resolution (fix_country_duplicates.py)
+pycountry>=26.2.0
+
 # Optional: BERTopic backend for compute_speech_topics.py
 # pip install bertopic sentence-transformers
 

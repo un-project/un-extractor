@@ -844,6 +844,7 @@ def process_pdf(
         doc_date: date | None = meta.get("date")
         if doc_date is None:
             log.warning("Date not found in %s", pdf_path.name)
+        doc_body: str = meta.get("body") or "GA"
         # Validate date against the session embedded in the GA symbol.
         # OCR often picks up dates from cited documents (resolutions, letters)
         # that are years earlier than the actual meeting — discard those.
@@ -851,13 +852,16 @@ def process_pdf(
             expected_year = 1945 + session_num
             if not (0 <= doc_date.year - expected_year <= 2):
                 log.warning(
-                    "Implausible date %s for session %d (expected ~%d) in %s — discarding",
-                    doc_date, session_num, expected_year, pdf_path.name,
+                    "Implausible date %s for session %d (expected ~%d) in %s — "
+                    "discarding",
+                    doc_date,
+                    session_num,
+                    expected_year,
+                    pdf_path.name,
                 )
                 doc_date = None
         location: str = meta.get("location") or ""
         president: PresidentInfo | None = meta.get("president")
-        doc_body: str = meta.get("body") or "GA"
 
         record = MeetingRecord(
             symbol=symbol,

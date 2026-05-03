@@ -79,7 +79,7 @@ def _symbol_from_path(pdf_path: Path) -> str | None:
         return None
     body_part = parts[idx - 2].lower()
     session_part = parts[idx - 1]
-    m = re.match(r"document_(\d+)$", pdf_path.stem)
+    m = re.match(r"document_(\d+)", pdf_path.stem)
     if not m:
         return None
     doc_num = m.group(1)
@@ -844,6 +844,17 @@ def process_pdf(
         doc_date: date | None = meta.get("date")
         if doc_date is None:
             log.warning("Date not found in %s", pdf_path.name)
+        # Validate date against the session embedded in the GA symbol.
+        # OCR often picks up dates from cited documents (resolutions, letters)
+        # that are years earlier than the actual meeting — discard those.
+        if doc_date is not None and session_num is not None and doc_body == "GA":
+            expected_year = 1945 + session_num
+            if not (0 <= doc_date.year - expected_year <= 2):
+                log.warning(
+                    "Implausible date %s for session %d (expected ~%d) in %s — discarding",
+                    doc_date, session_num, expected_year, pdf_path.name,
+                )
+                doc_date = None
         location: str = meta.get("location") or ""
         president: PresidentInfo | None = meta.get("president")
         doc_body: str = meta.get("body") or "GA"

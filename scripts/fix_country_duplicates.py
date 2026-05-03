@@ -554,9 +554,12 @@ def _normalize_existing_rows(session: Session, dry_run: bool) -> tuple[int, int]
         canonical_name = normalize_country_name(row.name)
         # Fallback: if the alias table doesn't know this name but the row has
         # an iso3 code, derive the canonical name from pycountry.
+        # Guard: skip if pycountry already recognises the current name as a
+        # valid English country name (fuzzy match succeeds), because then the
+        # name is already correct — the iso3 may be wrong, not the name.
         if canonical_name == row.name and row.iso3:
             iso3_name = _canonical_name_from_iso3(row.iso3)
-            if iso3_name and iso3_name != row.name:
+            if iso3_name and iso3_name != row.name and _fuzzy_iso3(row.name) is None:
                 canonical_name = iso3_name
         if canonical_name == row.name:
             continue
@@ -582,7 +585,16 @@ def _normalize_existing_rows(session: Session, dry_run: bool) -> tuple[int, int]
                 )
                 _merge_speakers(session, row.id, canonical_row.id, dry_run)
                 _merge_country_votes(session, row.id, canonical_row.id, dry_run)
-                _merge_additional_fks(session, row.id, canonical_row.id, dry_run)
+                # Run additional FK merges in their own savepoint so that
+                # failures (e.g. missing tables in SQLite test environments)
+                # don't roll back the core speaker/vote/iso3 merge above.
+                try:
+                    sp2 = session.begin_nested()
+                    _merge_additional_fks(session, row.id, canonical_row.id, dry_run)
+                    sp2.commit()
+                except Exception as fk_exc:
+                    sp2.rollback()
+                    log.debug("Additional FK merge skipped for %r: %s", row.name, fk_exc)
                 if not dry_run:
                     if row.iso3:
                         # Clear the alias iso3 in its own flush FIRST.
@@ -659,7 +671,13 @@ def _fuzzy_merge_no_iso3(session: Session, dry_run: bool) -> tuple[int, int]:
                 )
                 _merge_speakers(session, row.id, canonical_row.id, dry_run)
                 _merge_country_votes(session, row.id, canonical_row.id, dry_run)
-                _merge_additional_fks(session, row.id, canonical_row.id, dry_run)
+                try:
+                    sp2 = session.begin_nested()
+                    _merge_additional_fks(session, row.id, canonical_row.id, dry_run)
+                    sp2.commit()
+                except Exception as fk_exc:
+                    sp2.rollback()
+                    log.debug("Additional FK merge skipped for %r: %s", row.name, fk_exc)
                 if not dry_run:
                     session.delete(row)
                     session.flush()

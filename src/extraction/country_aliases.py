@@ -666,6 +666,10 @@ def is_organization(name: str) -> bool:
     lower = name.strip().lower()
     if not lower:
         return False
+    # Known canonical country names are never organizations, even if they
+    # contain org keywords (e.g. "Union of Soviet Socialist Republics").
+    if lower in _CANONICAL_NAMES:
+        return False
     # Known acronyms and explicit names
     if lower in _ORG_ACRONYMS:
         return True

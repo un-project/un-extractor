@@ -103,6 +103,35 @@ def _parse_session(symbol: str) -> int | None:
     return None
 
 
+def _parse_session_from_adopted_symbol(adopted_symbol: str, body: str) -> int | None:
+    """Parse the GA session number from a resolution's adopted symbol.
+
+    More reliable than the CSV 'session' field, which can be wrong.
+    Forms handled: A/RES/31/127, A/31/127, 31/127.
+    """
+    if body != "GA" or not adopted_symbol:
+        return None
+    m = re.search(r"(?:A/RES/|A/)(\d+)/", adopted_symbol, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    m = re.match(r"^(\d+)/", adopted_symbol)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _session_expected_year(session: int) -> int:
+    """Year in which GA session opens (September of 1945 + session)."""
+    return 1945 + session
+
+
+def _date_plausible_for_session(d: "date | None", session: int | None) -> bool:
+    """True if date is within ±2 years of the expected GA session year."""
+    if d is None or session is None:
+        return True
+    return abs(d.year - _session_expected_year(session)) <= 2
+
+
 def _parse_body(symbol: str) -> str:
     return "SC" if symbol.upper().startswith("S/") else "GA"
 
@@ -294,6 +323,7 @@ def _get_or_create_document(
     if meeting_symbol in _cache:
         return _cache[meeting_symbol]
 
+    sym_session = _parse_session(meeting_symbol)
     doc = session.query(Document).filter_by(symbol=meeting_symbol).first()
     if doc is None:
         meeting_num = _parse_meeting_number(meeting_symbol)
@@ -304,12 +334,24 @@ def _get_or_create_document(
             symbol=meeting_symbol,
             body=body,
             meeting_number=meeting_num,
-            session=_parse_session(meeting_symbol),
+            session=sym_session,
             date=vote_date,
         )
         session.add(doc)
         session.flush()
         log.debug("Created stub document %s", meeting_symbol)
+    elif (
+        sym_session is not None
+        and vote_date is not None
+        and not _date_plausible_for_session(doc.date, sym_session)
+        and _date_plausible_for_session(vote_date, sym_session)
+    ):
+        log.info(
+            "Correcting date for %s: %s → %s (session %d expected ~%d)",
+            meeting_symbol, doc.date, vote_date, sym_session,
+            _session_expected_year(sym_session),
+        )
+        doc.date = vote_date
 
     _cache[meeting_symbol] = doc
     return doc  # type: ignore[no-any-return]
@@ -354,7 +396,7 @@ def _get_or_create_resolution(
             log.debug("Created resolution %r", key)
         _cache[key] = res
 
-    # Backfill fields that may be missing from PDF extraction
+    # Backfill / correct fields
     changed = False
     if adopted_symbol and not res.adopted_symbol:
         res.adopted_symbol = adopted_symbol
@@ -375,6 +417,16 @@ def _get_or_create_resolution(
         changed = True
     if committee_report and not res.committee_report:
         res.committee_report = committee_report
+        changed = True
+    # Correct the session if the symbol-derived value differs from stored value.
+    # The adopted_symbol (e.g. "31/127") is a more reliable source than the CSV
+    # 'session' field, which can be wrong (e.g. 13 instead of 31).
+    if session_num is not None and res.session != session_num:
+        log.info(
+            "Correcting session for %r: %s → %s",
+            key, res.session, session_num,
+        )
+        res.session = session_num
         changed = True
     if changed:
         session.flush()
@@ -534,7 +586,11 @@ def import_csv(
         abstain_count = _int_or_none(first.get("total_abstentions", ""))
         total_non_voting = _int_or_none(first.get("total_non_voting", ""))
         total_ms = _int_or_none(first.get("total_ms", ""))
-        session_num = _int_or_none(first.get("session", ""))
+        # Prefer session parsed from the adopted symbol (e.g. "31/127" → 31)
+        # over the CSV 'session' field, which can be wrong (e.g. 13 vs 31).
+        csv_session = _int_or_none(first.get("session", ""))
+        sym_session = _parse_session_from_adopted_symbol(adopted_symbol, body)
+        session_num = sym_session if sym_session is not None else csv_session
 
         # Determine vote type: SC has 'modality', GA is always recorded
         modality = first.get("modality", "").strip().lower()

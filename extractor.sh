@@ -6,7 +6,7 @@ set -euo pipefail
 # Run from the repo root.
 # ---------------------------------------------------------------------------
 
-export DATABASE_URL="postgresql://myuser:mypassword@localhost:5433/unproject"
+export DATABASE_URL="postgresql://myuser:mypassword@localhost:5433/undb"
 
 # ---------------------------------------------------------------------------
 # 0. Extract text from PDFs
@@ -15,9 +15,8 @@ export DATABASE_URL="postgresql://myuser:mypassword@localhost:5433/unproject"
 # Process all PDFs (adjust --workers to your CPU count).
 # --use-ods fetches cleaner HTML from undocs.org when available (needs network).
 # --no-reocr disables Tesseract fallback if ocrmypdf is not installed.
-# For incremental updates (only process PDFs whose output JSON is missing):
-#   add --incremental to the commands below.
-python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --use-ods
+# Takes a long long time
+python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --use-ods --incremental
 
 # SC PDFs via CR-UNSC (only needed if not already downloaded):
 #python scripts/import_crUnsc_pdfs.py
@@ -27,13 +26,14 @@ python process_dataset.py data/raw_pdfs/ --output output/ --workers 8 --use-ods
 # 1. Drop and recreate the database
 # ---------------------------------------------------------------------------
 
-docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "DROP DATABASE IF EXISTS unproject;" \
-  && docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "CREATE DATABASE unproject;"
+docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "DROP DATABASE IF EXISTS undb;" \
+  && docker exec -i un-projectorg-db-1 psql -U myuser -d postgres -c "CREATE DATABASE undb;"
 
 # ---------------------------------------------------------------------------
 # 2. Import extracted JSONs (runs Alembic migrations, then imports)
 # ---------------------------------------------------------------------------
 
+# Takes a long time
 python import_json_to_db.py output/ --recreate
 
 # ---------------------------------------------------------------------------
@@ -83,6 +83,7 @@ python scripts/import_gdebate_corpus.py --db $DATABASE_URL
 # 8. Import resolution full texts and citation network
 # ---------------------------------------------------------------------------
 
+# Takes a long long time
 python scripts/import_ga_resolution_texts.py --db $DATABASE_URL
 
 python scripts/import_crUnsc_texts.py --db $DATABASE_URL
@@ -115,9 +116,6 @@ python scripts/compute_alignment_series.py --db $DATABASE_URL
 # Data-driven voting bloc detection (5-year rolling window, connected components)
 python scripts/compute_voting_blocs.py --db $DATABASE_URL
 
-# Vote prediction model + anomaly detection (requires ideal points and Voeten metadata)
-python scripts/compute_vote_predictions.py --db $DATABASE_URL
-
 # Topic model over speech text (LDA, 50 topics)
 python scripts/compute_speech_topics.py --db $DATABASE_URL
 
@@ -133,15 +131,24 @@ python scripts/compute_ideal_points_mcmc.py --n-iter 10000 --n-burn 2000 --thin 
 python scripts/import_voeten_ideal_points.py --db $DATABASE_URL
 python scripts/compute_ideal_points.py --extend --db $DATABASE_URL
 
+# Vote prediction model + anomaly detection (requires ideal points and Voeten metadata)
+python scripts/compute_vote_predictions.py --db $DATABASE_URL
+
 # ---------------------------------------------------------------------------
 # 11. un-project.org website sync (run from the un-project.org repo)
 # ---------------------------------------------------------------------------
 
-# DB_HOST=localhost DB_PORT=5433 python scripts/populate_iso_and_flags.py
+# DB_NAME=undb DB_HOST=localhost DB_PORT=5433 python scripts/populate_iso_and_flags.py
 # docker compose exec web python manage.py refresh_search_index --full
 
 # ---------------------------------------------------------------------------
-# 12. Notify un-project.org listener (triggers cache clear + search re-index)
+# 12. Coverage report (extracted vs. stub-only documents per body/session)
+# ---------------------------------------------------------------------------
+
+python scripts/coverage_report.py --db $DATABASE_URL
+
+# ---------------------------------------------------------------------------
+# 13. Notify un-project.org listener (triggers cache clear + search re-index)
 # ---------------------------------------------------------------------------
 
 # The listener container watches the un_data_updated channel and responds by

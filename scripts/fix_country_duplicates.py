@@ -31,6 +31,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import difflib
 import logging
 import re
 import sys
@@ -39,7 +40,8 @@ from pathlib import Path
 # Allow running from repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import Engine, func, select  # noqa: E402
+import pycountry  # noqa: E402
+from sqlalchemy import Engine, func, select, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from src.db.database import get_engine, get_session  # noqa: E402
@@ -48,6 +50,106 @@ from src.extraction.country_aliases import (  # noqa: E402
     _CANONICAL_NAMES,
     normalize_country_name,
 )
+
+# Preferred display names — override pycountry's comma-inverted format to match
+# the natural UN-style names used throughout the codebase and the old database.
+_PREFERRED_NAMES: dict[str, str] = {
+    "BOL": "Plurinational State of Bolivia",
+    "COD": "Democratic Republic of the Congo",
+    "FSM": "Micronesia (Federated States of)",
+    "GBR": "United Kingdom of Great Britain and Northern Ireland",
+    "IRN": "Islamic Republic of Iran",
+    "KOR": "Republic of Korea",
+    "MDA": "Moldova",
+    "PRK": "Democratic People's Republic of Korea",
+    "PSE": "State of Palestine",
+    "TZA": "United Republic of Tanzania",
+    "USA": "United States of America",
+    "VAT": "Holy See",
+    "VEN": "Bolivarian Republic of Venezuela",
+}
+
+# Canonical names for historical/defunct countries not in pycountry current list.
+_HISTORICAL_CANONICAL: dict[str, str] = {
+    "YUG": "Yugoslavia",
+    "SUN": "Union of Soviet Socialist Republics",
+    "CSK": "Czechoslovakia",
+    "DDR": "German Democratic Republic",
+    "ZAR": "Zaire",
+    "ANT": "Netherlands Antilles",
+    "SCG": "Serbia and Montenegro",
+    "VDR": "Democratic Republic of Viet-Nam",
+    "YMD": "Democratic Yemen",
+    "HVO": "Upper Volta",
+    "DHY": "Dahomey",
+    "RHO": "Southern Rhodesia",
+    "BUR": "Burma",
+    "BYS": "Byelorussian Soviet Socialist Republic",
+    "GER": "Germany, Federal Republic of",
+    "EAT": "Tanganyika",
+    "EAZ": "Zanzibar",
+    "UAR": "United Arab Republic",
+}
+
+
+def _canonical_name_from_iso3(iso3: str) -> str | None:
+    """Return the canonical country name for an ISO 3166 alpha-3 code.
+
+    Checks _PREFERRED_NAMES first so the natural UN-style format wins over
+    pycountry's comma-inverted form (e.g. "United Republic of Tanzania" not
+    "Tanzania, United Republic of").
+    """
+    if iso3 in _PREFERRED_NAMES:
+        return _PREFERRED_NAMES[iso3]
+    if iso3 in _HISTORICAL_CANONICAL:
+        return _HISTORICAL_CANONICAL[iso3]
+    c = pycountry.countries.get(alpha_3=iso3)
+    if c:
+        return c.name
+    hc = pycountry.historic_countries.get(alpha_3=iso3)
+    if hc:
+        return hc.name
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Pycountry name → iso3 lookup (used for fuzzy matching of no-iso3 rows)
+# ---------------------------------------------------------------------------
+
+def _build_pycountry_lookup() -> dict[str, str]:
+    """Return a mapping from lowercase name variant → iso3 code."""
+    lookup: dict[str, str] = {}
+    for c in pycountry.countries:
+        a3 = c.alpha_3
+        lookup[c.name.lower()] = a3
+        if hasattr(c, "common_name"):
+            lookup[c.common_name.lower()] = a3
+        if hasattr(c, "official_name"):
+            lookup[c.official_name.lower()] = a3
+    for c in pycountry.historic_countries:
+        a3 = c.alpha_3
+        lookup[c.name.lower()] = a3
+        if hasattr(c, "common_name"):
+            lookup[c.common_name.lower()] = a3
+    # Add preferred names and historical canonical names so fuzzy matching
+    # produces the correct iso3 for variants like "United Republic of Tanzania".
+    for iso3, name in _PREFERRED_NAMES.items():
+        lookup[name.lower()] = iso3
+    for iso3, name in _HISTORICAL_CANONICAL.items():
+        lookup[name.lower()] = iso3
+    return lookup
+
+
+_PYCOUNTRY_NAMES: dict[str, str] = _build_pycountry_lookup()
+_PYCOUNTRY_NAMES_LIST: list[str] = list(_PYCOUNTRY_NAMES.keys())
+
+
+def _fuzzy_iso3(name: str, cutoff: float = 0.82) -> str | None:
+    """Return iso3 for the best fuzzy pycountry match, or None if no good match."""
+    if len(name.strip()) < 4:
+        return None
+    matches = difflib.get_close_matches(name.lower(), _PYCOUNTRY_NAMES_LIST, n=1, cutoff=cutoff)
+    return _PYCOUNTRY_NAMES[matches[0]] if matches else None
 
 log = logging.getLogger(__name__)
 
@@ -157,6 +259,195 @@ def _merge_country_votes(
     return len(alias_votes)
 
 
+def _merge_additional_fks(
+    session: Session, alias_country_id: int, canonical_country_id: int, dry_run: bool
+) -> None:
+    """Reassign country FK references in tables not covered by the ORM models.
+
+    Handles: sc_representatives, permanent_representatives, general_debate_entries,
+    resolution_sponsors, country_network_stats, country_alignment_series.
+    For tables with unique constraints, duplicate rows are deleted before the
+    UPDATE so no constraint violation occurs.
+    """
+    if dry_run:
+        return
+
+    a, c = alias_country_id, canonical_country_id
+
+    # Simple reassigns (no unique constraint on country_id alone)
+    session.execute(
+        text("UPDATE sc_representatives SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+    session.execute(
+        text("UPDATE permanent_representatives SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+    session.execute(
+        text("UPDATE resolution_sponsors SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+
+    # veto_countries — unique on (veto_id, country_id)
+    session.execute(
+        text("""
+            DELETE FROM veto_countries
+            WHERE country_id = :a
+              AND veto_id IN (SELECT veto_id FROM veto_countries WHERE country_id = :c)
+        """),
+        {"a": a, "c": c},
+    )
+    session.execute(
+        text("UPDATE veto_countries SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+
+    # country_ideal_points — unique on (country_id, year, source)
+    session.execute(
+        text("""
+            DELETE FROM country_ideal_points alias
+            USING country_ideal_points canon
+            WHERE alias.country_id = :a
+              AND canon.country_id = :c
+              AND alias.year = canon.year
+              AND alias.source = canon.source
+        """),
+        {"a": a, "c": c},
+    )
+    session.execute(
+        text("UPDATE country_ideal_points SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+
+    # voting_blocs — unique on (country_id, year) if such constraint exists; safe UPDATE
+    session.execute(
+        text("""
+            DELETE FROM voting_blocs alias
+            USING voting_blocs canon
+            WHERE alias.country_id = :a
+              AND canon.country_id = :c
+              AND alias.year = canon.year
+        """),
+        {"a": a, "c": c},
+    )
+    session.execute(
+        text("UPDATE voting_blocs SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+
+    # general_debate_entries — unique on (ga_session, speaker_name, country_id)
+    session.execute(
+        text("""
+            DELETE FROM general_debate_entries alias
+            USING general_debate_entries canon
+            WHERE alias.country_id = :a
+              AND canon.country_id = :c
+              AND alias.ga_session  = canon.ga_session
+              AND alias.speaker_name = canon.speaker_name
+        """),
+        {"a": a, "c": c},
+    )
+    session.execute(
+        text("UPDATE general_debate_entries SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+
+    # country_network_stats — unique on (country_id, year)
+    session.execute(
+        text("""
+            DELETE FROM country_network_stats
+            WHERE country_id = :a
+              AND year IN (SELECT year FROM country_network_stats WHERE country_id = :c)
+        """),
+        {"a": a, "c": c},
+    )
+    session.execute(
+        text("UPDATE country_network_stats SET country_id = :c WHERE country_id = :a"),
+        {"c": c, "a": a},
+    )
+
+    # country_alignment_series — CHECK (country_id_a < country_id_b),
+    # UNIQUE (country_id_a, country_id_b, year).
+    # When the canonical id is lower than the partner, the a/b columns must be
+    # swapped to satisfy the check constraint.
+
+    # Delete rows where one partner is alias and the other is canonical
+    # (they would become self-references after the merge).
+    session.execute(
+        text("""
+            DELETE FROM country_alignment_series
+            WHERE (country_id_a = :a AND country_id_b = :c)
+               OR (country_id_a = :c AND country_id_b = :a)
+        """),
+        {"a": a, "c": c},
+    )
+    # Delete canonical duplicates that would conflict after migrating alias rows.
+    # Case: alias in a, canonical fits in a (no swap, c < partner_b)
+    session.execute(
+        text("""
+            DELETE FROM country_alignment_series ex
+            USING country_alignment_series al
+            WHERE al.country_id_a = :a AND :c < al.country_id_b
+              AND ex.country_id_a = :c AND ex.country_id_b = al.country_id_b
+              AND ex.year = al.year
+        """),
+        {"a": a, "c": c},
+    )
+    # Case: alias in a, swap needed (c > partner_b → new row is (partner_b, c))
+    session.execute(
+        text("""
+            DELETE FROM country_alignment_series ex
+            USING country_alignment_series al
+            WHERE al.country_id_a = :a AND :c > al.country_id_b
+              AND ex.country_id_a = al.country_id_b AND ex.country_id_b = :c
+              AND ex.year = al.year
+        """),
+        {"a": a, "c": c},
+    )
+    # Case: alias in b, no swap needed (c > partner_a → new row is (partner_a, c))
+    session.execute(
+        text("""
+            DELETE FROM country_alignment_series ex
+            USING country_alignment_series al
+            WHERE al.country_id_b = :a AND :c > al.country_id_a
+              AND ex.country_id_a = al.country_id_a AND ex.country_id_b = :c
+              AND ex.year = al.year
+        """),
+        {"a": a, "c": c},
+    )
+    # Case: alias in b, swap needed (c < partner_a → new row is (c, partner_a))
+    session.execute(
+        text("""
+            DELETE FROM country_alignment_series ex
+            USING country_alignment_series al
+            WHERE al.country_id_b = :a AND :c < al.country_id_a
+              AND ex.country_id_a = :c AND ex.country_id_b = al.country_id_a
+              AND ex.year = al.year
+        """),
+        {"a": a, "c": c},
+    )
+    # Update alias-in-a rows, swapping columns when canonical > partner_b.
+    session.execute(
+        text("UPDATE country_alignment_series SET country_id_a = :c WHERE country_id_a = :a AND :c < country_id_b"),
+        {"c": c, "a": a},
+    )
+    session.execute(
+        text("UPDATE country_alignment_series SET country_id_a = country_id_b, country_id_b = :c WHERE country_id_a = :a AND :c > country_id_b"),
+        {"c": c, "a": a},
+    )
+    # Update alias-in-b rows, swapping columns when canonical < partner_a.
+    session.execute(
+        text("UPDATE country_alignment_series SET country_id_b = :c WHERE country_id_b = :a AND :c > country_id_a"),
+        {"c": c, "a": a},
+    )
+    session.execute(
+        text("UPDATE country_alignment_series SET country_id_b = country_id_a, country_id_a = :c WHERE country_id_b = :a AND :c < country_id_a"),
+        {"c": c, "a": a},
+    )
+
+    session.flush()
+
+
 def _delete_junk_rows(session: Session, dry_run: bool) -> None:
     """Remove country rows with blank, sentinel, or hopelessly garbled names."""
     junk = (
@@ -261,6 +552,12 @@ def _normalize_existing_rows(session: Session, dry_run: bool) -> tuple[int, int]
     all_rows = session.query(Country).order_by(Country.id).all()
     for row in all_rows:
         canonical_name = normalize_country_name(row.name)
+        # Fallback: if the alias table doesn't know this name but the row has
+        # an iso3 code, derive the canonical name from pycountry.
+        if canonical_name == row.name and row.iso3:
+            iso3_name = _canonical_name_from_iso3(row.iso3)
+            if iso3_name and iso3_name != row.name:
+                canonical_name = iso3_name
         if canonical_name == row.name:
             continue
 
@@ -285,6 +582,7 @@ def _normalize_existing_rows(session: Session, dry_run: bool) -> tuple[int, int]
                 )
                 _merge_speakers(session, row.id, canonical_row.id, dry_run)
                 _merge_country_votes(session, row.id, canonical_row.id, dry_run)
+                _merge_additional_fks(session, row.id, canonical_row.id, dry_run)
                 if not dry_run:
                     if row.iso3:
                         # Clear the alias iso3 in its own flush FIRST.
@@ -310,6 +608,152 @@ def _normalize_existing_rows(session: Session, dry_run: bool) -> tuple[int, int]
             log.warning("SKIP %r → %r: %s", row.name, canonical_name, exc)
 
     return renamed, merged
+
+
+def _fuzzy_merge_no_iso3(session: Session, dry_run: bool) -> tuple[int, int]:
+    """Fuzzy-match no-iso3 country rows against pycountry and merge matches.
+
+    For each no-iso3 row whose name closely matches a known country (score
+    >= 0.82):
+    - If the canonical DB row (matching iso3) exists → merge.
+    - If not → rename in-place and set iso3.
+
+    Returns (renamed, merged).
+    """
+    renamed = 0
+    merged = 0
+
+    # Snapshot: canonical rows indexed by iso3
+    canonical_by_iso3: dict[str, Country] = {
+        c.iso3: c
+        for c in session.query(Country).filter(Country.iso3.isnot(None)).all()
+    }
+
+    no_iso3_rows = (
+        session.query(Country)
+        .filter(Country.iso3.is_(None))
+        .order_by(Country.id)
+        .all()
+    )
+
+    for row in no_iso3_rows:
+        name = (row.name or "").strip()
+        if len(name) < 4:
+            continue  # too short — will be handled by _delete_junk_rows
+
+        iso3 = _fuzzy_iso3(name)
+        if not iso3:
+            continue
+
+        preferred_name = _canonical_name_from_iso3(iso3)
+        if not preferred_name:
+            continue
+
+        try:
+            sp = session.begin_nested()
+            canonical_row = canonical_by_iso3.get(iso3)
+            if canonical_row is not None and canonical_row.id != row.id:
+                log.info(
+                    "FUZZY-MERGE %r (id=%d) → %r (id=%d)",
+                    row.name, row.id, canonical_row.name, canonical_row.id,
+                )
+                _merge_speakers(session, row.id, canonical_row.id, dry_run)
+                _merge_country_votes(session, row.id, canonical_row.id, dry_run)
+                _merge_additional_fks(session, row.id, canonical_row.id, dry_run)
+                if not dry_run:
+                    session.delete(row)
+                    session.flush()
+                merged += 1
+            elif canonical_row is None:
+                log.info(
+                    "FUZZY-RENAME %r → %r (iso3=%s)",
+                    row.name, preferred_name, iso3,
+                )
+                if not dry_run:
+                    row.name = preferred_name
+                    row.iso3 = iso3
+                    session.flush()
+                    canonical_by_iso3[iso3] = row
+                renamed += 1
+            sp.commit()
+        except Exception as exc:
+            sp.rollback()
+            log.warning("SKIP fuzzy %r: %s", name, exc)
+
+    return renamed, merged
+
+
+def _delete_remaining_no_iso3(session: Session, dry_run: bool) -> int:
+    """Delete all remaining no-iso3 country rows (OCR garbage not matching any country).
+
+    country_votes referencing them are deleted; speakers have their country_id
+    set to NULL (preserving the speech text record).
+
+    Returns the number of rows deleted.
+    """
+    rows = (
+        session.query(Country)
+        .filter(Country.iso3.is_(None))
+        .order_by(Country.id)
+        .all()
+    )
+    count = 0
+    for row in rows:
+        log.info(
+            "DELETE garbage country id=%d name=%r", row.id, (row.name or "")[:80]
+        )
+        if not dry_run:
+            session.execute(
+                text("UPDATE speakers SET country_id = NULL WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM country_votes WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM resolution_sponsors WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM country_network_stats WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM country_ideal_points WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM voting_blocs WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM veto_countries WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text(
+                    "DELETE FROM country_alignment_series "
+                    "WHERE country_id_a = :a OR country_id_b = :a"
+                ),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM general_debate_entries WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM permanent_representatives WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.execute(
+                text("DELETE FROM sc_representatives WHERE country_id = :a"),
+                {"a": row.id},
+            )
+            session.delete(row)
+            session.flush()
+        count += 1
+    return count
 
 
 def _print_report(db_url: str | None = None) -> None:
@@ -476,9 +920,16 @@ def fix_duplicates(
     with get_session(engine) as session:
         _delete_junk_rows(session, dry_run)
         renamed, merged = _normalize_existing_rows(session, dry_run)
+        f_renamed, f_merged = _fuzzy_merge_no_iso3(session, dry_run)
+        renamed += f_renamed
+        merged += f_merged
+        deleted = _delete_remaining_no_iso3(session, dry_run)
 
-    action = "Would merge" if dry_run else "Merged"
-    log.info("%s %d country rows, renamed %d rows.", action, merged, renamed)
+    action = "Would" if dry_run else "Did"
+    log.info(
+        "%s: merged %d, renamed %d, deleted %d garbage country rows.",
+        action, merged, renamed, deleted,
+    )
 
 
 def main() -> int:

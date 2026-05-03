@@ -471,6 +471,64 @@ def compute_ideal_points(
                 session.flush()
 
         if not dry_run:
+            # Backfill any NULL country_id rows caused by country cleanup running
+            # after this script, or iso3 not being matched at insert time.
+            backfilled = session.execute(
+                text(
+                    """
+                    UPDATE country_ideal_points ip
+                    SET country_id = c.id
+                    FROM countries c
+                    WHERE c.iso3 = ip.iso3
+                      AND ip.country_id IS NULL
+                    """
+                )
+            ).rowcount
+            if backfilled:
+                log.info("Backfilled country_id for %d rows.", backfilled)
+
+            # Remove computed_irt rows for predecessor states that Voeten
+            # already covers via a continuous successor-state series.
+            # Voeten uses "RUS" from 1946 (absorbing USSR's voting record)
+            # and "YUG" through 2025 (absorbing SCG/SRB).  Keeping both
+            # produces duplicate lines on the ideal-points graph.
+            # Only remove if the corresponding Voeten successor series actually
+            # exists in the DB (so a DB without Voeten data is unaffected).
+            # SUN (USSR) is intentionally kept as a separate series: Voeten
+            # assigns pre-1992 ideal points to RUS, but we store them under SUN
+            # so the graph shows a dashed USSR line ending in 1991 and a solid
+            # Russia line starting in 1992 (see import_voeten_ideal_points.py).
+            _SUPERSEDED_BY: list[tuple[str, str]] = [
+                ("SCG", "YUG"),  # Serbia and Montenegro superseded by Yugoslavia
+                ("SRB", "YUG"),  # Serbia superseded by Yugoslavia
+            ]
+            for predecessor, successor in _SUPERSEDED_BY:
+                has_successor = session.execute(
+                    text(
+                        "SELECT 1 FROM country_ideal_points ip "
+                        "JOIN countries c ON c.id = ip.country_id "
+                        "WHERE c.iso3 = :s AND ip.source = 'voeten_bsv2017' LIMIT 1"
+                    ),
+                    {"s": successor},
+                ).fetchone()
+                if not has_successor:
+                    continue
+                removed = session.execute(
+                    text(
+                        "DELETE FROM country_ideal_points ip "
+                        "USING countries c "
+                        "WHERE c.id = ip.country_id "
+                        "  AND c.iso3 = :p AND ip.source = 'computed_irt'"
+                    ),
+                    {"p": predecessor},
+                ).rowcount
+                if removed:
+                    log.info(
+                        "Removed %d computed_irt rows for %s "
+                        "(superseded by Voeten %s series).",
+                        removed, predecessor, successor,
+                    )
+
             log.info("Committed %d country-year ideal point rows.", total_rows)
         else:
             log.info("Dry run: would write %d rows (not committed).", total_rows)

@@ -69,34 +69,100 @@ _UPSERT_SQL = text(
 )
 
 # ---------------------------------------------------------------------------
-# UN-specific stop words (layered on top of sklearn's English set)
-# Words that appear in nearly every speech regardless of topic.
+# Stop words: English UN procedural, French, Spanish, Portuguese, OCR junk.
+# Layered on top of sklearn's built-in English set.
 # ---------------------------------------------------------------------------
 
-_UN_STOP_WORDS: frozenset[str] = frozenset(
-    [
-        # Titles / honorifics
-        "mr", "mrs", "ms", "dr", "sir", "madam", "excellency",
-        # Structural terms
-        "president", "chair", "chairman", "chairwoman", "chairperson",
-        "secretary", "general", "assembly", "council", "committee",
-        "delegation", "delegations", "representative", "representatives",
-        "speaker", "floor",
-        # Meeting / document terms
-        "meeting", "session", "agenda", "item", "document", "record",
-        "resolution", "draft", "paragraph", "article", "annex",
-        "amendment", "proposal", "text", "provisions",
-        # Common procedural phrases (single words)
-        "thank", "thanks", "noted", "note", "like", "also", "shall",
-        "would", "could", "may", "must", "indeed", "furthermore",
-        "therefore", "however", "regard", "regards", "concerning",
-        # Very common UN nouns that span all topics
-        "united", "nations", "international", "member", "state", "states",
-        "country", "countries", "government", "governments",
-        "organization", "organisations", "organizations",
-        "community", "cooperation", "global", "world",
-    ]
-)
+_UN_STOP_WORDS: frozenset[str] = frozenset([
+    # Titles / honorifics
+    "mr", "mrs", "ms", "dr", "sir", "madam", "excellency",
+    # Structural terms
+    "president", "chair", "chairman", "chairwoman", "chairperson",
+    "secretary", "general", "assembly", "council", "committee",
+    "delegation", "delegations", "representative", "representatives",
+    "speaker", "floor",
+    # Meeting / document terms
+    "meeting", "session", "agenda", "item", "document", "record",
+    "resolution", "draft", "paragraph", "article", "annex",
+    "amendment", "proposal", "text", "provisions",
+    # Common procedural phrases (single words)
+    "thank", "thanks", "noted", "note", "like", "also", "shall",
+    "would", "could", "may", "must", "indeed", "furthermore",
+    "therefore", "however", "regard", "regards", "concerning",
+    # Very common UN nouns that span all topics
+    "united", "nations", "international", "member", "state", "states",
+    "country", "countries", "government", "governments",
+    "organization", "organisations", "organizations",
+    "community", "cooperation", "global", "world",
+])
+
+# French stopwords (common in GA/SC records which include French originals
+# or exhibit OCR bleed-through from French parallel texts).
+_FRENCH_STOP_WORDS: frozenset[str] = frozenset([
+    # Articles / determiners (3+ chars only; 1-2 char ones handled by token_pattern)
+    "les", "des", "une", "aux", "ces", "mon", "mes", "ton", "tes",
+    "son", "ses", "nos", "vos", "leur", "leurs",
+    # Pronouns
+    "qui", "que", "quoi", "dont", "ils", "elles", "lui", "eux",
+    "vous", "nous", "elle",
+    # Prepositions / conjunctions / adverbs
+    "sur", "par", "avec", "mais", "donc", "lors", "plus", "bien",
+    "tres", "tout", "tous", "toute", "toutes", "comme", "puis",
+    "aussi", "apres", "avant", "depuis", "lors", "ici", "quand",
+    "comment", "pourquoi", "quel", "quelle", "quels", "quelles",
+    "selon", "entre", "vers", "sous", "sans", "pour", "dans", "lors",
+    "cela", "ceci", "cet", "cette",
+    # Auxiliary / common verbs
+    "est", "sont", "fait", "etait", "sera", "soit", "pas", "non",
+    "ont", "ete", "etre", "avoir", "etaient",
+    # UN-specific French phrases / words appearing as standalone tokens
+    "representant", "traduit", "anglais", "seance", "ordre",
+    "unies",        # "Nations Unies"
+    "urss",         # French acronym for USSR
+    "libre",        # "monde libre" etc.
+    "telles",       # "telles que"
+    "bujumbura",    # city name that leaked into a topic as boilerplate
+])
+
+# Spanish stopwords (GA documents include Spanish originals and some
+# OCR runs pick up Spanish section headers / footnotes).
+_SPANISH_STOP_WORDS: frozenset[str] = frozenset([
+    # Articles / determiners
+    "las", "los", "una", "unos", "unas", "del",
+    # Pronouns / determiners
+    "ese", "esa", "esos", "esas", "este", "esta", "estos", "estas",
+    # Prepositions / conjunctions / adverbs
+    "que", "por", "para", "con", "pero", "mas", "muy", "tan",
+    "asi", "ante", "bajo", "sobre", "entre", "hasta", "desde",
+    "hacia", "cuando", "donde", "porque", "aunque", "sino",
+    "tampon", "tampoco", "tambien",
+    # Common verbs
+    "son", "ser", "han", "hay", "fue", "era", "sido",
+    # UN-specific Spanish
+    "unidas",       # "Naciones Unidas"
+    "naciones",
+    "las",
+])
+
+# Portuguese stopwords (a smaller but non-trivial share of speeches).
+_PORTUGUESE_STOP_WORDS: frozenset[str] = frozenset([
+    "das", "dos", "uma", "uns", "umas", "que", "por", "para",
+    "com", "mas", "nem", "pois", "ainda", "mais", "muito", "bem",
+    "assim", "quando", "onde", "como", "porque", "dos", "nas",
+    "nos", "sua", "seu", "seus", "suas",
+])
+
+# OCR artifact tokens — garbage strings from old scanned PDFs that survive
+# the min_df threshold because they recur across many poorly-scanned documents.
+_OCR_JUNK: frozenset[str] = frozenset([
+    "tbe", "tbo", "tho", "tbis", "tbat", "tbey", "tbeir",
+    "tbere", "tbose", "tbrough", "aas", "bas", "bave", "been",
+    "tion", "ail", "nit", "tha",
+    # Short fragments from hyphenated line-breaks
+    "ant", "nio", "ent", "ctc", "ing", "pri",
+    # Voeten-dataset artefact bleeding in via loaded speeches
+    "aligns",
+])
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -230,14 +296,24 @@ def _fit_lda(
     from sklearn.decomposition import LatentDirichletAllocation
     from sklearn.feature_extraction.text import CountVectorizer
 
+    _all_stop_words = list(
+        frozenset(CountVectorizer(stop_words="english").get_stop_words())
+        | _UN_STOP_WORDS
+        | _FRENCH_STOP_WORDS
+        | _SPANISH_STOP_WORDS
+        | _PORTUGUESE_STOP_WORDS
+        | _OCR_JUNK
+    )
+
     log.info("Vectorising %d documents …", len(texts))
     vec = CountVectorizer(
         min_df=5,
         max_df=0.90,
-        stop_words=list(
-            frozenset(CountVectorizer(stop_words="english").get_stop_words())
-            | _UN_STOP_WORDS
-        ),
+        # Require at least 3 alphabetic characters per token; this eliminates
+        # 2-char French/Spanish function words (la, le, du, en, au, el, al)
+        # and OCR artifacts (ta, th, ai, pr, ii) without a manual list.
+        token_pattern=r"(?u)\b[a-z]{3,}\b",
+        stop_words=_all_stop_words,
         max_features=20_000,
         preprocessor=_clean,
     )

@@ -353,10 +353,19 @@ def _discover_file_id(doi: str) -> int | None:
         .get("latestVersion", {})
         .get("files", [])
     )
+    # Prefer an exact match; fall back to any .tab file whose name starts with
+    # "idealpointestimates" to handle Dataverse renames (e.g. the 2025 edition
+    # was renamed from "Idealpoints.tab" to "Idealpointestimates1946-2025.tab").
+    candidate = None
     for entry in files:
         fname = entry.get("dataFile", {}).get("filename", "")
         if fname.lower() == "idealpoints.tab":
             return entry["dataFile"]["id"]  # type: ignore[no-any-return]
+        if fname.lower().startswith("idealpointestimates") and fname.lower().endswith(".tab"):
+            candidate = entry["dataFile"]["id"]
+    if candidate is not None:
+        log.info("Using renamed ideal-points file (id=%d)", candidate)
+        return candidate
     log.warning("Idealpoints.tab not found in dataset %s (found: %s)", doi,
                 [e.get("dataFile", {}).get("filename") for e in files])
     return None
@@ -398,40 +407,59 @@ def _download_ideal_points(dest: Path, force: bool) -> bool:
 
 
 def _load_ideal_points(path: Path) -> list[dict[str, Any]]:
-    """Parse Idealpoints.tab and return list of {ccode, year, ideal_point, se, country}."""
+    """Parse Idealpoints.tab and return list of {ccode, iso3, year, ideal_point, se, country}.
+
+    Handles both the original BSV column layout (``Idealpoint`` / ``se``) and
+    the 2025 Dataverse edition (``IdealPointFP`` with quantile columns, plus
+    an ``iso3c`` field that can be used directly for matching).
+    """
     rows = []
     with path.open(newline="", encoding="utf-8-sig") as fh:
-        # The file uses tabs as delimiters; Python csv handles both tab and comma.
         dialect = "excel-tab" if "\t" in fh.readline() else "excel"
         fh.seek(0)
         reader = csv.DictReader(fh, dialect=dialect)
         for row in reader:
-            # Normalise column name variants across BSV dataset versions
+            # Ideal point — try column name variants across dataset editions
             ideal_raw = (
                 row.get("Idealpoint")
                 or row.get("IdealPoint")
                 or row.get("idealpoint")
+                or row.get("IdealPointFP")  # 2025 edition
                 or ""
-            ).strip()
+            ).strip().strip('"')
+
+            # SE — direct column or derived from 90 % CI quantiles (Q5/Q95)
             se_raw = (row.get("se") or row.get("SE") or "").strip()
-            year_raw = (row.get("year") or row.get("Year") or "").strip()
-            ccode_raw = (row.get("ccode") or row.get("Ccode") or "").strip()
+            if not se_raw:
+                q5  = row.get("Q5%FP",  "").strip().strip('"')
+                q95 = row.get("Q95%FP", "").strip().strip('"')
+                if q5 and q95:
+                    try:
+                        se_raw = str((float(q95) - float(q5)) / (2 * 1.645))
+                    except ValueError:
+                        pass
+
+            year_raw   = (row.get("year")    or row.get("Year")    or "").strip()
+            ccode_raw  = (row.get("ccode")   or row.get("Ccode")   or "").strip()
+            iso3_raw   = (row.get("iso3c")   or row.get("iso3")    or "").strip().strip('"')
             country_raw = (
-                row.get("Country")
+                row.get("Countryname")
+                or row.get("Country")
                 or row.get("country")
                 or row.get("countryname")
                 or ""
-            ).strip()
+            ).strip().strip('"')
 
             if not ideal_raw or not year_raw:
                 continue
             try:
                 rows.append({
-                    "ccode": int(ccode_raw) if ccode_raw.isdigit() else None,
-                    "year": int(year_raw),
+                    "ccode":       int(ccode_raw) if ccode_raw.isdigit() else None,
+                    "iso3":        iso3_raw.upper() if iso3_raw else None,
+                    "year":        int(year_raw),
                     "ideal_point": float(ideal_raw),
-                    "se": float(se_raw) if se_raw else None,
-                    "country": country_raw,
+                    "se":          float(se_raw) if se_raw else None,
+                    "country":     country_raw,
                 })
             except ValueError:
                 continue
@@ -467,7 +495,12 @@ def _resolve_iso3(
     ccode: int | None,
     country: str,
     name_to_iso3: dict[str, str],
+    iso3_hint: str | None = None,
 ) -> str | None:
+    # 0. Direct iso3 from file (2025 edition includes iso3c column)
+    if iso3_hint:
+        return iso3_hint.upper()
+
     # 1. Direct COW lookup
     if ccode is not None:
         iso3 = _COW_TO_ISO3.get(ccode)
@@ -517,11 +550,18 @@ def import_voeten_ideal_points(
 
     with get_session(engine) as session:
         for row in rows:
-            iso3 = _resolve_iso3(row["ccode"], row["country"], name_to_iso3)
+            iso3 = _resolve_iso3(row["ccode"], row["country"], name_to_iso3, row.get("iso3"))
             if iso3 is None:
                 unmatched.append((row["ccode"], row["country"]))
                 skipped += 1
                 continue
+
+            # Voeten assigns Russia (RUS) from 1946, treating it as a continuous
+            # USSR successor.  For display purposes we want USSR (SUN) to appear
+            # as a separate series up to 1991 and Russia from 1992 onward, matching
+            # the old unproject database and the p5_divergence template expectation.
+            if iso3 == "RUS" and row["year"] <= 1991:
+                iso3 = "SUN"
 
             country_id = iso3_to_country_id.get(iso3.upper())
 
@@ -565,6 +605,47 @@ def import_voeten_ideal_points(
 
     if not dry_run:
         with get_session(engine) as session:
+            # Remove any pre-1992 RUS voeten_bsv2017 rows that are now stored
+            # under SUN.  These can exist if the DB was populated by an older
+            # version of this script (before the USSR/Russia split was added).
+            removed = session.execute(
+                text(
+                    """
+                    DELETE FROM country_ideal_points ip
+                    USING countries c
+                    WHERE c.id = ip.country_id
+                      AND c.iso3 = 'RUS'
+                      AND ip.source = 'voeten_bsv2017'
+                      AND ip.year <= 1991
+                    """
+                )
+            ).rowcount
+            if removed:
+                log.info(
+                    "Removed %d pre-1992 RUS voeten_bsv2017 rows "
+                    "(now stored under SUN).",
+                    removed,
+                )
+            session.commit()
+
+        with get_session(engine) as session:
+            # Backfill any NULL country_id rows (can occur if country cleanup ran
+            # after this script, or if iso3 wasn't matched at import time).
+            backfilled = session.execute(
+                text(
+                    """
+                    UPDATE country_ideal_points ip
+                    SET country_id = c.id
+                    FROM countries c
+                    WHERE c.iso3 = ip.iso3
+                      AND ip.country_id IS NULL
+                    """
+                )
+            ).rowcount
+            if backfilled:
+                log.info("Backfilled country_id for %d rows.", backfilled)
+            session.commit()
+
             stats = session.execute(
                 text(
                     """

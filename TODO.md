@@ -11,6 +11,22 @@ Open tasks and known limitations for the un-extractor pipeline.
   an image and calling Claude Vision to extract text directly.  Claude handles
   two-column layout natively.  Trigger only as a last resort (expensive: ~$0.01/page).
 
+- [ ] **Vision-based failed-vote extraction for pre-1980 documents** — Pre-1980 verbatim
+  records often print per-country vote breakdowns in page-bottom footnotes rather than
+  inline, and these footnotes frequently span two pages.  `column_boxes()` silently drops
+  footnote regions, so rule-based extraction misses them entirely; superscript-to-footnote
+  association is also unreliable in PyMuPDF's block structure for scanned documents.
+  A vision model sees the layout as a human does (horizontal rule, smaller font, superscript
+  reference, list continuation on the next page) and can extract the full country list as
+  structured JSON matching the `CountryVote` schema.  Approach: (1) identify meetings
+  where a recorded-vote or not-adopted marker was found but no `country_votes` rows were
+  extracted, (2) render those pages at ~150 DPI, (3) feed to Claude with a structured
+  extraction prompt.  The pre-1980 GA corpus is ~1,000–1,500 PDFs so targeted coverage
+  is well under $500 even at $0.01/page.  The earliest documents (1940s–early 1950s)
+  recorded many votes only as "adopted by acclamation" with no country breakdown at all —
+  vision cannot recover data that was never recorded.  Develop alongside the
+  failed-vote regex work (see Database section).
+
 - [ ] **Multi-language PDF support** — The UN publishes verbatim records in all six
   official languages (AR, ZH, EN, FR, RU, ES).  Processing non-English PDFs would
   multiply coverage roughly 6×.  Requires language-aware speaker attribution patterns
@@ -49,6 +65,17 @@ Open tasks and known limitations for the un-extractor pipeline.
 
 ## Database
 
+- [ ] **Failed-vote extraction** — `vote_extractor.py` only matches `"was adopted"`;
+  draft resolutions that fail a recorded vote (`"was not adopted"`, `"has not been adopted"`)
+  are silently dropped.  Steps: (1) expand `_ADOPTION_RE` to also match the not-adopted
+  variants, (2) add an `adopted: bool` field to the `Resolution` Pydantic model and the
+  `votes` DB table, (3) set `adopted=False` when the failure branch matches — country-vote
+  extraction is unchanged since the In favour/Against/Abstaining block structure is
+  identical.  Footnote-based vote records in pre-1980 documents (where the per-country
+  breakdown is printed as a page-bottom footnote rather than inline) are a separate, harder
+  problem: they require detecting footnote blocks by y-coordinate and font size after
+  `column_boxes()` extraction, then matching superscript reference numbers to their labels.
+
 - [ ] **Amendment table population** — `src/db/models.py` defines the `amendments` table
   but `import_json_to_db.py` does not populate it yet. ~40 % of amendment-related stage
   directions have no document symbol (oral amendments, context-dependent references), so
@@ -82,6 +109,40 @@ Open tasks and known limitations for the un-extractor pipeline.
   sponsors.  Store in a `country_network_stats (country_id, year, pagerank,
   betweenness)` table alongside the ideal points.  The `resolution_sponsors` table
   already has all the edges needed.
+
+- [ ] **`speech_vote_links` bridge table** — Materialize the speech→vote pairing that is
+  currently only expressible as a multi-condition join (`item_id` + `position_in_item` +
+  `country_id`).  Schema:
+  `speech_vote_links (speech_id, vote_id, country_id, link_type)` where `link_type` is
+  one of `pre_vote` (speech precedes the vote in the same item), `explanation_of_vote`
+  (speech follows the vote), or `mention` (speech explicitly names the resolution symbol
+  via `speech_resolution_mentions`).  Populate with a script analogous to
+  `tag_speech_types.py`; re-run after any new import.  Enables direct joining of speech
+  text / sentiment with `country_votes.vote_position` without reconstructing meeting flow
+  each time.  Coverage is limited to GA/SC verbatim records (extracted PDFs); the SC
+  Debates corpus and GA General Debate speeches connect to votes only via `mention` links.
+
+- [ ] **Text-augmented issue-specific ideal points** — Standard IRT ideal points are
+  estimated from final-passage votes across all issues; per-issue subsets (Palestine,
+  nuclear, human rights, etc.) typically yield too few votes for reliable country
+  separation, especially within blocs that vote uniformly.  The primary text source is
+  **General Debate and pre-vote substantive debate speeches**: both are unconstrained by
+  vote outcomes and show real positional variation within blocs.  Explanation-of-vote
+  speeches are downstream of a committed vote and do not add within-bloc differentiation
+  (a "reluctant yes" and an "enthusiastic yes" are identical IRT inputs); the narrow
+  exception is abstentions, where speech text can clarify which side of the midpoint a
+  country leans toward.  Within the ~130 countries voting yes on Palestine resolutions,
+  their September General Debate speeches vary substantially in emphasis, specific demands,
+  and floor time — that is real positional signal.  Proposed approach: (1) for each
+  Voeten issue cluster (`issue_me`, `issue_nu`, `issue_co`, `issue_hr`, `issue_ec`,
+  `issue_di`), use vote outcomes as anchor labels; (2) embed General Debate and pre-vote
+  debate speeches (Claude embeddings or direct API scoring) and regress onto vote labels
+  to produce continuous position scores, calibrated within-session to handle
+  context-dependent language; (3) apply to sessions and countries with no or few votes on
+  the issue.  Validation challenge: within-sample fit against vote labels is circular;
+  external validators to consider include bilateral voting alignment in other forums, arms
+  transfers, diplomatic recognition, or whether text-derived scores predict future votes
+  better than past votes alone.
 
 - [ ] **Resolution passage predictor** — Extend `compute_vote_predictions.py` to output
   a resolution-level forecast: probability of adoption, expected yes/no/abstain shares,
